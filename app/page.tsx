@@ -14,8 +14,8 @@ type Room = { room: number; choice: Choice; success: boolean; damage: number; re
 const fallback: Market = {
   marketId: '0x0000000000000000000000000000000000000000000000000000000000001b33',
   marketAddress: '', poolAddress: '', collateral: '', question: 'BTC closes at or above its opening price',
-  strikeUsd: '78,953.25', expiry: String(Math.floor(Date.now() / 1000) + 540),
-  expiryIso: new Date(Date.now() + 540_000).toISOString(), status: 'CONNECTING', finalized: false, voided: false, winningOutcome: null,
+  strikeUsd: '78,953.25', expiry: '0',
+  expiryIso: '1970-01-01T00:00:00.000Z', status: 'CONNECTING', finalized: false, voided: false, winningOutcome: null,
 };
 
 function seededRoll(seed: string) {
@@ -108,7 +108,7 @@ export default function Home() {
         <div className="eyebrow">EXPEDITION {rooms.length + 1 < 10 ? `0${rooms.length + 1}` : rooms.length + 1} · THE ORACLE BELOW</div>
         <div className="hero-row">
           <div><h1>{title}<br /><em>{outline}</em></h1><p className="lede">A 15-minute roguelite where the market decides the final blow.</p></div>
-          <div className="countdown-block"><span>GATE CLOSES IN</span><strong>{formatTime(remaining)}</strong><small>{new Date(market.expiryIso).toLocaleTimeString([], { hour:'2-digit', minute:'2-digit', timeZone:'UTC' })} UTC</small></div>
+          <div className="countdown-block"><span>GATE CLOSES IN</span><strong>{formatTime(remaining)}</strong><small>{new Date(market.expiryIso).toLocaleTimeString('en-GB', { hour:'2-digit', minute:'2-digit', hourCycle:'h23', timeZone:'UTC' })} UTC</small></div>
         </div>
 
         <div className="game-grid">
