@@ -121,6 +121,8 @@ button { font: inherit; }
 .room-map span.active { background: var(--orange); color: #090909; box-shadow: 0 0 14px rgba(249, 115, 22, .55); }
 .room-map span.done { background: #065f46; color: #d1fae5; }
 .boss-card .room-map span.active { background: #8b5cf6; color: white; box-shadow: 0 0 14px rgba(139, 92, 246, .6); }
+.ten-room-map { left: 12px; right: 12px; justify-content: space-between; gap: 3px; }
+.ten-room-map span { width: 21px; height: 21px; font-size: 7px; }
 
 .monster-info { position: relative; padding: 4px 20px 22px; }
 .boss-label { margin: 0 0 7px; color: #c084fc; font-size: 10px; font-weight: 900; letter-spacing: .25em; }
@@ -152,6 +154,14 @@ button { font: inherit; }
 .waiting-actions b, .waiting-actions small { display: block; }
 .waiting-actions b { font-size: 9px; }
 .waiting-actions small { margin-top: 4px; color: #a78bfa; font-size: 7px; line-height: 1.25; }
+
+.supply-actions { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; width: 100%; margin-top: 20px; }
+.supply-actions button { min-width: 0; padding: 14px 10px; background: rgba(9, 9, 11, .48); border: 1px solid var(--line-strong); border-radius: 10px; color: white; text-align: left; cursor: pointer; }
+.supply-actions button:hover:not(:disabled) { border-color: var(--orange); background: rgba(124, 45, 18, .28); }
+.supply-actions button:disabled { opacity: .42; cursor: not-allowed; }
+.supply-actions b, .supply-actions small { display: block; }
+.supply-actions b { font-size: 10px; }
+.supply-actions small { margin-top: 5px; color: var(--muted); font-size: 8px; line-height: 1.35; }
 
 .result-view { min-height: 430px; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 34px 24px; text-align: center; }
 .result-icon { font-size: 72px; }
@@ -204,9 +214,11 @@ footer span { display: block; margin-top: 6px; color: #303035; font-size: 8px; l
 }
 
 @media (max-width: 360px) {
-  .prediction-buttons, .rule-grid, .combat-actions { grid-template-columns: 1fr; }
+  .prediction-buttons, .rule-grid, .combat-actions, .supply-actions { grid-template-columns: 1fr; }
   .sticky-hud > div { padding-inline: 8px; }
   .sticky-hud strong { font-size: 10px; }
+  .ten-room-map { gap: 2px; padding-inline: 4px; }
+  .ten-room-map span { width: 19px; height: 19px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

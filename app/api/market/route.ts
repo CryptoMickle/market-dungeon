@@ -39,12 +39,20 @@ export async function GET(request: Request) {
       Market(where: {
         marketType: {_eq: "BINARY"}, asset: {_eq: "BTC"}, intervalSec: {_eq: "900"},
         tradingStart: {_lte: $now}, expiry: {_gt: $now}, clobStatus: {_in: ["Listed", "Trading"]}
-      }, order_by: {expiry: asc}, limit: 1) {
+      }, order_by: {expiry: asc}, limit: 8) {
         marketId marketAddress poolAddress collateral asset question strike tradingStart expiry
         status: clobStatus intervalSec quoteDecimals yesTokenId noTokenId winningOutcome payoutNumerators payoutDenominator voided finalized lastPrice
       }
     }`, { now });
-    const market = (data.Market as Array<Record<string, unknown>>)?.[0];
+    const candidates = (data.Market as Array<Record<string, unknown>>) ?? [];
+    const idealRemaining = 13 * 60;
+    const market = [...candidates].sort((left, right) => {
+      const leftRemaining = Number(left.expiry) - Number(now);
+      const rightRemaining = Number(right.expiry) - Number(now);
+      const leftPenalty = leftRemaining >= 10 * 60 ? Math.abs(leftRemaining - idealRemaining) : 10_000 + Math.abs(leftRemaining - idealRemaining);
+      const rightPenalty = rightRemaining >= 10 * 60 ? Math.abs(rightRemaining - idealRemaining) : 10_000 + Math.abs(rightRemaining - idealRemaining);
+      return leftPenalty - rightPenalty;
+    })[0];
     if (!market) return Response.json({ error: 'No active BTC 15m market' }, { status: 404 });
 
     let strikeRaw = String(market.strike ?? '0');
