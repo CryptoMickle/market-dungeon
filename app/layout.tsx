@@ -13,6 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL('https://market-dungeon.vtalityinnovation.chatgpt.site'),
   title: 'Market Dungeon — Your Call. Your Fate.',
   description: 'A 15-minute market roguelite powered by dreamDEX Event Contracts on Somnia.',
   openGraph: {
