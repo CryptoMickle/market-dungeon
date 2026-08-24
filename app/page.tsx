@@ -401,7 +401,7 @@ export default function Home() {
                 <div><span>🎒</span><b>ROOM 5 MERCHANT</b><small>Heal, restock and upgrade with Kevin</small></div>
                 <div><span>🔮</span><b>DREAMDEX SETTLEMENT</b><small>Live result modifies the final chest only</small></div>
               </div>
-              <div className="competition-note"><b>Competition path:</b> consumer-facing Event Contract experience. Somnia Agents are an optional track, not a requirement—and are not faked in this prototype.</div>
+              <div className="competition-note">Built for the Somnia × dreamDEX Event Contracts Hackathon.</div>
             </div>
           ) : phase === 'MERCHANT' ? (
             <div className="merchant-view">
