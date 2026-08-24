@@ -22,43 +22,12 @@ body { margin: 0; background: var(--background); color: var(--text); font-family
 button { font: inherit; }
 
 .gold-icon {
-  position: relative;
   display: inline-block;
   width: 1em;
   height: 1em;
-  vertical-align: -.11em;
-  border: .075em solid #fde68a;
-  border-radius: 50%;
-  background:
-    radial-gradient(circle at 34% 25%, rgba(255, 255, 255, .95) 0 4%, transparent 5%),
-    radial-gradient(circle at 38% 30%, #fff4a3 0 7%, #facc15 28%, #d88908 62%, #8f3f08 100%);
-  box-shadow:
-    inset .07em .07em .1em rgba(255, 248, 180, .8),
-    inset -.1em -.11em .13em rgba(92, 36, 5, .7),
-    0 .07em .1em rgba(0, 0, 0, .48),
-    0 0 .22em rgba(250, 204, 21, .32);
-}
-
-.gold-icon::before {
-  content: "";
-  position: absolute;
-  inset: 13%;
-  border: .065em solid rgba(120, 53, 15, .72);
-  border-radius: 50%;
-  box-shadow: 0 0 0 .035em rgba(254, 240, 138, .5);
-}
-
-.gold-icon::after {
-  content: "◆";
-  position: absolute;
-  inset: 0;
-  display: grid;
-  place-items: center;
-  color: #9a4707;
-  font-family: Georgia, serif;
-  font-size: .43em;
-  line-height: 1;
-  text-shadow: 0 .04em 0 rgba(255, 244, 163, .7);
+  vertical-align: -.14em;
+  background: url('/assets/delveworn-gold-coin.webp') center / contain no-repeat;
+  filter: drop-shadow(0 .07em .08em rgba(0, 0, 0, .55));
 }
 
 .game-shell {
