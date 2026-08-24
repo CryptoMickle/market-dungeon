@@ -166,6 +166,8 @@ export default function Home() {
   const combatPotionLimit = isBoss ? 3 : 2;
   const marketReady = market.status !== 'CONNECTING' && market.marketId !== fallback.marketId && remaining > 0;
   const expiryLabel = useMemo(() => gateTime(market.expiryIso), [market.expiryIso]);
+  const omenName = direction === 'UP' ? 'GOLD AWAKENS' : 'SHADOWS RISE';
+  const omenIcon = direction === 'UP' ? '🪙' : '🌑';
 
   const subtitle = phase === 'SETUP'
     ? 'The complete Delveworn loop, powered by a live Event Contract.'
@@ -175,7 +177,7 @@ export default function Home() {
         ? 'The dungeon is complete. Final loot awaits settlement.'
         : phase === 'VICTORY'
           ? 'Expedition complete.'
-          : `Room ${room + 1} of ${TOTAL_ROOMS} · ${monster.species} · BTC ${direction}`;
+          : `Room ${room + 1} of ${TOTAL_ROOMS} · ${monster.species} · ${omenName} · BTC ${direction}`;
 
   function addLog(message: string) {
     setCombatLog((previous) => [message, ...previous].slice(0, 10));
@@ -187,8 +189,8 @@ export default function Home() {
     setHp(100); setMonsterHp(nextRoster[0].hp); setPotions(3); setGold(0); setWeapon(1); setArmor(0);
     setCombatPotionUses(0); setBandageUsed(false); setMerchantPotions(2); setWeaponSold(false); setArmorSold(false);
     setOracleChecks(0); setOracleResult(null); setOracleBusy(false); oracleBusyRef.current = false; setLastReward('');
-    setCombatLog([`BTC ${direction} recorded against live dreamDEX market #${market.marketId.slice(-4).toUpperCase()}. No order was sent.`]);
-    setNotice(`${direction} RECORDED · DELVEWORN RUN STARTED`);
+    setCombatLog([`${omenName} recorded: BTC ${direction} against live dreamDEX market #${market.marketId.slice(-4).toUpperCase()}. No order was sent.`]);
+    setNotice(`${omenName} · DELVEWORN RUN STARTED`);
   }
 
   function incomingDamage(action: Action, nextTurn: number) {
@@ -308,10 +310,10 @@ export default function Home() {
       const won = Number(result.winningOutcome) === (direction === 'UP' ? 0 : 1);
       if (won) {
         setOracleResult('BLESSED'); setGold((value) => value + 50); setPhase('VICTORY'); setNotice('EVENT CONTRACT WON · +50 GOLD');
-        addLog(`BTC ${direction} settled correctly. dreamDEX adds a 50 gold blessing to the final chest.`);
+        addLog(`${omenName} was foretold correctly. dreamDEX adds a 50 gold blessing to the final chest.`);
       } else {
         setOracleResult('CURSED'); setGold((value) => Math.max(0, value - 20)); setPhase('VICTORY'); setNotice('EVENT CONTRACT LOST · RUN STILL COMPLETE');
-        addLog(`BTC ${direction} missed. The Delveworn run still counts; the final chest loses 20 gold.`);
+        addLog(`${omenName} was foretold incorrectly. The Delveworn run still counts; the final chest loses 20 gold.`);
       }
     } catch {
       setNotice(automatic ? 'SETTLEMENT FEED RETRYING IN 5S' : 'SETTLEMENT FEED UNAVAILABLE · AUTO-RETRY ARMED');
@@ -345,9 +347,9 @@ export default function Home() {
 
   const resultHeading = oracleResult === 'BLESSED' ? 'Market-blessed victory.' : oracleResult === 'CURSED' ? 'Victory, with market damage.' : 'Dungeon conquered.';
   const resultCopy = oracleResult === 'BLESSED'
-    ? `BTC ${direction} added 50 gold to the completed Delveworn run.`
+    ? `${omenName} was correct: BTC ${direction} added 50 gold to the completed Delveworn run.`
     : oracleResult === 'CURSED'
-      ? `BTC ${direction} missed. The run still counts; only the final chest changed.`
+      ? `${omenName} was wrong: BTC ${direction} missed. The run still counts; only the final chest changed.`
       : 'The Event Contract was voided, so the run kept its base rewards.';
 
   return (
@@ -364,7 +366,7 @@ export default function Home() {
           <div><span>BTC · 15 MIN</span><strong>{market.status}</strong></div>
           <div><span>LINE</span><strong>${market.strikeUsd}</strong></div>
           <div><span>EXPIRY</span><strong>{formatTime(remaining)}</strong><small>{expiryLabel} UTC</small></div>
-          <div><span>CALL</span><strong className={direction === 'UP' ? 'text-up' : 'text-down'}>{direction === 'UP' ? '↗ UP' : '↘ DOWN'}</strong></div>
+          <div><span>DUNGEON OMEN</span><strong className={direction === 'UP' ? 'text-up' : 'text-down'}>{omenIcon} {omenName}</strong><small>BTC {direction}</small></div>
         </section>
 
         {phase !== 'SETUP' && (
@@ -373,7 +375,7 @@ export default function Home() {
             <div><span>POTIONS</span><strong>🧪 {potions}/{MAX_POTIONS}</strong></div>
             <div><span>GOLD</span><strong>🪙 {gold}</strong></div>
             <div className="hud-wide"><span>LOADOUT</span><strong>⚔️ Lv {weapon} · 🛡️ Lv {armor}</strong></div>
-            <div className="hud-wide"><span>EXPEDITION</span><strong>{roomsCleared}/{TOTAL_ROOMS} · BTC {direction}</strong></div>
+            <div className="hud-wide"><span>EXPEDITION</span><strong>{roomsCleared}/{TOTAL_ROOMS} · {omenIcon} {omenName}</strong></div>
           </section>
         )}
 
@@ -385,14 +387,14 @@ export default function Home() {
                 <img className="front" src="/monsters/goblin-1-gary.png" alt="" />
                 <img src="/monsters/orc-1-thud.png" alt="" />
               </div>
-              <p className="section-kicker">THE REAL DELVEWORN LOOP · ONE LIVE MARKET</p>
+              <p className="section-kicker">THE REAL DELVEWORN LOOP · THE BITCOIN HOARD</p>
               <h2>Fight first. Settle after Room 10.</h2>
-              <p className="muted">Zombies, goblins, orcs, loot, healing and Quartermaster Kevin play exactly where they belong. A live dreamDEX BTC Event Contract changes only the final chest.</p>
+              <p className="muted">Zombies, goblins, orcs, loot, healing and Quartermaster Kevin play exactly where they belong. Read the Bitcoin omen before entering; the live dreamDEX result changes only the final hoard.</p>
               <div className="prediction-card">
-                <span>LIVE EVENT CONTRACT · MARKET #{marketCode || '—'}</span><strong>${market.strikeUsd}</strong><p>{market.question}</p>
+                <span>CHOOSE THE FATE OF THE HOARD · MARKET #{marketCode || '—'}</span><strong>${market.strikeUsd}</strong><p>{market.question}</p>
                 <div className="prediction-buttons">
-                  <button className={direction === 'UP' ? 'up selected' : 'up'} onClick={() => setDirection('UP')}><b>↗ UP</b><small>BTC finishes at or above the line</small></button>
-                  <button className={direction === 'DOWN' ? 'down selected' : 'down'} onClick={() => setDirection('DOWN')}><b>↘ DOWN</b><small>BTC finishes below the line</small></button>
+                  <button className={direction === 'UP' ? 'up selected' : 'up'} onClick={() => setDirection('UP')}><b>🪙 GOLD AWAKENS</b><small>BTC UP · finishes at or above the line</small></button>
+                  <button className={direction === 'DOWN' ? 'down selected' : 'down'} onClick={() => setDirection('DOWN')}><b>🌑 SHADOWS RISE</b><small>BTC DOWN · finishes below the line</small></button>
                 </div>
               </div>
               <div className="rule-grid">
@@ -456,7 +458,7 @@ export default function Home() {
                 <div className="enemy-stats"><div><span>ENEMY DAMAGE</span><strong>💥 {monster.minDamage}–{monster.maxDamage}</strong></div><div><span>BASE REWARD</span><strong>🪙 {monster.reward}</strong></div></div>
                 {phase === 'ORACLE' && <div className="oracle-lock">
                   <div className="oracle-status"><span>🔮 LIVE DREAMDEX SETTLEMENT</span><strong>{remaining > 0 ? formatTime(remaining) : oracleBusy ? 'READING…' : `${oracleChecks} CHECK${oracleChecks === 1 ? '' : 'S'}`}</strong><small>The boss is dead and the run is complete. Only the final chest modifier is pending.</small></div>
-                  <div className="integration-proof"><span>SOMNIA CHAIN 5031</span><span>MARKET #{marketCode}</span><span>READ-ONLY ETH_CALL</span></div>
+                  <div className="integration-proof"><span>SOMNIA CHAIN 5031</span><span>MARKET #{marketCode}</span><span>READ-ONLY CHAIN CALL</span></div>
                 </div>}
               </div>
             </div>
@@ -465,7 +467,7 @@ export default function Home() {
 
         <section className="action-dock">
           {phase === 'SETUP' ? (
-            <button className="primary-action" onClick={startRun} disabled={!marketReady}>{marketReady ? `ENTER DELVEWORN · BTC ${direction}` : 'WAITING FOR ACTIVE BTC MARKET…'}</button>
+            <button className="primary-action" onClick={startRun} disabled={!marketReady}>{marketReady ? `ENTER DELVEWORN · ${omenIcon} ${omenName}` : 'WAITING FOR ACTIVE BTC MARKET…'}</button>
           ) : phase === 'COMBAT' ? (
             <>
               <div className="combat-actions">
