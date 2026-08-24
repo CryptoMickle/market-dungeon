@@ -71,16 +71,31 @@ function seededRoll(seed: string) {
   return hashSeed(seed) / 4294967295;
 }
 
-function buildRoster(marketId: string, direction: Direction): Monster[] {
-  const offset = hashSeed(`${marketId}:${direction}`);
+function getRegularTier(roomNumber: number) {
+  if (roomNumber <= 9) return 0;
+  if (roomNumber <= 19) return 1;
+  if (roomNumber <= 29) return 2;
+  return 3;
+}
+
+function getBossTier(roomNumber: number) {
+  if (roomNumber <= 10) return 0;
+  if (roomNumber <= 20) return 1;
+  if (roomNumber <= 30) return 2;
+  return 3;
+}
+
+function buildRoster(chapterStartRoom = 1): Monster[] {
   const sequence: Array<typeof zombies> = [zombies, goblins, orcs, zombies, goblins, orcs, zombies, goblins, orcs];
   const regulars = sequence.map((group, index) => {
-    const persona = group[(offset + index) % group.length];
-    const scale = Math.floor(index / 3);
-    return { ...persona, room: index + 1, hp: persona.baseHp + scale * 5, minDamage: persona.minDamage + Math.floor(scale / 2), maxDamage: persona.maxDamage + scale };
+    const roomNumber = chapterStartRoom + index;
+    const tier = getRegularTier(roomNumber);
+    const persona = group[tier];
+    return { ...persona, room: roomNumber, hp: persona.baseHp, minDamage: persona.minDamage, maxDamage: persona.maxDamage };
   });
-  const boss = bosses[offset % bosses.length];
-  return [...regulars, { ...boss, room: 10, hp: boss.baseHp }];
+  const bossRoom = chapterStartRoom + 9;
+  const boss = bosses[getBossTier(bossRoom)];
+  return [...regulars, { ...boss, room: bossRoom, hp: boss.baseHp }];
 }
 
 function formatTime(seconds: number) {
@@ -96,7 +111,7 @@ export default function Home() {
   const [market, setMarket] = useState<Market>(fallback);
   const [direction, setDirection] = useState<Direction>('UP');
   const [phase, setPhase] = useState<Phase>('SETUP');
-  const [roster, setRoster] = useState<Monster[]>(() => buildRoster(fallback.marketId, 'UP'));
+  const [roster, setRoster] = useState<Monster[]>(() => buildRoster());
   const [room, setRoom] = useState(0);
   const [turn, setTurn] = useState(0);
   const [hp, setHp] = useState(100);
@@ -167,7 +182,7 @@ export default function Home() {
   }
 
   function startRun() {
-    const nextRoster = buildRoster(market.marketId, direction);
+    const nextRoster = buildRoster();
     setRoster(nextRoster); setRoom(0); setTurn(0); setPhase('COMBAT');
     setHp(100); setMonsterHp(nextRoster[0].hp); setPotions(3); setGold(0); setWeapon(1); setArmor(0);
     setCombatPotionUses(0); setBandageUsed(false); setMerchantPotions(2); setWeaponSold(false); setArmorSold(false);
@@ -320,7 +335,7 @@ export default function Home() {
   }, [phase, remaining > 0, market.marketId, direction]);
 
   function reset() {
-    const nextRoster = buildRoster(market.marketId, direction);
+    const nextRoster = buildRoster();
     setRoster(nextRoster); setPhase('SETUP'); setRoom(0); setTurn(0); setHp(100); setMonsterHp(nextRoster[0].hp);
     setPotions(3); setGold(0); setWeapon(1); setArmor(0); setCombatPotionUses(0); setCombatLog([]); setLastReward('');
     setBandageUsed(false); setMerchantPotions(2); setWeaponSold(false); setArmorSold(false);
@@ -421,14 +436,16 @@ export default function Home() {
             </div>
           ) : (
             <div className="combat-view">
-              <div className="monster-stage">
-                <img src={monster.image} alt={monster.name} /><div className="stage-fade" />
+              <div className="room-progress">
                 <div className="room-map ten-room-map" aria-label="Dungeon progress">
                   {Array.from({ length: TOTAL_ROOMS }, (_, index) => {
                     const done = index < room || (index === room && currentRoomCleared);
                     return <span key={index} className={done ? 'done' : index === room ? 'active' : ''}>{index === TOTAL_ROOMS - 1 ? '◆' : index + 1}</span>;
                   })}
                 </div>
+              </div>
+              <div className="monster-stage">
+                <img src={monster.image} alt={monster.name} /><div className="stage-fade" />
               </div>
               <div className="monster-info">
                 {isBoss && <p className="boss-label">👑 DUNGEON MANAGEMENT</p>}
