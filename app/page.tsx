@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 type Direction = 'UP' | 'DOWN';
 type Action = 'attack' | 'storm' | 'potion';
@@ -75,6 +75,10 @@ export default function Home() {
   const [remaining, setRemaining] = useState(0);
   const [notice, setNotice] = useState('LIVE MARKET · READ ONLY');
   const [combatLog, setCombatLog] = useState<string[]>([]);
+  const [oracleBusy, setOracleBusy] = useState(false);
+  const [oracleChecks, setOracleChecks] = useState(0);
+  const [preparations, setPreparations] = useState<string[]>([]);
+  const oracleBusyRef = useRef(false);
 
   useEffect(() => {
     fetch('/api/market').then((response) => response.json()).then((data) => {
@@ -112,6 +116,7 @@ export default function Home() {
   function startRun() {
     setPhase('COMBAT'); setRoom(0); setTurn(0); setHp(100); setMonsterHp(monsters[0].hp);
     setPotions(3); setGold(0); setWeapon(1); setArmor(0);
+    setOracleChecks(0); setPreparations([]); setOracleBusy(false); oracleBusyRef.current = false;
     setCombatLog([`BTC ${direction} locked for this expedition. No order was sent.`]);
     setNotice(`${direction} LOCKED · GAMEPLAY ONLY`);
   }
@@ -180,15 +185,19 @@ export default function Home() {
     addLog(`The gate opens. Room ${next + 1} is regrettably occupied.`);
   }
 
-  async function checkSettlement() {
-    setNotice('CHECKING DREAMDEX SETTLEMENT…');
+  async function checkSettlement(automatic = false) {
+    if (oracleBusyRef.current || phase !== 'ORACLE') return;
+    oracleBusyRef.current = true;
+    setOracleBusy(true);
+    setOracleChecks((value) => value + 1);
+    setNotice(automatic ? 'ORACLE AUTO-CHECK IN PROGRESS…' : 'CHECKING DREAMDEX SETTLEMENT…');
     try {
       const response = await fetch(`/api/market?marketId=${market.marketId}`);
       const data = await response.json();
       const result = data.market as Market;
       if (!result?.finalized && !result?.voided) {
-        setNotice('ORACLE PENDING · THE BOSS REMAINS AT 1 HP');
-        addLog('Settlement is not final yet. The dungeon is forced to practice patience.');
+        setNotice(remaining > 0 ? 'ORACLE ARMED · AUTO-CHECK STARTS AT EXPIRY' : 'ORACLE PENDING · NEXT AUTO-CHECK IN 5S');
+        if (!automatic) addLog('Settlement is not final yet. Automatic checks will continue after expiry.');
         return;
       }
       if (result.voided) {
@@ -205,12 +214,50 @@ export default function Home() {
         setHp(0); setPhase('DEAD'); setNotice('ORACLE CONFIRMED · THE DUNGEON WINS');
         addLog(`BTC ${direction} loses. The Oracle Warden completes your performance review.`);
       }
-    } catch { setNotice('SETTLEMENT FEED UNAVAILABLE · TRY AGAIN'); }
+    } catch {
+      setNotice(automatic ? 'ORACLE FEED RETRYING IN 5S' : 'SETTLEMENT FEED UNAVAILABLE · AUTO-RETRY ARMED');
+    } finally {
+      oracleBusyRef.current = false;
+      setOracleBusy(false);
+    }
   }
+
+  function prepare(kind: 'search' | 'brew' | 'appeal') {
+    if (preparations.includes(kind) || phase !== 'ORACLE') return;
+    setPreparations((value) => [...value, kind]);
+    if (kind === 'search') {
+      setGold((value) => value + 4);
+      addLog('You search the rubble. +4 gold. The boss calls this asset stripping.');
+    } else if (kind === 'brew') {
+      setPotions((value) => Math.min(5, value + 1));
+      addLog('You brew one last potion. Its regulatory status remains unclear.');
+    } else {
+      setGold((value) => value + 6);
+      addLog('You file an appeal against the boss. +6 gold in recovered fees.');
+    }
+  }
+
+  useEffect(() => {
+    if (phase !== 'ORACLE' || remaining > 0) return;
+    let cancelled = false;
+    let timer: number | undefined;
+    const poll = async () => {
+      await checkSettlement(true);
+      if (!cancelled) timer = window.setTimeout(poll, 5000);
+    };
+    void poll();
+    return () => {
+      cancelled = true;
+      if (timer) window.clearTimeout(timer);
+    };
+  // The polling loop is intentionally armed only when the market reaches expiry.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase, remaining > 0, market.marketId, direction]);
 
   function reset() {
     setPhase('SETUP'); setRoom(0); setTurn(0); setHp(100); setMonsterHp(monsters[0].hp);
-    setPotions(3); setGold(0); setWeapon(1); setArmor(0); setCombatLog([]);
+    setPotions(3); setGold(0); setWeapon(1); setArmor(0); setCombatLog([]); setPreparations([]);
+    setOracleChecks(0); setOracleBusy(false); oracleBusyRef.current = false;
     setNotice('LIVE MARKET · READ ONLY');
   }
 
@@ -291,7 +338,19 @@ export default function Home() {
                 <div className="hp-label"><span>ENEMY HP</span><strong>{monsterHp} / {monster.hp}</strong></div>
                 <div className="enemy-bar"><i className={room === 2 ? 'boss-health' : ''} style={{ width: `${monsterPercent}%` }} /></div>
                 <div className="enemy-stats"><div><span>ENEMY DAMAGE</span><strong>💥 {monster.minDamage}–{monster.maxDamage}</strong></div><div><span>BASE REWARD</span><strong>🪙 {monster.reward}</strong></div></div>
-                {phase === 'ORACLE' && <div className="oracle-lock"><span>🔮 FINAL BLOW LOCKED</span><strong>BTC {direction} must win at settlement</strong><small>Market data is read only. No order exists.</small></div>}
+                {phase === 'ORACLE' && <div className="oracle-lock">
+                  <div className="oracle-status">
+                    <span>🔮 {remaining > 0 ? 'AUTO-CHECK AT EXPIRY' : oracleBusy ? 'CHECKING ORACLE' : 'AUTO-CHECK EVERY 5 SECONDS'}</span>
+                    <strong>{remaining > 0 ? formatTime(remaining) : oracleBusy ? 'READING…' : `${oracleChecks} CHECK${oracleChecks === 1 ? '' : 'S'}`}</strong>
+                    <small>BTC {direction} must win. Market data is read only; no order exists.</small>
+                  </div>
+                  <div className="waiting-label"><span>WHILE YOU WAIT</span><small>Each activity can be used once</small></div>
+                  <div className="waiting-actions">
+                    <button onClick={() => prepare('search')} disabled={preparations.includes('search')}><b>🪨 SEARCH</b><small>{preparations.includes('search') ? '✓ +4 GOLD' : 'Rubble · +4 gold'}</small></button>
+                    <button onClick={() => prepare('brew')} disabled={preparations.includes('brew') || potions >= 5}><b>🧪 BREW</b><small>{preparations.includes('brew') ? '✓ +1 POTION' : 'Make one potion'}</small></button>
+                    <button onClick={() => prepare('appeal')} disabled={preparations.includes('appeal')}><b>📜 APPEAL</b><small>{preparations.includes('appeal') ? '✓ +6 GOLD' : 'Recover filing fees'}</small></button>
+                  </div>
+                </div>}
               </div>
             </div>
           )}
@@ -311,7 +370,10 @@ export default function Home() {
           ) : phase === 'CLEARED' ? (
             <button className="primary-action" onClick={nextRoom}>🎲 CONTINUE TO ROOM {room + 2}</button>
           ) : phase === 'ORACLE' ? (
-            <button className="oracle-action" onClick={checkSettlement}>🔮 CHECK DREAMDEX SETTLEMENT</button>
+            <div className="oracle-dock">
+              <button className="oracle-action" onClick={() => void checkSettlement(false)} disabled={oracleBusy}>🔮 {oracleBusy ? 'CHECKING SETTLEMENT…' : 'CHECK NOW · READ ONLY'}</button>
+              <small>{remaining > 0 ? `Automatic polling begins in ${formatTime(remaining)}` : 'Automatic settlement checks run every 5 seconds'}</small>
+            </div>
           ) : (
             <button className="primary-action" onClick={reset}>↻ BEGIN NEW EXPEDITION</button>
           )}

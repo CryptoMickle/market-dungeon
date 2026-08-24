@@ -139,9 +139,19 @@ button { font: inherit; }
 .enemy-stats strong { display: block; margin-top: 5px; font-size: 12px; }
 
 .oracle-lock { padding: 14px; margin-top: 14px; background: rgba(88, 28, 135, .32); border: 1px solid #6b21a8; border-radius: 12px; }
-.oracle-lock span { display: block; color: #c084fc; font-size: 9px; font-weight: 900; letter-spacing: .16em; }
-.oracle-lock strong { display: block; margin-top: 6px; font-size: 14px; }
-.oracle-lock small { display: block; margin-top: 4px; color: #a78bfa; font-size: 9px; }
+.oracle-status > span { display: block; color: #c084fc; font-size: 9px; font-weight: 900; letter-spacing: .16em; }
+.oracle-status > strong { display: block; margin-top: 6px; font-size: 20px; }
+.oracle-status > small { display: block; margin-top: 4px; color: #a78bfa; font-size: 9px; }
+.waiting-label { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding-top: 13px; margin-top: 13px; border-top: 1px solid rgba(168, 85, 247, .25); }
+.waiting-label span { color: #c084fc; font-size: 8px; font-weight: 900; letter-spacing: .14em; }
+.waiting-label small { color: #7e6a91; font-size: 8px; }
+.waiting-actions { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-top: 8px; }
+.waiting-actions button { min-width: 0; padding: 10px 7px; background: rgba(9, 9, 11, .48); border: 1px solid rgba(168, 85, 247, .3); border-radius: 9px; color: white; text-align: left; cursor: pointer; }
+.waiting-actions button:hover:not(:disabled) { border-color: #c084fc; background: rgba(88, 28, 135, .5); }
+.waiting-actions button:disabled { opacity: .48; cursor: default; }
+.waiting-actions b, .waiting-actions small { display: block; }
+.waiting-actions b { font-size: 9px; }
+.waiting-actions small { margin-top: 4px; color: #a78bfa; font-size: 7px; line-height: 1.25; }
 
 .result-view { min-height: 430px; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 34px 24px; text-align: center; }
 .result-icon { font-size: 72px; }
@@ -158,6 +168,7 @@ button { font: inherit; }
 .action-dock button:disabled { cursor: not-allowed; opacity: .35; }
 .primary-action, .oracle-action { width: 100%; min-height: 54px; border: 0; border-radius: 11px; background: var(--orange); color: #090909; font-size: 14px; font-weight: 950; letter-spacing: .025em; }
 .oracle-action { background: var(--violet); color: white; }
+.oracle-dock small { display: block; margin-top: 8px; color: #8b78a0; font-size: 8px; text-align: center; }
 .combat-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .combat-actions button { display: flex; flex-direction: column; align-items: flex-start; min-height: 93px; padding: 13px; border: 0; border-radius: 11px; text-align: left; }
 .combat-actions .attack { background: var(--orange); color: #090909; }
