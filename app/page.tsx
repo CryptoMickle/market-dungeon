@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 
 type Direction = 'UP' | 'DOWN';
 type Action = 'attack' | 'storm' | 'potion';
-type Phase = 'SETUP' | 'COMBAT' | 'CLEARED' | 'MERCHANT' | 'ORACLE' | 'VICTORY' | 'DEAD';
+type Phase = 'SETUP' | 'COMBAT' | 'CLEARED' | 'MERCHANT' | 'FINAL_MERCHANT' | 'ORACLE' | 'VICTORY' | 'DEAD';
 type OracleResult = 'BLESSED' | 'CURSED' | 'VOID' | null;
 type Species = 'Zombie' | 'Goblin' | 'Orc' | 'Boss';
 
@@ -159,7 +159,7 @@ export default function Home() {
 
   const monster = roster[room] ?? roster[0];
   const isBoss = room === TOTAL_ROOMS - 1;
-  const currentRoomCleared = ['CLEARED', 'MERCHANT', 'ORACLE', 'VICTORY'].includes(phase);
+  const currentRoomCleared = ['CLEARED', 'MERCHANT', 'FINAL_MERCHANT', 'ORACLE', 'VICTORY'].includes(phase);
   const roomsCleared = phase === 'SETUP' ? 0 : room + (currentRoomCleared ? 1 : 0);
   const marketCode = market.marketId.slice(-4).toUpperCase();
   const monsterPercent = Math.max(0, Math.min(100, (monsterHp / monster.hp) * 100));
@@ -168,6 +168,7 @@ export default function Home() {
   const attackMax = 11 + weapon * 2;
   const stormMax = 20 + weapon * 3;
   const combatPotionLimit = isBoss ? 3 : 2;
+  const finalHealCost = Math.ceil((100 - hp) / 25) * 8;
   const marketReady = market.status !== 'CONNECTING' && market.marketId !== fallback.marketId && remaining > 0;
   const expiryLabel = useMemo(() => gateTime(market.expiryIso), [market.expiryIso]);
   const omenName = direction === 'UP' ? 'GOLD AWAKENS' : 'SHADOWS RISE';
@@ -177,6 +178,8 @@ export default function Home() {
     ? 'The complete Delveworn loop, powered by a live Event Contract.'
     : phase === 'MERCHANT'
       ? 'Quartermaster Kevin has found you. Regrettably.'
+      : phase === 'FINAL_MERCHANT'
+        ? 'One last stop before the final chest.'
       : phase === 'ORACLE'
         ? 'The dungeon is complete. Final loot awaits settlement.'
         : phase === 'VICTORY'
@@ -261,7 +264,7 @@ export default function Home() {
   }
 
   function useBetweenRoomPotion() {
-    if (!['CLEARED', 'MERCHANT'].includes(phase) || potions === 0 || hp >= 100) return;
+    if (!['CLEARED', 'MERCHANT', 'FINAL_MERCHANT'].includes(phase) || potions === 0 || hp >= 100) return;
     const healed = Math.min(25, 100 - hp);
     setPotions((value) => value - 1); setHp((value) => Math.min(100, value + 25));
     addLog(`You use a potion safely between rooms. +${healed} HP. No retaliation.`);
@@ -283,6 +286,30 @@ export default function Home() {
       setGold((value) => value - 15); setArmor((value) => value + 1); setArmorSold(true);
       addLog('Kevin adds armor plating. It belonged to someone else. · 15 gold.');
     }
+  }
+
+  function visitFinalMerchant() {
+    if (phase !== 'ORACLE') return;
+    setPhase('FINAL_MERCHANT');
+    setNotice('BOSS DEFEATED · TRAVELLING MERCHANT AVAILABLE');
+    addLog('Quartermaster Kevin appears between you and the final chest. This is probably not a coincidence.');
+  }
+
+  function finalMerchantHeal(full = false) {
+    if (phase !== 'FINAL_MERCHANT' || hp >= 100) return;
+    const cost = full ? finalHealCost : 8;
+    if (gold < cost) return;
+    const healed = full ? 100 - hp : Math.min(25, 100 - hp);
+    setGold((value) => value - cost);
+    setHp((value) => Math.min(100, value + healed));
+    addLog(`Kevin patches the post-boss damage. +${healed} HP · ${cost} gold.`);
+  }
+
+  function returnToFinalChest() {
+    if (phase !== 'FINAL_MERCHANT') return;
+    setPhase('ORACLE');
+    setNotice(remaining > 0 ? 'FINAL CHEST READY · ORACLE ARMED' : 'FINAL CHEST READY · CHECKING SETTLEMENT');
+    addLog('You leave Kevin behind and return to the final chest. He keeps the receipt.');
   }
 
   function nextRoom() {
@@ -409,14 +436,14 @@ export default function Home() {
               </div>
               <div className="competition-note">Built for the Somnia × dreamDEX Event Contracts Hackathon.</div>
             </div>
-          ) : phase === 'MERCHANT' ? (
+          ) : phase === 'MERCHANT' || phase === 'FINAL_MERCHANT' ? (
             <div className="merchant-view">
               <div className="merchant-stage"><img src={MERCHANT_IMAGE} alt="Quartermaster Kevin, Travelling Merchant" /><div className="stage-fade" /></div>
               <div className="merchant-copy">
-                <p className="section-kicker">🧰 ROOM 5 · TRAVELLING MERCHANT</p>
+                <p className="section-kicker">🧰 {phase === 'FINAL_MERCHANT' ? 'POST-BOSS' : 'ROOM 5'} · TRAVELLING MERCHANT</p>
                 <h2>Quartermaster Kevin</h2>
                 <p className="merchant-role">Questionable procurement · impeccable timing</p>
-                <p className="flavor">“You look terrible. Fortunately, I accept gold.”</p>
+                <p className="flavor">“{phase === 'FINAL_MERCHANT' ? 'The boss is dead. You, technically, are not. Shall we improve the margin?' : 'You look terrible. Fortunately, I accept gold.'}”</p>
                 <div className="merchant-stats"><div><span>HEALTH</span><strong>❤️ {hp}/100</strong></div><div><span>GOLD</span><strong><GoldIcon /> {gold}</strong></div><div><span>POTIONS</span><strong>🧪 {potions}/{MAX_POTIONS}</strong></div></div>
               </div>
             </div>
@@ -497,8 +524,24 @@ export default function Home() {
               <button className="heal-action" onClick={useBetweenRoomPotion} disabled={potions === 0 || hp >= 100}>USE OWN POTION SAFELY · {potions}/{MAX_POTIONS}</button>
               <button className="primary-action" onClick={nextRoom}>🚪 CONTINUE TO ROOM 6</button>
             </div>
+          ) : phase === 'FINAL_MERCHANT' ? (
+            <div className="merchant-shop">
+              <div className="shop-heading"><div><span>KEVIN&apos;S AFTERCARE</span><b>Patch up before the final chest</b></div><strong><GoldIcon /> {gold}</strong></div>
+              <div className="shop-grid">
+                <button onClick={() => finalMerchantHeal(false)} disabled={hp >= 100 || gold < 8}><b>❤️ FIELD DRESSING</b><small>Heal up to 25 HP</small><strong><GoldIcon /> 8</strong></button>
+                <button onClick={() => finalMerchantHeal(true)} disabled={hp >= 100 || gold < finalHealCost}><b>✨ FULL TREATMENT</b><small>{hp >= 100 ? 'Already at full health' : `Restore ${100 - hp} HP`}</small><strong><GoldIcon /> {finalHealCost}</strong></button>
+              </div>
+              <button className="heal-action" onClick={useBetweenRoomPotion} disabled={potions === 0 || hp >= 100}>USE OWN POTION SAFELY · {potions}/{MAX_POTIONS}</button>
+              <button className="oracle-action" onClick={returnToFinalChest}>🔮 RETURN TO FINAL CHEST</button>
+            </div>
           ) : phase === 'ORACLE' ? (
-            <div className="oracle-dock"><button className="oracle-action" onClick={() => void checkSettlement(false)} disabled={oracleBusy}>🔮 {oracleBusy ? 'CHECKING SETTLEMENT…' : 'CHECK FINAL CHEST NOW'}</button><small>{remaining > 0 ? `Automatic checks begin in ${formatTime(remaining)}` : 'Automatic settlement checks run every 5 seconds'}</small></div>
+            <div className="oracle-dock">
+              <div className="between-actions">
+                <button className="heal-action" onClick={visitFinalMerchant}>🧰 VISIT TRAVELLING MERCHANT</button>
+                <button className="oracle-action" onClick={() => void checkSettlement(false)} disabled={oracleBusy}>🔮 {oracleBusy ? 'CHECKING…' : 'CHECK FINAL CHEST'}</button>
+              </div>
+              <small>{remaining > 0 ? `Automatic checks begin in ${formatTime(remaining)}` : 'Automatic settlement checks run every 5 seconds'}</small>
+            </div>
           ) : (
             <button className="primary-action" onClick={reset}>↻ BEGIN NEW EXPEDITION</button>
           )}
