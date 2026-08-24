@@ -214,6 +214,9 @@ button { font: inherit; }
 .primary-action, .oracle-action { width: 100%; min-height: 54px; border: 0; border-radius: 11px; background: var(--orange); color: #090909; font-size: 14px; font-weight: 950; letter-spacing: .025em; }
 .oracle-action { background: var(--violet); color: white; }
 .oracle-dock small { display: block; margin-top: 8px; color: #8b78a0; font-size: 8px; text-align: center; }
+.judge-entry { display: grid; gap: 8px; }
+.judge-entry > small { color: #71717a; font-size: 8px; line-height: 1.35; text-align: center; }
+.judge-action { width: 100%; min-height: 46px; border: 1px solid #6d28d9; border-radius: 11px; background: rgba(88, 28, 135, .34); color: #e9d5ff; font-size: 10px; font-weight: 950; letter-spacing: .025em; }
 .between-actions { display: grid; grid-template-columns: .85fr 1.15fr; gap: 8px; }
 .heal-action { min-height: 48px; border: 1px solid #047857; border-radius: 11px; background: #065f46; color: white; font-size: 10px; font-weight: 900; cursor: pointer; }
 .heal-action:disabled { opacity: .35; cursor: not-allowed; }

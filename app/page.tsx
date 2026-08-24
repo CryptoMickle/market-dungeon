@@ -11,7 +11,7 @@ type Species = 'Zombie' | 'Goblin' | 'Orc' | 'Boss';
 type Market = {
   marketId: string; marketAddress: string; poolAddress: string; collateral: string;
   question: string; strikeUsd: string; tradingStart?: string; expiry: string; expiryIso: string; status: string;
-  finalized: boolean; voided: boolean; winningOutcome: number | null;
+  finalized: boolean; voided: boolean; winningOutcome: number | null; demoReplay?: boolean;
 };
 
 type Persona = {
@@ -136,6 +136,8 @@ export default function Home() {
   const [merchantPotions, setMerchantPotions] = useState(2);
   const [weaponSold, setWeaponSold] = useState(false);
   const [armorSold, setArmorSold] = useState(false);
+  const [judgeMode, setJudgeMode] = useState(false);
+  const [judgeLoading, setJudgeLoading] = useState(false);
   const oracleBusyRef = useRef(false);
 
   useEffect(() => {
@@ -196,8 +198,33 @@ export default function Home() {
     setHp(100); setMonsterHp(nextRoster[0].hp); setPotions(3); setGold(0); setWeapon(1); setArmor(0);
     setCombatPotionUses(0); setBandageUsed(false); setMerchantPotions(2); setWeaponSold(false); setArmorSold(false);
     setOracleChecks(0); setOracleResult(null); setOracleBusy(false); oracleBusyRef.current = false; setLastReward('');
+    setJudgeMode(false);
     setCombatLog([`${omenName} recorded: BTC ${direction} against live dreamDEX market #${market.marketId.slice(-4).toUpperCase()}. No order was sent.`]);
     setNotice(`${omenName} · DELVEWORN RUN STARTED`);
+  }
+
+  async function startJudgeDemo() {
+    if (judgeLoading) return;
+    setJudgeLoading(true); setNotice('LOADING FINALIZED ONCHAIN REPLAY…');
+    try {
+      const response = await fetch('/api/market?demo=settled');
+      const data = await response.json();
+      if (!response.ok || !data.market) throw new Error(data.error ?? 'Replay unavailable');
+      const replayMarket = data.market as Market;
+      const nextRoster = buildRoster();
+      const bossRoom = TOTAL_ROOMS - 1;
+      setMarket(replayMarket); setRoster(nextRoster); setRoom(bossRoom); setTurn(0); setPhase('COMBAT');
+      setHp(72); setMonsterHp(Math.min(24, nextRoster[bossRoom].hp)); setPotions(2); setGold(62); setWeapon(4); setArmor(1);
+      setCombatPotionUses(0); setBandageUsed(false); setMerchantPotions(2); setWeaponSold(false); setArmorSold(false);
+      setOracleChecks(0); setOracleResult(null); setOracleBusy(false); oracleBusyRef.current = false; setLastReward('');
+      setJudgeMode(true);
+      setCombatLog([`Judge Demo loaded finalized dreamDEX market #${replayMarket.marketId.slice(-4).toUpperCase()}. The replay uses its real Somnia settlement.`]);
+      setNotice('JUDGE DEMO · FINAL BOSS REPLAY · REAL SETTLED MARKET');
+    } catch {
+      setNotice('JUDGE DEMO UNAVAILABLE · LIVE EXPEDITION STILL READY');
+    } finally {
+      setJudgeLoading(false);
+    }
   }
 
   function incomingDamage(action: Action, nextTurn: number) {
@@ -354,7 +381,7 @@ export default function Home() {
   }
 
   useEffect(() => {
-    if (phase !== 'ORACLE' || remaining > 0) return;
+    if (phase !== 'ORACLE' || remaining > 0 || judgeMode) return;
     let cancelled = false;
     let timer: number | undefined;
     const poll = async () => {
@@ -365,7 +392,7 @@ export default function Home() {
     return () => { cancelled = true; if (timer) window.clearTimeout(timer); };
   // Poll only after the chosen Event Contract expires.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [phase, remaining > 0, market.marketId, direction]);
+  }, [phase, remaining > 0, market.marketId, direction, judgeMode]);
 
   function reset() {
     const nextRoster = buildRoster();
@@ -373,6 +400,7 @@ export default function Home() {
     setPotions(3); setGold(0); setWeapon(1); setArmor(0); setCombatPotionUses(0); setCombatLog([]); setLastReward('');
     setBandageUsed(false); setMerchantPotions(2); setWeaponSold(false); setArmorSold(false);
     setOracleChecks(0); setOracleResult(null); setOracleBusy(false); oracleBusyRef.current = false;
+    setJudgeMode(false); setJudgeLoading(false);
     setNotice('LIVE DREAMDEX MARKET · READ ONLY');
   }
 
@@ -488,7 +516,7 @@ export default function Home() {
                 <div className="enemy-bar"><i className={isBoss ? 'boss-health' : ''} style={{ width: `${monsterPercent}%` }} /></div>
                 <div className="enemy-stats"><div><span>ENEMY DAMAGE</span><strong>💥 {monster.minDamage}–{monster.maxDamage}</strong></div><div><span>BASE REWARD</span><strong><GoldIcon /> {monster.reward}</strong></div></div>
                 {phase === 'ORACLE' && <div className="oracle-lock">
-                  <div className="oracle-status"><span>🔮 LIVE DREAMDEX SETTLEMENT</span><strong>{remaining > 0 ? formatTime(remaining) : oracleBusy ? 'READING…' : `${oracleChecks} CHECK${oracleChecks === 1 ? '' : 'S'}`}</strong><small>The boss is dead and the run is complete. Only the final chest modifier is pending.</small></div>
+                  <div className="oracle-status"><span>🔮 {judgeMode ? 'FINALIZED ONCHAIN REPLAY' : 'LIVE DREAMDEX SETTLEMENT'}</span><strong>{judgeMode ? 'READY TO REVEAL' : remaining > 0 ? formatTime(remaining) : oracleBusy ? 'READING…' : `${oracleChecks} CHECK${oracleChecks === 1 ? '' : 'S'}`}</strong><small>{judgeMode ? 'This fast demo uses a real finalized dreamDEX market and its recorded Somnia outcome.' : 'The boss is dead and the run is complete. Only the final chest modifier is pending.'}</small></div>
                   <div className="integration-proof"><span>SOMNIA CHAIN 5031</span><span>MARKET #{marketCode}</span><span>READ-ONLY CHAIN CALL</span></div>
                 </div>}
               </div>
@@ -498,7 +526,11 @@ export default function Home() {
 
         <section className="action-dock">
           {phase === 'SETUP' ? (
-            <button className="primary-action" onClick={startRun} disabled={!marketReady}>{marketReady ? <>ENTER DELVEWORN · {omenIcon} {omenName}</> : 'WAITING FOR ACTIVE BTC MARKET…'}</button>
+            <div className="judge-entry">
+              <button className="primary-action" onClick={startRun} disabled={!marketReady}>{marketReady ? <>ENTER DELVEWORN · {omenIcon} {omenName}</> : 'WAITING FOR ACTIVE BTC MARKET…'}</button>
+              <button className="judge-action" onClick={() => void startJudgeDemo()} disabled={judgeLoading}>⚡ {judgeLoading ? 'LOADING SETTLED MARKET…' : '2-MIN JUDGE DEMO · REAL MARKET REPLAY'}</button>
+              <small>Starts at the final boss using a finalized BTC Event Contract from Somnia mainnet.</small>
+            </div>
           ) : phase === 'COMBAT' ? (
             <>
               <div className="combat-actions">
@@ -540,7 +572,7 @@ export default function Home() {
                 <button className="heal-action" onClick={visitFinalMerchant}>🧰 VISIT TRAVELLING MERCHANT</button>
                 <button className="oracle-action" onClick={() => void checkSettlement(false)} disabled={oracleBusy}>🔮 {oracleBusy ? 'CHECKING…' : 'CHECK FINAL CHEST'}</button>
               </div>
-              <small>{remaining > 0 ? `Automatic checks begin in ${formatTime(remaining)}` : 'Automatic settlement checks run every 5 seconds'}</small>
+              <small>{judgeMode ? 'Finalized replay · open the chest when ready' : remaining > 0 ? `Automatic checks begin in ${formatTime(remaining)}` : 'Automatic settlement checks run every 5 seconds'}</small>
             </div>
           ) : (
             <button className="primary-action" onClick={reset}>↻ BEGIN NEW EXPEDITION</button>
