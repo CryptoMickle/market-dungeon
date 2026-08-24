@@ -4,9 +4,9 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 
 type Direction = 'UP' | 'DOWN';
 type Action = 'attack' | 'storm' | 'potion';
-type Phase = 'SETUP' | 'COMBAT' | 'CLEARED' | 'ORACLE' | 'VICTORY' | 'DEAD';
+type Phase = 'SETUP' | 'COMBAT' | 'CLEARED' | 'MERCHANT' | 'ORACLE' | 'VICTORY' | 'DEAD';
 type OracleResult = 'BLESSED' | 'CURSED' | 'VOID' | null;
-type SupplyChoice = 'rest' | 'weapon' | 'armor' | null;
+type Species = 'Zombie' | 'Goblin' | 'Orc' | 'Boss';
 
 type Market = {
   marketId: string; marketAddress: string; poolAddress: string; collateral: string;
@@ -14,12 +14,16 @@ type Market = {
   finalized: boolean; voided: boolean; winningOutcome: number | null;
 };
 
-type Monster = {
-  name: string; species: string; flavor: string; image: string;
-  hp: number; minDamage: number; maxDamage: number; reward: number;
+type Persona = {
+  name: string; species: Species; image: string; flavor: string;
+  baseHp: number; minDamage: number; maxDamage: number; reward: number;
 };
 
+type Monster = Persona & { room: number; hp: number };
+
 const TOTAL_ROOMS = 10;
+const MAX_POTIONS = 5;
+const MERCHANT_IMAGE = '/characters/merchant-quartermaster-kevin.png';
 
 const fallback: Market = {
   marketId: '0x0000000000000000000000000000000000000000000000000000000000000000',
@@ -29,37 +33,54 @@ const fallback: Market = {
   finalized: false, voided: false, winningOutcome: null,
 };
 
-const goblinNames = ['Gary, Market Intern', 'Gribble the Auditor', "Gary's Supervisor", 'Kevin the Unqualified', 'Deputy Gary'];
-const orcNames = ['Thud the Liquidator', 'Brutus of Compliance', 'Gronk the Underwriter', 'Meatwall from Risk', 'Thud Senior'];
+const zombies: Persona[] = [
+  { name: 'Grave Belle', species: 'Zombie', image: '/monsters/zombie-1-grave-belle.png', flavor: 'Technically deceased. Socially still very active.', baseHp: 22, minDamage: 3, maxDamage: 7, reward: 6 },
+  { name: 'Miss Morgue', species: 'Zombie', image: '/monsters/zombie-2-miss-morgue.png', flavor: 'She wants brains, compliments, and preferably both.', baseHp: 26, minDamage: 4, maxDamage: 8, reward: 7 },
+  { name: 'Velvet Rot', species: 'Zombie', image: '/monsters/zombie-3-velvet-rot.png', flavor: 'Somewhere between a nightmare and a questionable dating decision.', baseHp: 30, minDamage: 5, maxDamage: 9, reward: 8 },
+  { name: 'Lady Decomposition', species: 'Zombie', image: '/monsters/zombie-4-lady-decomposition.png', flavor: 'Beauty fades. Apparently attitude does not.', baseHp: 34, minDamage: 5, maxDamage: 10, reward: 9 },
+];
 
-function monsterFor(room: number): Monster {
-  if (room === TOTAL_ROOMS - 1) {
-    return {
-      name: 'The Oracle Warden', species: 'Market Boss · Room 10',
-      flavor: 'The dungeon is finished. The market still has comments.',
-      image: '/monsters/boss-1-dungeon-lord.png', hp: 78, minDamage: 10, maxDamage: 16, reward: 40,
-    };
-  }
-  const isGoblin = room % 2 === 0;
-  const tier = Math.floor(room / 2);
-  return {
-    name: isGoblin ? goblinNames[tier] : orcNames[tier],
-    species: `${isGoblin ? 'Goblin' : 'Orc'} · Room ${room + 1}`,
-    flavor: isGoblin
-      ? 'Management insists this encounter was included in the forecast.'
-      : 'He considers diversification a sign of weakness.',
-    image: isGoblin ? '/monsters/goblin-1-gary.png' : '/monsters/orc-1-thud.png',
-    hp: (isGoblin ? 24 : 30) + tier * 9,
-    minDamage: (isGoblin ? 4 : 6) + tier,
-    maxDamage: (isGoblin ? 8 : 10) + tier * 2,
-    reward: (isGoblin ? 7 : 10) + tier * 3,
-  };
+const goblins: Persona[] = [
+  { name: 'Gary', species: 'Goblin', image: '/monsters/goblin-1-gary.png', flavor: 'Gary has no plan, but he is extremely committed to it.', baseHp: 24, minDamage: 4, maxDamage: 8, reward: 8 },
+  { name: 'Kevin the Unqualified', species: 'Goblin', image: '/monsters/goblin-2-kevin-the-unqualified.png', flavor: 'Nobody knows who hired Kevin. Kevin included.', baseHp: 28, minDamage: 4, maxDamage: 9, reward: 9 },
+  { name: 'Gribble', species: 'Goblin', image: '/monsters/goblin-3-gribble.png', flavor: 'Gribble has discovered armor. Civilization may never recover.', baseHp: 33, minDamage: 5, maxDamage: 10, reward: 10 },
+  { name: "Gary's Supervisor", species: 'Goblin', image: '/monsters/goblin-4-garys-supervisor.png', flavor: 'You finally found the person responsible for Gary.', baseHp: 38, minDamage: 6, maxDamage: 11, reward: 11 },
+];
+
+const orcs: Persona[] = [
+  { name: 'Thud', species: 'Orc', image: '/monsters/orc-1-thud.png', flavor: 'Thud hits first, thinks never.', baseHp: 31, minDamage: 6, maxDamage: 10, reward: 12 },
+  { name: 'Brutus', species: 'Orc', image: '/monsters/orc-2-brutus.png', flavor: 'His tactical doctrine contains one word: harder.', baseHp: 38, minDamage: 7, maxDamage: 12, reward: 14 },
+  { name: 'Gronk', species: 'Orc', image: '/monsters/orc-3-gronk.png', flavor: 'Gronk briefly considered diplomacy. He did not enjoy it.', baseHp: 45, minDamage: 8, maxDamage: 13, reward: 16 },
+  { name: 'Meatwall', species: 'Orc', image: '/monsters/orc-4-meatwall.png', flavor: 'Less of an opponent. More of an architectural problem.', baseHp: 52, minDamage: 9, maxDamage: 14, reward: 18 },
+];
+
+const bosses: Persona[] = [
+  { name: 'The Dungeon Lord', species: 'Boss', image: '/monsters/boss-1-dungeon-lord.png', flavor: 'Runs the dungeon with absolute authority and questionable competence.', baseHp: 72, minDamage: 9, maxDamage: 14, reward: 35 },
+  { name: 'The Senior Dungeon Lord', species: 'Boss', image: '/monsters/boss-2-senior-dungeon-lord.png', flavor: 'More authority, more paperwork, exactly the same leadership skills.', baseHp: 76, minDamage: 10, maxDamage: 15, reward: 38 },
+  { name: 'The Executive Overlord', species: 'Boss', image: '/monsters/boss-3-executive-overlord.png', flavor: 'Promoted beyond competence. Unfortunately, also beyond mortality.', baseHp: 80, minDamage: 10, maxDamage: 16, reward: 40 },
+  { name: 'The Chairman Below', species: 'Boss', image: '/monsters/boss-4-chairman-below.png', flavor: 'The final authority. There is no escalation path above him.', baseHp: 84, minDamage: 11, maxDamage: 17, reward: 42 },
+];
+
+function hashSeed(value: string) {
+  let hash = 2166136261;
+  for (const character of value) hash = Math.imul(hash ^ character.charCodeAt(0), 16777619);
+  return hash >>> 0;
 }
 
 function seededRoll(seed: string) {
-  let hash = 2166136261;
-  for (const char of seed) hash = Math.imul(hash ^ char.charCodeAt(0), 16777619);
-  return (hash >>> 0) / 4294967295;
+  return hashSeed(seed) / 4294967295;
+}
+
+function buildRoster(marketId: string, direction: Direction): Monster[] {
+  const offset = hashSeed(`${marketId}:${direction}`);
+  const sequence: Array<typeof zombies> = [zombies, goblins, orcs, zombies, goblins, orcs, zombies, goblins, orcs];
+  const regulars = sequence.map((group, index) => {
+    const persona = group[(offset + index) % group.length];
+    const scale = Math.floor(index / 3);
+    return { ...persona, room: index + 1, hp: persona.baseHp + scale * 5, minDamage: persona.minDamage + Math.floor(scale / 2), maxDamage: persona.maxDamage + scale };
+  });
+  const boss = bosses[offset % bosses.length];
+  return [...regulars, { ...boss, room: 10, hp: boss.baseHp }];
 }
 
 function formatTime(seconds: number) {
@@ -68,39 +89,47 @@ function formatTime(seconds: number) {
 }
 
 function gateTime(expiryIso: string) {
-  return new Date(expiryIso).toLocaleTimeString('en-GB', {
-    hour: '2-digit', minute: '2-digit', hourCycle: 'h23', timeZone: 'UTC',
-  });
+  return new Date(expiryIso).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hourCycle: 'h23', timeZone: 'UTC' });
 }
 
 export default function Home() {
   const [market, setMarket] = useState<Market>(fallback);
   const [direction, setDirection] = useState<Direction>('UP');
   const [phase, setPhase] = useState<Phase>('SETUP');
+  const [roster, setRoster] = useState<Monster[]>(() => buildRoster(fallback.marketId, 'UP'));
   const [room, setRoom] = useState(0);
   const [turn, setTurn] = useState(0);
   const [hp, setHp] = useState(100);
-  const [monsterHp, setMonsterHp] = useState(monsterFor(0).hp);
+  const [monsterHp, setMonsterHp] = useState(roster[0].hp);
   const [potions, setPotions] = useState(3);
   const [gold, setGold] = useState(0);
   const [weapon, setWeapon] = useState(1);
   const [armor, setArmor] = useState(0);
+  const [combatPotionUses, setCombatPotionUses] = useState(0);
   const [remaining, setRemaining] = useState(0);
-  const [notice, setNotice] = useState('LIVE MARKET · READ ONLY');
+  const [notice, setNotice] = useState('LIVE DREAMDEX MARKET · READ ONLY');
   const [combatLog, setCombatLog] = useState<string[]>([]);
+  const [lastReward, setLastReward] = useState('');
   const [oracleBusy, setOracleBusy] = useState(false);
   const [oracleChecks, setOracleChecks] = useState(0);
   const [oracleResult, setOracleResult] = useState<OracleResult>(null);
-  const [preparations, setPreparations] = useState<string[]>([]);
-  const [supplyChoice, setSupplyChoice] = useState<SupplyChoice>(null);
+  const [bandageUsed, setBandageUsed] = useState(false);
+  const [merchantPotions, setMerchantPotions] = useState(2);
+  const [weaponSold, setWeaponSold] = useState(false);
+  const [armorSold, setArmorSold] = useState(false);
   const oracleBusyRef = useRef(false);
 
   useEffect(() => {
-    fetch('/api/market').then((response) => response.json()).then((data) => {
-      if (data.market) setMarket(data.market);
-      else setNotice('MARKET FEED RETRYING · NO ACTION REQUIRED');
-    }).catch(() => setNotice('MARKET FEED RETRYING · NO ACTION REQUIRED'));
-  }, []);
+    if (phase !== 'SETUP') return;
+    let cancelled = false;
+    const load = () => fetch('/api/market').then((response) => response.json()).then((data) => {
+      if (!cancelled && data.market) setMarket(data.market);
+      else if (!cancelled) setNotice('DREAMDEX FEED RETRYING · NO ACTION REQUIRED');
+    }).catch(() => { if (!cancelled) setNotice('DREAMDEX FEED RETRYING · NO ACTION REQUIRED'); });
+    void load();
+    const refresh = window.setInterval(() => { void load(); }, 30000);
+    return () => { cancelled = true; window.clearInterval(refresh); };
+  }, [phase]);
 
   useEffect(() => {
     const tick = () => setRemaining(Math.max(0, Number(market.expiry) - Math.floor(Date.now() / 1000)));
@@ -109,43 +138,60 @@ export default function Home() {
     return () => window.clearInterval(timer);
   }, [market.expiry]);
 
-  const monster = monsterFor(room);
+  const monster = roster[room] ?? roster[0];
+  const isBoss = room === TOTAL_ROOMS - 1;
+  const currentRoomCleared = ['CLEARED', 'MERCHANT', 'ORACLE', 'VICTORY'].includes(phase);
+  const roomsCleared = phase === 'SETUP' ? 0 : room + (currentRoomCleared ? 1 : 0);
   const marketCode = market.marketId.slice(-4).toUpperCase();
   const monsterPercent = Math.max(0, Math.min(100, (monsterHp / monster.hp) * 100));
   const playerPercent = Math.max(0, Math.min(100, hp));
   const attackMin = 7 + weapon * 2;
   const attackMax = 11 + weapon * 2;
   const stormMax = 20 + weapon * 3;
-  const currentRoomCleared = phase === 'CLEARED' || phase === 'ORACLE' || phase === 'VICTORY';
-  const roomsCleared = phase === 'SETUP' ? 0 : room + (currentRoomCleared ? 1 : 0);
-  const isBoss = room === TOTAL_ROOMS - 1;
-  const isSupplyStop = phase === 'CLEARED' && room === 4;
-  const subtitle = phase === 'SETUP'
-    ? 'Play the dungeon. Let the market shape the ending.'
-    : phase === 'ORACLE'
-      ? 'Ten rooms cleared. Final loot awaits the oracle.'
-      : phase === 'VICTORY'
-        ? 'Expedition complete.'
-        : `Room ${room + 1} of ${TOTAL_ROOMS} · BTC ${direction}`;
+  const combatPotionLimit = isBoss ? 3 : 2;
+  const marketReady = market.status !== 'CONNECTING' && market.marketId !== fallback.marketId && remaining > 0;
   const expiryLabel = useMemo(() => gateTime(market.expiryIso), [market.expiryIso]);
 
+  const subtitle = phase === 'SETUP'
+    ? 'The complete Delveworn loop, powered by a live Event Contract.'
+    : phase === 'MERCHANT'
+      ? 'Quartermaster Kevin has found you. Regrettably.'
+      : phase === 'ORACLE'
+        ? 'The dungeon is complete. Final loot awaits settlement.'
+        : phase === 'VICTORY'
+          ? 'Expedition complete.'
+          : `Room ${room + 1} of ${TOTAL_ROOMS} · ${monster.species} · BTC ${direction}`;
+
   function addLog(message: string) {
-    setCombatLog((previous) => [message, ...previous].slice(0, 8));
+    setCombatLog((previous) => [message, ...previous].slice(0, 10));
   }
 
   function startRun() {
-    const first = monsterFor(0);
-    setPhase('COMBAT'); setRoom(0); setTurn(0); setHp(100); setMonsterHp(first.hp);
-    setPotions(3); setGold(0); setWeapon(1); setArmor(0); setSupplyChoice(null);
-    setOracleChecks(0); setOracleResult(null); setPreparations([]); setOracleBusy(false); oracleBusyRef.current = false;
-    setCombatLog([`BTC ${direction} recorded as the expedition call. No order was sent.`]);
-    setNotice(`${direction} RECORDED · TEN-ROOM RUN STARTED`);
+    const nextRoster = buildRoster(market.marketId, direction);
+    setRoster(nextRoster); setRoom(0); setTurn(0); setPhase('COMBAT');
+    setHp(100); setMonsterHp(nextRoster[0].hp); setPotions(3); setGold(0); setWeapon(1); setArmor(0);
+    setCombatPotionUses(0); setBandageUsed(false); setMerchantPotions(2); setWeaponSold(false); setArmorSold(false);
+    setOracleChecks(0); setOracleResult(null); setOracleBusy(false); oracleBusyRef.current = false; setLastReward('');
+    setCombatLog([`BTC ${direction} recorded against live dreamDEX market #${market.marketId.slice(-4).toUpperCase()}. No order was sent.`]);
+    setNotice(`${direction} RECORDED · DELVEWORN RUN STARTED`);
   }
 
-  function retaliate(action: Action, nextTurn: number) {
+  function incomingDamage(action: Action, nextTurn: number) {
     const spread = monster.maxDamage - monster.minDamage + 1;
     const raw = monster.minDamage + Math.floor(seededRoll(`${market.marketId}:${room}:${nextTurn}:${action}:enemy`) * spread);
     return Math.max(1, raw - armor);
+  }
+
+  function awardRoomLoot() {
+    let reward = `🪙 ${monster.reward} gold`;
+    setGold((value) => value + monster.reward);
+    if ((room + 1) % 3 === 0 && room < 8) {
+      setWeapon((value) => value + 1); reward += ' · ⚔️ weapon +1';
+    } else if ((room + 1) % 2 === 0) {
+      setPotions((value) => Math.min(MAX_POTIONS, value + 1)); reward += ' · 🧪 potion found';
+    }
+    setLastReward(reward);
+    return reward;
   }
 
   function act(action: Action) {
@@ -154,75 +200,76 @@ export default function Home() {
     setTurn(nextTurn);
 
     if (action === 'potion') {
-      if (potions === 0 || hp >= 100) return;
+      if (potions === 0 || hp >= 100 || combatPotionUses >= combatPotionLimit) return;
       const healed = Math.min(25, 100 - hp);
-      const incoming = retaliate(action, nextTurn);
+      const incoming = incomingDamage(action, nextTurn);
       const nextHp = Math.max(0, hp + healed - incoming);
-      setPotions((value) => value - 1); setHp(nextHp);
-      addLog(`Potion restores ${healed} HP. ${monster.name} answers for ${incoming}.`);
+      setPotions((value) => value - 1); setCombatPotionUses((value) => value + 1); setHp(nextHp);
+      addLog(`Potion restores ${healed} HP. ${monster.name} retaliates for ${incoming}.`);
       if (nextHp === 0) { setPhase('DEAD'); setNotice('EXPEDITION TERMINATED'); }
       return;
     }
 
     const roll = seededRoll(`${market.marketId}:${room}:${nextTurn}:${action}:player`);
     const crit = action === 'attack' && seededRoll(`${marketCode}:${room}:${nextTurn}:crit`) < 0.15;
-    const baseDamage = action === 'attack'
-      ? attackMin + Math.floor(roll * (attackMax - attackMin + 1))
-      : Math.floor(roll * (stormMax + 1));
-    const damage = crit ? baseDamage * 2 : baseDamage;
+    const base = action === 'attack' ? attackMin + Math.floor(roll * (attackMax - attackMin + 1)) : Math.floor(roll * (stormMax + 1));
+    const damage = crit ? base * 2 : base;
     const nextMonsterHp = Math.max(0, monsterHp - damage);
     setMonsterHp(nextMonsterHp);
 
     if (nextMonsterHp === 0) {
-      setGold((value) => value + monster.reward);
+      const reward = awardRoomLoot();
       if (isBoss) {
-        setPhase('ORACLE');
-        setNotice(remaining > 0 ? 'ROOM 10 CLEARED · ORACLE ARMED' : 'ROOM 10 CLEARED · CHECKING ORACLE');
-        addLog(`The Oracle Warden falls. +${monster.reward} gold. Market settlement now modifies the final chest.`);
+        setPhase('ORACLE'); setNotice(remaining > 0 ? 'BOSS DEFEATED · ORACLE ARMED' : 'BOSS DEFEATED · CHECKING SETTLEMENT');
+        addLog(`${monster.name} is defeated. ${reward}. The live Event Contract now modifies the final chest.`);
+      } else if (room === 4) {
+        setPhase('MERCHANT'); setNotice('ROOM 5 CLEARED · TRAVELLING MERCHANT');
+        addLog(`${monster.name} defeated. ${reward}. Quartermaster Kevin smells disposable income.`);
       } else {
-        if ((room + 1) % 3 === 0) {
-          setWeapon((value) => value + 1);
-          addLog(`${monster.name} defeated. +${monster.reward} gold · weapon upgraded.`);
-        } else if ((room + 1) % 2 === 0) {
-          setPotions((value) => Math.min(5, value + 1));
-          addLog(`${monster.name} defeated. +${monster.reward} gold · potion recovered.`);
-        } else {
-          addLog(`${monster.name} defeated. +${monster.reward} gold.`);
-        }
-        setPhase('CLEARED'); setNotice(`ROOM ${room + 1} CLEARED · ${TOTAL_ROOMS - room - 1} REMAIN`);
+        setPhase('CLEARED'); setNotice(`ROOM ${room + 1} CLEARED · HEAL OR CONTINUE`);
+        addLog(`${monster.name} defeated. ${reward}.`);
       }
       return;
     }
 
-    const incoming = retaliate(action, nextTurn);
+    const incoming = incomingDamage(action, nextTurn);
     const nextHp = Math.max(0, hp - incoming);
     setHp(nextHp);
-    addLog(`${crit ? 'Critical hit! ' : ''}${action === 'storm' ? 'Storm' : 'Attack'} deals ${damage}. You take ${incoming}.`);
+    addLog(`${crit ? 'Critical hit! ' : ''}${action === 'storm' ? 'Storm' : 'Attack'} deals ${damage}. ${monster.name} deals ${incoming}.`);
     if (nextHp === 0) { setPhase('DEAD'); setNotice('EXPEDITION TERMINATED'); }
   }
 
-  function chooseSupply(choice: Exclude<SupplyChoice, null>) {
-    if (!isSupplyStop || supplyChoice) return;
-    if (choice === 'rest') {
+  function useBetweenRoomPotion() {
+    if (!['CLEARED', 'MERCHANT'].includes(phase) || potions === 0 || hp >= 100) return;
+    const healed = Math.min(25, 100 - hp);
+    setPotions((value) => value - 1); setHp((value) => Math.min(100, value + 25));
+    addLog(`You use a potion safely between rooms. +${healed} HP. No retaliation.`);
+  }
+
+  function merchantBuy(kind: 'bandage' | 'potion' | 'weapon' | 'armor') {
+    if (phase !== 'MERCHANT') return;
+    if (kind === 'bandage' && !bandageUsed && hp < 100 && gold >= 8) {
       const healed = Math.min(25, 100 - hp);
-      setHp((value) => Math.min(100, value + 25));
-      addLog(`Supply stop: you recover ${healed} HP.`);
-    } else if (choice === 'weapon' && gold >= 10) {
-      setGold((value) => value - 10); setWeapon((value) => value + 1);
-      addLog('Supply stop: weapon upgraded for 10 gold. The receipt looks suspicious.');
-    } else if (choice === 'armor' && gold >= 10) {
-      setGold((value) => value - 10); setArmor((value) => value + 1);
-      addLog('Supply stop: armor upgraded for 10 gold. It almost fits.');
-    } else return;
-    setSupplyChoice(choice);
+      setGold((value) => value - 8); setHp((value) => Math.min(100, value + 25)); setBandageUsed(true);
+      addLog(`Kevin applies something he calls a bandage. +${healed} HP · 8 gold.`);
+    } else if (kind === 'potion' && merchantPotions > 0 && potions < MAX_POTIONS && gold >= 7) {
+      setGold((value) => value - 7); setPotions((value) => value + 1); setMerchantPotions((value) => value - 1);
+      addLog('Kevin sells you a suspicious potion. +1 potion · 7 gold.');
+    } else if (kind === 'weapon' && !weaponSold && gold >= 15) {
+      setGold((value) => value - 15); setWeapon((value) => value + 1); setWeaponSold(true);
+      addLog('Kevin upgrades your weapon. The warranty is verbal. · 15 gold.');
+    } else if (kind === 'armor' && !armorSold && gold >= 15) {
+      setGold((value) => value - 15); setArmor((value) => value + 1); setArmorSold(true);
+      addLog('Kevin adds armor plating. It belonged to someone else. · 15 gold.');
+    }
   }
 
   function nextRoom() {
+    if (!['CLEARED', 'MERCHANT'].includes(phase)) return;
     const next = room + 1;
-    const nextMonster = monsterFor(next);
-    setRoom(next); setTurn(0); setMonsterHp(nextMonster.hp); setPhase('COMBAT');
-    setNotice(next === TOTAL_ROOMS - 1 ? 'ROOM 10 · MARKET BOSS' : `ROOM ${next + 1} · READY`);
-    addLog(`The gate opens. Room ${next + 1} is regrettably occupied.`);
+    setRoom(next); setTurn(0); setMonsterHp(roster[next].hp); setCombatPotionUses(0); setPhase('COMBAT');
+    setNotice(next === TOTAL_ROOMS - 1 ? 'ROOM 10 · DUNGEON MANAGEMENT' : `ROOM ${next + 1} · ${roster[next].species.toUpperCase()}`);
+    addLog(`The gate opens. ${roster[next].name} is regrettably employed here.`);
   }
 
   async function checkSettlement(automatic = false) {
@@ -234,41 +281,27 @@ export default function Home() {
       const data = await response.json();
       const result = data.market as Market;
       if (!result?.finalized && !result?.voided) {
-        setNotice(remaining > 0 ? 'RUN COMPLETE · AUTO-CHECK STARTS AT EXPIRY' : 'ORACLE PENDING · NEXT AUTO-CHECK IN 5S');
-        if (!automatic) addLog('Settlement is pending. The ten-room run is already complete; only the final loot modifier remains.');
+        setNotice(remaining > 0 ? 'RUN COMPLETE · AUTO-CHECK STARTS AT EXPIRY' : 'SETTLEMENT PENDING · NEXT CHECK IN 5S');
+        if (!automatic) addLog('dreamDEX has not finalized yet. The dungeon is already complete; only final loot is pending.');
         return;
       }
       if (result.voided) {
         setOracleResult('VOID'); setPhase('VICTORY'); setNotice('MARKET VOIDED · BASE LOOT PRESERVED');
-        addLog('The market was voided. The completed run keeps its base rewards.');
+        addLog('The Event Contract was voided. The completed Delveworn run keeps its base rewards.');
         return;
       }
       const won = Number(result.winningOutcome) === (direction === 'UP' ? 0 : 1);
       if (won) {
-        setOracleResult('BLESSED'); setGold((value) => value + 50); setPhase('VICTORY');
-        setNotice('ORACLE BLESSING · +50 GOLD');
-        addLog(`BTC ${direction} wins. The final chest receives a +50 gold oracle blessing.`);
+        setOracleResult('BLESSED'); setGold((value) => value + 50); setPhase('VICTORY'); setNotice('EVENT CONTRACT WON · +50 GOLD');
+        addLog(`BTC ${direction} settled correctly. dreamDEX adds a 50 gold blessing to the final chest.`);
       } else {
-        setOracleResult('CURSED'); setGold((value) => Math.max(0, value - 20)); setPhase('VICTORY');
-        setNotice('ORACLE CURSE · RUN STILL COMPLETE');
-        addLog(`BTC ${direction} loses. The run survives, but the final chest pays a 20 gold curse.`);
+        setOracleResult('CURSED'); setGold((value) => Math.max(0, value - 20)); setPhase('VICTORY'); setNotice('EVENT CONTRACT LOST · RUN STILL COMPLETE');
+        addLog(`BTC ${direction} missed. The Delveworn run still counts; the final chest loses 20 gold.`);
       }
     } catch {
-      setNotice(automatic ? 'ORACLE FEED RETRYING IN 5S' : 'SETTLEMENT FEED UNAVAILABLE · AUTO-RETRY ARMED');
+      setNotice(automatic ? 'SETTLEMENT FEED RETRYING IN 5S' : 'SETTLEMENT FEED UNAVAILABLE · AUTO-RETRY ARMED');
     } finally {
       oracleBusyRef.current = false; setOracleBusy(false);
-    }
-  }
-
-  function prepare(kind: 'search' | 'brew' | 'appeal') {
-    if (preparations.includes(kind) || phase !== 'ORACLE') return;
-    setPreparations((value) => [...value, kind]);
-    if (kind === 'search') {
-      setGold((value) => value + 4); addLog('You search the boss room. +4 gold. This is called post-combat liquidity.');
-    } else if (kind === 'brew') {
-      setPotions((value) => Math.min(5, value + 1)); addLog('You brew one last potion. Its regulatory status remains unclear.');
-    } else {
-      setGold((value) => value + 6); addLog('You file an appeal against the oracle. +6 gold in recovered fees.');
     }
   }
 
@@ -281,39 +314,38 @@ export default function Home() {
       if (!cancelled) timer = window.setTimeout(poll, 5000);
     };
     void poll();
-    return () => {
-      cancelled = true;
-      if (timer) window.clearTimeout(timer);
-    };
-  // Polling is intentionally armed only after the selected market expires.
+    return () => { cancelled = true; if (timer) window.clearTimeout(timer); };
+  // Poll only after the chosen Event Contract expires.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase, remaining > 0, market.marketId, direction]);
 
   function reset() {
-    setPhase('SETUP'); setRoom(0); setTurn(0); setHp(100); setMonsterHp(monsterFor(0).hp);
-    setPotions(3); setGold(0); setWeapon(1); setArmor(0); setCombatLog([]); setPreparations([]);
-    setSupplyChoice(null); setOracleChecks(0); setOracleResult(null); setOracleBusy(false); oracleBusyRef.current = false;
-    setNotice('LIVE MARKET · READ ONLY');
+    const nextRoster = buildRoster(market.marketId, direction);
+    setRoster(nextRoster); setPhase('SETUP'); setRoom(0); setTurn(0); setHp(100); setMonsterHp(nextRoster[0].hp);
+    setPotions(3); setGold(0); setWeapon(1); setArmor(0); setCombatPotionUses(0); setCombatLog([]); setLastReward('');
+    setBandageUsed(false); setMerchantPotions(2); setWeaponSold(false); setArmorSold(false);
+    setOracleChecks(0); setOracleResult(null); setOracleBusy(false); oracleBusyRef.current = false;
+    setNotice('LIVE DREAMDEX MARKET · READ ONLY');
   }
 
-  const resultHeading = oracleResult === 'BLESSED' ? 'Oracle-blessed victory.' : oracleResult === 'CURSED' ? 'Victory, with paperwork.' : 'Dungeon conquered.';
+  const resultHeading = oracleResult === 'BLESSED' ? 'Market-blessed victory.' : oracleResult === 'CURSED' ? 'Victory, with market damage.' : 'Dungeon conquered.';
   const resultCopy = oracleResult === 'BLESSED'
-    ? `BTC ${direction} added 50 gold to the completed run.`
+    ? `BTC ${direction} added 50 gold to the completed Delveworn run.`
     : oracleResult === 'CURSED'
-      ? `BTC ${direction} missed. The run still counts; only 20 gold was lost.`
-      : 'The market was voided, so the completed run kept its base rewards.';
+      ? `BTC ${direction} missed. The run still counts; only the final chest changed.`
+      : 'The Event Contract was voided, so the run kept its base rewards.';
 
   return (
     <main className="game-shell">
       <div className="game-column">
         <header className="game-header">
-          <p className="eyebrow">FULLY READ-ONLY · SOMNIA</p>
+          <p className="eyebrow">DELVEWORN · EVENT CONTRACTS EDITION</p>
           <h1>MARKET DUNGEON</h1>
           <p className="subtitle">{subtitle}</p>
-          <div className="safety-line"><span className="live-dot" /> LIVE DREAMDEX DATA <i /> NO WALLET · NO TRANSACTIONS</div>
+          <div className="safety-line"><span className="live-dot" /> SOMNIA MAINNET <i /> LIVE DREAMDEX DATA <i /> NO TRANSACTIONS</div>
         </header>
 
-        <section className="market-ribbon" aria-label="Active market">
+        <section className="market-ribbon" aria-label="Live dreamDEX Event Contract">
           <div><span>BTC · 15 MIN</span><strong>{market.status}</strong></div>
           <div><span>LINE</span><strong>${market.strikeUsd}</strong></div>
           <div><span>EXPIRY</span><strong>{formatTime(remaining)}</strong><small>{expiryLabel} UTC</small></div>
@@ -323,48 +355,56 @@ export default function Home() {
         {phase !== 'SETUP' && (
           <section className="sticky-hud" aria-label="Expedition status">
             <div><span>HEALTH</span><strong>❤️ {hp}/100</strong><div className="mini-bar"><i style={{ width: `${playerPercent}%` }} /></div></div>
-            <div><span>POTIONS</span><strong>🧪 {potions}/5</strong></div>
+            <div><span>POTIONS</span><strong>🧪 {potions}/{MAX_POTIONS}</strong></div>
             <div><span>GOLD</span><strong>🪙 {gold}</strong></div>
             <div className="hud-wide"><span>LOADOUT</span><strong>⚔️ Lv {weapon} · 🛡️ Lv {armor}</strong></div>
-            <div className="hud-wide"><span>EXPEDITION</span><strong>{roomsCleared}/{TOTAL_ROOMS} CLEARED · BTC {direction}</strong></div>
+            <div className="hud-wide"><span>EXPEDITION</span><strong>{roomsCleared}/{TOTAL_ROOMS} · BTC {direction}</strong></div>
           </section>
         )}
 
         <section className={`main-card ${isBoss && phase !== 'SETUP' ? 'boss-card' : ''}`}>
           {phase === 'SETUP' ? (
             <div className="setup-view">
-              <div className="dungeon-sigil">🏰</div>
-              <p className="section-kicker">ONE MARKET · TEN ROOMS</p>
-              <h2>The Dungeon Runs Normally</h2>
-              <p className="muted">Choose BTC UP or DOWN once, then play ten Delveworn-style rooms. The market never blocks combat—it only modifies the final chest after Room 10.</p>
+              <div className="setup-monsters" aria-hidden="true">
+                <img src="/monsters/zombie-1-grave-belle.png" alt="" />
+                <img className="front" src="/monsters/goblin-1-gary.png" alt="" />
+                <img src="/monsters/orc-1-thud.png" alt="" />
+              </div>
+              <p className="section-kicker">THE REAL DELVEWORN LOOP · ONE LIVE MARKET</p>
+              <h2>Fight first. Settle after Room 10.</h2>
+              <p className="muted">Zombies, goblins, orcs, loot, healing and Quartermaster Kevin play exactly where they belong. A live dreamDEX BTC Event Contract changes only the final chest.</p>
               <div className="prediction-card">
-                <span>THE LINE TO BEAT</span><strong>${market.strikeUsd}</strong><p>{market.question}</p>
+                <span>LIVE EVENT CONTRACT · MARKET #{marketCode || '—'}</span><strong>${market.strikeUsd}</strong><p>{market.question}</p>
                 <div className="prediction-buttons">
                   <button className={direction === 'UP' ? 'up selected' : 'up'} onClick={() => setDirection('UP')}><b>↗ UP</b><small>BTC finishes at or above the line</small></button>
                   <button className={direction === 'DOWN' ? 'down selected' : 'down'} onClick={() => setDirection('DOWN')}><b>↘ DOWN</b><small>BTC finishes below the line</small></button>
                 </div>
               </div>
               <div className="rule-grid">
-                <div><span>⚔️</span><b>ROOMS 1–9</b><small>Normal combat, loot and upgrades</small></div>
-                <div><span>🧰</span><b>ROOM 5</b><small>Supply stop and one upgrade</small></div>
-                <div><span>👑</span><b>ROOM 10</b><small>Fight the boss normally</small></div>
-                <div><span>🔮</span><b>AFTER BOSS</b><small>Market modifies final loot only</small></div>
+                <div><span>🧟</span><b>FULL BESTIARY</b><small>Zombies, goblins, orcs and management</small></div>
+                <div><span>🧪</span><b>DELVEWORN HEALING</b><small>Potions in combat or safely between rooms</small></div>
+                <div><span>🎒</span><b>ROOM 5 MERCHANT</b><small>Heal, restock and upgrade with Kevin</small></div>
+                <div><span>🔮</span><b>DREAMDEX SETTLEMENT</b><small>Live result modifies the final chest only</small></div>
+              </div>
+              <div className="competition-note"><b>Competition path:</b> consumer-facing Event Contract experience. Somnia Agents are an optional track, not a requirement—and are not faked in this prototype.</div>
+            </div>
+          ) : phase === 'MERCHANT' ? (
+            <div className="merchant-view">
+              <div className="merchant-stage"><img src={MERCHANT_IMAGE} alt="Quartermaster Kevin, Travelling Merchant" /><div className="stage-fade" /></div>
+              <div className="merchant-copy">
+                <p className="section-kicker">🧰 ROOM 5 · TRAVELLING MERCHANT</p>
+                <h2>Quartermaster Kevin</h2>
+                <p className="merchant-role">Questionable procurement · impeccable timing</p>
+                <p className="flavor">“You look terrible. Fortunately, I accept gold.”</p>
+                <div className="merchant-stats"><div><span>HEALTH</span><strong>❤️ {hp}/100</strong></div><div><span>GOLD</span><strong>🪙 {gold}</strong></div><div><span>POTIONS</span><strong>🧪 {potions}/{MAX_POTIONS}</strong></div></div>
               </div>
             </div>
           ) : phase === 'CLEARED' ? (
             <div className="result-view cleared-view">
-              <div className="result-icon">{isSupplyStop ? '🧰' : '🏆'}</div>
-              <p className="section-kicker">{isSupplyStop ? 'ROOM 5 · SUPPLY STOP' : `ROOM ${room + 1} CLEARED`}</p>
-              <h2>{isSupplyStop ? 'Quartermaster break.' : 'Against all evidence, you remain alive.'}</h2>
-              {isSupplyStop ? <>
-                <p className="muted">Choose one preparation before the lower dungeon.</p>
-                <div className="supply-actions">
-                  <button onClick={() => chooseSupply('rest')} disabled={Boolean(supplyChoice) || hp >= 100}><b>❤️ REST</b><small>Recover up to 25 HP</small></button>
-                  <button onClick={() => chooseSupply('weapon')} disabled={Boolean(supplyChoice) || gold < 10}><b>⚔️ WEAPON</b><small>Level +1 · 10 gold</small></button>
-                  <button onClick={() => chooseSupply('armor')} disabled={Boolean(supplyChoice) || gold < 10}><b>🛡️ ARMOR</b><small>Level +1 · 10 gold</small></button>
-                </div>
-                {supplyChoice && <div className="reward-box"><span>PREPARATION COMPLETE</span><strong>{supplyChoice.toUpperCase()} SELECTED</strong></div>}
-              </> : <div className="reward-box"><span>RECOVERED</span><strong>{(room + 1) % 3 === 0 ? '⚔️ Weapon Level +1' : (room + 1) % 2 === 0 ? '🧪 Potion +1' : '🎒 Base loot'} · 🪙 {monster.reward} Gold</strong></div>}
+              <div className="result-icon">🏆</div><p className="section-kicker">ROOM {room + 1} CLEARED</p>
+              <h2>Against all evidence, you remain alive.</h2>
+              <p className="muted">Heal safely with a potion before opening the next gate.</p>
+              <div className="reward-box"><span>RECOVERED</span><strong>{lastReward}</strong></div>
             </div>
           ) : phase === 'VICTORY' ? (
             <div className="result-view">
@@ -376,7 +416,7 @@ export default function Home() {
           ) : phase === 'DEAD' ? (
             <div className="result-view">
               <div className="result-icon">☠️</div><p className="section-kicker">EXPEDITION ENDED</p>
-              <h2>You died.</h2><p className="muted">The dungeon updates its performance statistics. The market prediction remains read-only and irrelevant to the failed run.</p>
+              <h2>You died.</h2><p className="muted">The Event Contract never overrides the Delveworn combat result. The market call remains read-only.</p>
               <div className="final-stats"><div><span>ROOMS</span><strong>{roomsCleared}</strong></div><div><span>GOLD</span><strong>🪙 {gold}</strong></div></div>
             </div>
           ) : (
@@ -391,24 +431,15 @@ export default function Home() {
                 </div>
               </div>
               <div className="monster-info">
-                {isBoss && <p className="boss-label">👑 MARKET BOSS</p>}
-                <div className="monster-heading"><div><h2>{monster.name}</h2><span>{monster.species}</span></div><b>ROOM {room + 1}/{TOTAL_ROOMS}</b></div>
+                {isBoss && <p className="boss-label">👑 DUNGEON MANAGEMENT</p>}
+                <div className="monster-heading"><div><h2>{monster.name}</h2><span>{monster.species} · Room {room + 1}</span></div><b>{monster.species === 'Boss' ? 'BOSS' : monster.species.toUpperCase()}</b></div>
                 <p className="flavor">“{monster.flavor}”</p>
                 <div className="hp-label"><span>ENEMY HP</span><strong>{monsterHp} / {monster.hp}</strong></div>
                 <div className="enemy-bar"><i className={isBoss ? 'boss-health' : ''} style={{ width: `${monsterPercent}%` }} /></div>
                 <div className="enemy-stats"><div><span>ENEMY DAMAGE</span><strong>💥 {monster.minDamage}–{monster.maxDamage}</strong></div><div><span>BASE REWARD</span><strong>🪙 {monster.reward}</strong></div></div>
                 {phase === 'ORACLE' && <div className="oracle-lock">
-                  <div className="oracle-status">
-                    <span>🔮 RUN COMPLETE · {remaining > 0 ? 'AUTO-CHECK AT EXPIRY' : oracleBusy ? 'CHECKING ORACLE' : 'AUTO-CHECK EVERY 5 SECONDS'}</span>
-                    <strong>{remaining > 0 ? formatTime(remaining) : oracleBusy ? 'READING…' : `${oracleChecks} CHECK${oracleChecks === 1 ? '' : 'S'}`}</strong>
-                    <small>Only the final loot modifier is pending. The boss and all ten rooms are already cleared.</small>
-                  </div>
-                  <div className="waiting-label"><span>POST-RUN ACTIVITIES</span><small>Each can be used once</small></div>
-                  <div className="waiting-actions">
-                    <button onClick={() => prepare('search')} disabled={preparations.includes('search')}><b>🪨 SEARCH</b><small>{preparations.includes('search') ? '✓ +4 GOLD' : 'Boss room · +4 gold'}</small></button>
-                    <button onClick={() => prepare('brew')} disabled={preparations.includes('brew') || potions >= 5}><b>🧪 BREW</b><small>{preparations.includes('brew') ? '✓ +1 POTION' : 'Make one potion'}</small></button>
-                    <button onClick={() => prepare('appeal')} disabled={preparations.includes('appeal')}><b>📜 APPEAL</b><small>{preparations.includes('appeal') ? '✓ +6 GOLD' : 'Recover filing fees'}</small></button>
-                  </div>
+                  <div className="oracle-status"><span>🔮 LIVE DREAMDEX SETTLEMENT</span><strong>{remaining > 0 ? formatTime(remaining) : oracleBusy ? 'READING…' : `${oracleChecks} CHECK${oracleChecks === 1 ? '' : 'S'}`}</strong><small>The boss is dead and the run is complete. Only the final chest modifier is pending.</small></div>
+                  <div className="integration-proof"><span>SOMNIA CHAIN 5031</span><span>MARKET #{marketCode}</span><span>READ-ONLY ETH_CALL</span></div>
                 </div>}
               </div>
             </div>
@@ -417,22 +448,34 @@ export default function Home() {
 
         <section className="action-dock">
           {phase === 'SETUP' ? (
-            <button className="primary-action" onClick={startRun}>ENTER TEN-ROOM DUNGEON · BTC {direction}</button>
+            <button className="primary-action" onClick={startRun} disabled={!marketReady}>{marketReady ? `ENTER DELVEWORN · BTC ${direction}` : 'WAITING FOR ACTIVE BTC MARKET…'}</button>
           ) : phase === 'COMBAT' ? (
             <>
               <div className="combat-actions">
                 <button className="attack" onClick={() => act('attack')}><b>⚔️ ATTACK</b><strong>DAMAGE {attackMin}–{attackMax}</strong><small>Reliable · 15% critical</small></button>
                 <button className="storm" onClick={() => act('storm')}><b>⚡ STORM</b><strong>DAMAGE 0–{stormMax}</strong><small>High variance · no critical</small></button>
               </div>
-              <button className="potion" onClick={() => act('potion')} disabled={potions === 0 || hp >= 100}><span><b>🧪 POTION · {potions}/5</b><small>Heal up to 25 HP · enemy retaliates</small></span><strong>USE</strong></button>
+              <button className="potion" onClick={() => act('potion')} disabled={potions === 0 || hp >= 100 || combatPotionUses >= combatPotionLimit}><span><b>🧪 POTION · {potions}/{MAX_POTIONS}</b><small>Heal up to 25 HP · enemy retaliates</small></span><strong>{combatPotionUses}/{combatPotionLimit}</strong></button>
             </>
           ) : phase === 'CLEARED' ? (
-            <button className="primary-action" onClick={nextRoom}>🎲 CONTINUE TO ROOM {room + 2}</button>
-          ) : phase === 'ORACLE' ? (
-            <div className="oracle-dock">
-              <button className="oracle-action" onClick={() => void checkSettlement(false)} disabled={oracleBusy}>🔮 {oracleBusy ? 'CHECKING SETTLEMENT…' : 'CHECK FINAL LOOT NOW'}</button>
-              <small>{remaining > 0 ? `Automatic polling begins in ${formatTime(remaining)}` : 'Automatic settlement checks run every 5 seconds'}</small>
+            <div className="between-actions">
+              <button className="heal-action" onClick={useBetweenRoomPotion} disabled={potions === 0 || hp >= 100}>🧪 HEAL +25 HP · {potions}/{MAX_POTIONS}</button>
+              <button className="primary-action" onClick={nextRoom}>🎲 NEXT ROOM</button>
             </div>
+          ) : phase === 'MERCHANT' ? (
+            <div className="merchant-shop">
+              <div className="shop-heading"><div><span>KEVIN&apos;S SUPPLY SHOP</span><b>Prepare for Room 6</b></div><strong>🪙 {gold}</strong></div>
+              <div className="shop-grid">
+                <button onClick={() => merchantBuy('bandage')} disabled={bandageUsed || hp >= 100 || gold < 8}><b>❤️ BANDAGE</b><small>Heal up to 25 HP</small><strong>🪙 8</strong></button>
+                <button onClick={() => merchantBuy('potion')} disabled={merchantPotions === 0 || potions >= MAX_POTIONS || gold < 7}><b>🧪 POTION</b><small>Stock {merchantPotions}/2</small><strong>🪙 7</strong></button>
+                <button onClick={() => merchantBuy('weapon')} disabled={weaponSold || gold < 15}><b>⚔️ WEAPON +1</b><small>{weaponSold ? 'Sold' : `Current Lv ${weapon}`}</small><strong>🪙 15</strong></button>
+                <button onClick={() => merchantBuy('armor')} disabled={armorSold || gold < 15}><b>🛡️ ARMOR +1</b><small>{armorSold ? 'Sold' : `Current Lv ${armor}`}</small><strong>🪙 15</strong></button>
+              </div>
+              <button className="heal-action" onClick={useBetweenRoomPotion} disabled={potions === 0 || hp >= 100}>USE OWN POTION SAFELY · {potions}/{MAX_POTIONS}</button>
+              <button className="primary-action" onClick={nextRoom}>🚪 CONTINUE TO ROOM 6</button>
+            </div>
+          ) : phase === 'ORACLE' ? (
+            <div className="oracle-dock"><button className="oracle-action" onClick={() => void checkSettlement(false)} disabled={oracleBusy}>🔮 {oracleBusy ? 'CHECKING SETTLEMENT…' : 'CHECK FINAL CHEST NOW'}</button><small>{remaining > 0 ? `Automatic checks begin in ${formatTime(remaining)}` : 'Automatic settlement checks run every 5 seconds'}</small></div>
           ) : (
             <button className="primary-action" onClick={reset}>↻ BEGIN NEW EXPEDITION</button>
           )}
@@ -443,7 +486,7 @@ export default function Home() {
           {combatLog.length ? combatLog.map((entry, index) => <p key={`${entry}-${index}`} className={index === 0 ? 'latest' : ''}>{entry}</p>) : <p>The dungeon is quiet. This is almost certainly temporary.</p>}
         </section>
 
-        <footer><p>MARKET DUNGEON · DREAMDEX EVENT CONTRACTS · SOMNIA</p><span>Read-only prototype · no wallet · no approval · no order submission · market #{marketCode || '—'}</span></footer>
+        <footer><p>DELVEWORN × DREAMDEX EVENT CONTRACTS · SOMNIA</p><span>Competition prototype · no wallet · no approval · no order submission · market #{marketCode || '—'}</span></footer>
       </div>
     </main>
   );

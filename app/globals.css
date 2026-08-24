@@ -85,11 +85,18 @@ button { font: inherit; }
 .main-card { overflow: hidden; background: var(--panel); border: 1px solid var(--line); border-radius: 18px; margin-bottom: 12px; box-shadow: 0 22px 70px rgba(0, 0, 0, .24); }
 .main-card.boss-card { background: linear-gradient(180deg, rgba(88, 28, 135, .42), #121214 70%); border-color: #6b21a8; }
 
-.setup-view { min-height: 570px; padding: 30px 24px 24px; text-align: center; }
+.setup-view { min-height: 570px; padding: 20px 24px 24px; text-align: center; }
 .dungeon-sigil { font-size: 64px; filter: drop-shadow(0 12px 28px rgba(249, 115, 22, .12)); }
 .section-kicker { color: var(--orange-light); margin: 16px 0 0; letter-spacing: .24em; }
 .setup-view h2, .result-view h2 { margin: 8px 0 0; font-size: 30px; line-height: 1.05; font-weight: 950; letter-spacing: -.025em; }
 .muted { max-width: 400px; margin: 12px auto 0; color: var(--muted); font-size: 14px; line-height: 1.5; }
+
+.setup-monsters { position: relative; height: 210px; margin: -10px -18px 0; overflow: hidden; }
+.setup-monsters::after { content: ""; position: absolute; inset: auto 0 0; height: 82px; background: linear-gradient(transparent, var(--panel)); }
+.setup-monsters img { position: absolute; bottom: -18px; width: 47%; height: 220px; object-fit: contain; opacity: .62; filter: saturate(.8) drop-shadow(0 18px 22px rgba(0, 0, 0, .62)); }
+.setup-monsters img:first-child { left: -3%; transform: rotate(-3deg); }
+.setup-monsters img:last-child { right: -3%; transform: rotate(3deg); }
+.setup-monsters img.front { left: 50%; z-index: 2; width: 52%; opacity: 1; transform: translateX(-50%); }
 
 .prediction-card { margin-top: 24px; padding: 18px; background: rgba(0, 0, 0, .34); border: 1px solid var(--line); border-radius: 14px; text-align: left; }
 .prediction-card > strong { display: block; margin-top: 5px; font-size: 30px; letter-spacing: -.035em; }
@@ -109,6 +116,8 @@ button { font: inherit; }
 .rule-grid span { font-size: 18px; }
 .rule-grid b { display: block; margin-top: 5px; font-size: 10px; }
 .rule-grid small { display: block; margin-top: 3px; color: #71717a; font-size: 9px; line-height: 1.35; }
+.competition-note { margin-top: 12px; padding: 11px 12px; background: rgba(6, 78, 59, .18); border: 1px solid rgba(52, 211, 153, .2); border-radius: 10px; color: #71717a; font-size: 9px; line-height: 1.45; text-align: left; }
+.competition-note b { color: #a7f3d0; }
 
 .monster-stage { position: relative; height: 360px; overflow: hidden; background: linear-gradient(180deg, rgba(0,0,0,.08), rgba(0,0,0,.75)); }
 .monster-stage img { width: 100%; height: 100%; object-fit: contain; filter: drop-shadow(0 22px 30px rgba(0, 0, 0, .58)); }
@@ -155,6 +164,21 @@ button { font: inherit; }
 .waiting-actions b { font-size: 9px; }
 .waiting-actions small { margin-top: 4px; color: #a78bfa; font-size: 7px; line-height: 1.25; }
 
+.integration-proof { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+.integration-proof span { padding: 6px 8px; border-radius: 99px; background: rgba(9, 9, 11, .55); border: 1px solid rgba(168, 85, 247, .24); color: #a78bfa; font-size: 7px; font-weight: 900; letter-spacing: .08em; }
+
+.merchant-view { min-height: 610px; background: linear-gradient(180deg, rgba(120, 53, 15, .16), #151517 72%); }
+.merchant-stage { position: relative; height: 350px; overflow: hidden; }
+.merchant-stage img { width: 100%; height: 100%; object-fit: contain; filter: drop-shadow(0 22px 30px rgba(0, 0, 0, .62)); }
+.merchant-stage .stage-fade { background: linear-gradient(transparent, #171412); }
+.merchant-copy { padding: 2px 20px 24px; text-align: center; }
+.merchant-copy h2 { margin: 8px 0 0; font-size: 30px; line-height: 1; font-weight: 950; }
+.merchant-role { margin: 6px 0 0; color: #78716c; font-size: 9px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+.merchant-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 18px; }
+.merchant-stats div { padding: 11px 8px; background: rgba(0, 0, 0, .3); border: 1px solid #3f3429; border-radius: 10px; }
+.merchant-stats span { display: block; color: #78716c; font-size: 7px; font-weight: 900; letter-spacing: .1em; }
+.merchant-stats strong { display: block; margin-top: 5px; font-size: 11px; }
+
 .supply-actions { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; width: 100%; margin-top: 20px; }
 .supply-actions button { min-width: 0; padding: 14px 10px; background: rgba(9, 9, 11, .48); border: 1px solid var(--line-strong); border-radius: 10px; color: white; text-align: left; cursor: pointer; }
 .supply-actions button:hover:not(:disabled) { border-color: var(--orange); background: rgba(124, 45, 18, .28); }
@@ -165,6 +189,7 @@ button { font: inherit; }
 
 .result-view { min-height: 430px; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 34px 24px; text-align: center; }
 .result-icon { font-size: 72px; }
+.merchant-preview { width: 100%; height: 250px; object-fit: contain; margin: -20px 0 4px; filter: drop-shadow(0 22px 30px rgba(0, 0, 0, .58)); }
 .reward-box { width: 100%; padding: 15px; margin-top: 24px; background: rgba(0, 0, 0, .34); border: 1px solid var(--line); border-radius: 12px; }
 .reward-box strong { display: block; margin-top: 6px; font-size: 13px; }
 .final-stats { width: 100%; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 24px; }
@@ -179,6 +204,9 @@ button { font: inherit; }
 .primary-action, .oracle-action { width: 100%; min-height: 54px; border: 0; border-radius: 11px; background: var(--orange); color: #090909; font-size: 14px; font-weight: 950; letter-spacing: .025em; }
 .oracle-action { background: var(--violet); color: white; }
 .oracle-dock small { display: block; margin-top: 8px; color: #8b78a0; font-size: 8px; text-align: center; }
+.between-actions { display: grid; grid-template-columns: .85fr 1.15fr; gap: 8px; }
+.heal-action { min-height: 48px; border: 1px solid #047857; border-radius: 11px; background: #065f46; color: white; font-size: 10px; font-weight: 900; cursor: pointer; }
+.heal-action:disabled { opacity: .35; cursor: not-allowed; }
 .combat-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .combat-actions button { display: flex; flex-direction: column; align-items: flex-start; min-height: 93px; padding: 13px; border: 0; border-radius: 11px; text-align: left; }
 .combat-actions .attack { background: var(--orange); color: #090909; }
@@ -191,6 +219,22 @@ button { font: inherit; }
 .potion span b { font-size: 12px; }
 .potion span small { margin-top: 4px; color: #a7f3d0; font-size: 9px; }
 .potion > strong { font-size: 10px; }
+
+.merchant-shop { display: grid; gap: 9px; }
+.shop-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 2px; }
+.shop-heading span, .shop-heading b { display: block; }
+.shop-heading span { color: #22d3ee; font-size: 8px; font-weight: 900; letter-spacing: .12em; }
+.shop-heading b { margin-top: 4px; font-size: 11px; }
+.shop-heading > strong { padding: 8px 10px; border: 1px solid var(--line); border-radius: 9px; background: #18181b; font-size: 11px; }
+.shop-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
+.shop-grid button { position: relative; min-height: 75px; padding: 11px; background: rgba(120, 53, 15, .18); border: 1px solid #713f12; border-radius: 10px; color: white; text-align: left; cursor: pointer; }
+.shop-grid button:hover:not(:disabled) { background: rgba(146, 64, 14, .32); border-color: var(--orange); }
+.shop-grid button:disabled { opacity: .35; cursor: not-allowed; }
+.shop-grid b, .shop-grid small { display: block; }
+.shop-grid b { font-size: 9px; }
+.shop-grid small { margin-top: 5px; color: #a8a29e; font-size: 8px; }
+.shop-grid strong { position: absolute; top: 10px; right: 10px; color: #fbbf24; font-size: 8px; }
+.merchant-shop > .primary-action, .merchant-shop > .heal-action { min-height: 45px; }
 
 .dungeon-log { padding: 15px; background: var(--panel); border: 1px solid var(--line); border-radius: 14px; }
 .dungeon-log > div { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding-bottom: 10px; border-bottom: 1px solid #26262b; }
@@ -211,10 +255,12 @@ footer span { display: block; margin-top: 6px; color: #303035; font-size: 8px; l
   .monster-stage { height: 325px; }
   .monster-info { padding-inline: 16px; }
   .monster-heading h2 { font-size: 23px; }
+  .setup-monsters { height: 190px; }
+  .setup-monsters img { height: 202px; }
 }
 
 @media (max-width: 360px) {
-  .prediction-buttons, .rule-grid, .combat-actions, .supply-actions { grid-template-columns: 1fr; }
+  .prediction-buttons, .rule-grid, .combat-actions, .supply-actions, .shop-grid, .between-actions { grid-template-columns: 1fr; }
   .sticky-hud > div { padding-inline: 8px; }
   .sticky-hud strong { font-size: 10px; }
   .ten-room-map { gap: 2px; padding-inline: 4px; }

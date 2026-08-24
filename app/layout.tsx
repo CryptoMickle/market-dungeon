@@ -15,10 +15,10 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   metadataBase: new URL('https://market-dungeon.vtalityinnovation.chatgpt.site'),
   title: 'Market Dungeon — Your Call. Your Fate.',
-  description: 'A 15-minute market roguelite powered by dreamDEX Event Contracts on Somnia.',
+  description: 'The complete Delveworn dungeon loop, powered by live dreamDEX Event Contracts on Somnia.',
   openGraph: {
     title: 'Market Dungeon — Your Call. Your Fate.',
-    description: 'A 15-minute market roguelite powered by dreamDEX Event Contracts on Somnia.',
+    description: 'The complete Delveworn dungeon loop, powered by live dreamDEX Event Contracts on Somnia.',
     type: 'website',
     images: [
       {
@@ -32,7 +32,7 @@ export const metadata: Metadata = {
   twitter: {
     card: 'summary_large_image',
     title: 'Market Dungeon — Your Call. Your Fate.',
-    description: 'A 15-minute market roguelite powered by dreamDEX Event Contracts on Somnia.',
+    description: 'The complete Delveworn dungeon loop, powered by live dreamDEX Event Contracts on Somnia.',
     images: ['/og.png'],
   },
 };
