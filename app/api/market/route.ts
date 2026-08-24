@@ -1,5 +1,6 @@
 const INDEXER = 'https://prd.smk.somnia.host/v1/graphql';
 const RPC = 'https://api.infra.mainnet.somnia.network';
+const IDEAL_ENTRY_SECONDS = 6 * 60;
 
 async function graphql(query: string, variables: Record<string, unknown> = {}) {
   const response = await fetch(INDEXER, {
@@ -94,13 +95,10 @@ export async function GET(request: Request) {
       }
     }`, { now });
     const candidates = (data.Market as Array<Record<string, unknown>>) ?? [];
-    const idealRemaining = 13 * 60;
     const market = [...candidates].sort((left, right) => {
       const leftRemaining = Number(left.expiry) - Number(now);
       const rightRemaining = Number(right.expiry) - Number(now);
-      const leftPenalty = leftRemaining >= 10 * 60 ? Math.abs(leftRemaining - idealRemaining) : 10_000 + Math.abs(leftRemaining - idealRemaining);
-      const rightPenalty = rightRemaining >= 10 * 60 ? Math.abs(rightRemaining - idealRemaining) : 10_000 + Math.abs(rightRemaining - idealRemaining);
-      return leftPenalty - rightPenalty;
+      return Math.abs(leftRemaining - IDEAL_ENTRY_SECONDS) - Math.abs(rightRemaining - IDEAL_ENTRY_SECONDS);
     })[0];
     if (!market) return Response.json({ error: 'No active BTC 15m market' }, { status: 404 });
 

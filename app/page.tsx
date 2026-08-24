@@ -26,6 +26,8 @@ const TOTAL_ROOMS = 10;
 const TOTAL_TIERS = 4;
 const START_POTIONS = 3;
 const MAX_POTIONS = 5;
+const MIN_LIVE_ENTRY_SECONDS = 5 * 60;
+const MAX_LIVE_ENTRY_SECONDS = 7 * 60;
 const PROFILE_KEY = 'market-dungeon-profile-v1';
 const MERCHANT_IMAGE = '/characters/merchant-quartermaster-kevin.webp';
 
@@ -159,6 +161,7 @@ export default function Home() {
   const [armor, setArmor] = useState(0);
   const [combatPotionUses, setCombatPotionUses] = useState(0);
   const [remaining, setRemaining] = useState(0);
+  const [marketEntryRemaining, setMarketEntryRemaining] = useState<number | null>(null);
   const [notice, setNotice] = useState('LIVE DREAMDEX MARKET · READ ONLY');
   const [combatLog, setCombatLog] = useState<string[]>([]);
   const [lastReward, setLastReward] = useState('');
@@ -199,7 +202,7 @@ export default function Home() {
       else if (!cancelled) setNotice('DREAMDEX FEED RETRYING · NO ACTION REQUIRED');
     }).catch(() => { if (!cancelled) setNotice('DREAMDEX FEED RETRYING · NO ACTION REQUIRED'); });
     void load();
-    const refresh = window.setInterval(() => { void load(); }, 30000);
+    const refresh = window.setInterval(() => { void load(); }, 15000);
     return () => { cancelled = true; window.clearInterval(refresh); };
   }, [phase]);
 
@@ -222,7 +225,8 @@ export default function Home() {
   const stormMax = 20 + weapon * 3;
   const combatPotionLimit = isBoss ? 3 : 2;
   const finalHealCost = Math.ceil((100 - hp) / 25) * 8;
-  const marketReady = market.status !== 'CONNECTING' && market.marketId !== fallback.marketId && remaining > 0;
+  const hasLiveMarket = market.status !== 'CONNECTING' && market.marketId !== fallback.marketId && remaining > 0;
+  const marketReady = hasLiveMarket && remaining >= MIN_LIVE_ENTRY_SECONDS && remaining <= MAX_LIVE_ENTRY_SECONDS;
   const expiryLabel = useMemo(() => gateTime(market.expiryIso), [market.expiryIso]);
   const omenName = direction === 'UP' ? 'GOLD AWAKENS' : 'SHADOWS RISE';
   const omenIcon = direction === 'UP' ? <GoldIcon /> : '🌑';
@@ -253,12 +257,14 @@ export default function Home() {
   }
 
   function startRun() {
+    if (!marketReady) return;
     const nextRoster = buildRoster();
     setRoster(nextRoster); setTier(1); setRoom(0); setTurn(0); setPhase('COMBAT');
     setHp(100); setMonsterHp(nextRoster[0].hp); setPotions((value) => Math.min(MAX_POTIONS, Math.max(START_POTIONS, value))); setWeapon(1); setArmor(0);
     setCombatPotionUses(0); setBandageUsed(false); setMerchantPotions(2); setWeaponSold(false); setArmorSold(false);
     setOracleChecks(0); setOracleResult(null); setOracleBusy(false); oracleBusyRef.current = false; setLastReward('');
     setJudgeMode(false); setDeathCause('COMBAT');
+    setMarketEntryRemaining(remaining);
     setCombatLog([`${omenName} recorded: BTC ${direction} against live dreamDEX market #${market.marketId.slice(-4).toUpperCase()}. No order was sent.`]);
     setNotice(`${omenName} · DELVEWORN RUN STARTED`);
   }
@@ -278,6 +284,7 @@ export default function Home() {
       setCombatPotionUses(0); setBandageUsed(false); setMerchantPotions(2); setWeaponSold(false); setArmorSold(false);
       setOracleChecks(0); setOracleResult(null); setOracleBusy(false); oracleBusyRef.current = false; setLastReward('');
       setJudgeMode(true); setDeathCause('COMBAT');
+      setMarketEntryRemaining(null);
       setCombatLog([`Judge Demo loaded finalized dreamDEX market #${replayMarket.marketId.slice(-4).toUpperCase()}. The replay uses its real Somnia settlement.`]);
       setNotice('JUDGE DEMO · FINAL GUARD + BOSS REPLAY · REAL SETTLED MARKET');
     } catch {
@@ -418,6 +425,7 @@ export default function Home() {
     setTier(nextTier); setRoster(nextRoster); setRoom(0); setTurn(0); setMonsterHp(nextRoster[0].hp); setPhase('COMBAT');
     setCombatPotionUses(0); setBandageUsed(false); setMerchantPotions(2); setWeaponSold(false); setArmorSold(false);
     setOracleChecks(0); setOracleResult(null); setOracleBusy(false); oracleBusyRef.current = false; setLastReward('');
+    setMarketEntryRemaining(remaining);
     setCombatLog([`Tier ${nextTier} prediction recorded: BTC ${direction} on dreamDEX market #${market.marketId.slice(-4).toUpperCase()}.`, ...combatLog].slice(0, 10));
     setNotice(`TIER ${nextTier} · NEW PREDICTION LOCKED · ${omenName}`);
   }
@@ -482,6 +490,7 @@ export default function Home() {
     setBandageUsed(false); setMerchantPotions(2); setWeaponSold(false); setArmorSold(false);
     setOracleChecks(0); setOracleResult(null); setOracleBusy(false); oracleBusyRef.current = false;
     setJudgeMode(false); setJudgeLoading(false); setDeathCause('COMBAT');
+    setMarketEntryRemaining(null);
     setNotice('LIVE DREAMDEX MARKET · READ ONLY');
   }
 
@@ -503,7 +512,7 @@ export default function Home() {
         </header>
 
         <section className="market-ribbon" aria-label="Live dreamDEX Event Contract">
-          <div><span>BTC · 15 MIN</span><strong>{market.status}</strong></div>
+          <div><span>BTC · 15 MIN</span><strong>{market.status}</strong><small>{judgeMode ? 'FINALIZED ONCHAIN REPLAY' : marketEntryRemaining !== null ? `LOCKED WITH ${formatTime(marketEntryRemaining)} LEFT` : 'LIVE ENTRY TARGET · 05:00–07:00'}</small></div>
           <div><span>LINE</span><strong>${market.strikeUsd}</strong></div>
           <div><span>EXPIRY</span><strong>{formatTime(remaining)}</strong><small>{expiryLabel} UTC</small></div>
           <div><span>DUNGEON OMEN</span><strong className={direction === 'UP' ? 'text-up' : 'text-down'}>{omenIcon} {omenName}</strong><small>BTC {direction}</small></div>
@@ -560,7 +569,7 @@ export default function Home() {
                 <div><span>🧰</span><b>BUILD WITHIN THE RUN</b><small>Kevin&apos;s attack and defense upgrades last until defeat</small></div>
                 <div><span>🏰</span><b>CLIMB FOUR TIERS</b><small>Every tier brings a new roster, boss and prediction</small></div>
               </div>
-              <div className="competition-note">Built for the Somnia × dreamDEX Event Contracts Hackathon.</div>
+              <div className="competition-note"><b>LIVE CONTRACT INTEGRATION:</b> Each tier locks an active BTC 15-minute dreamDEX market with 5–7 minutes remaining. Its real market ID, expiry and Somnia settlement are preserved; only the player&apos;s entry timing is shortened.</div>
             </div>
           ) : phase === 'TIER_SETUP' ? (
             <div className="tier-setup-view">
@@ -647,13 +656,13 @@ export default function Home() {
         <section className="action-dock">
           {phase === 'SETUP' ? (
             <div className="judge-entry">
-              <button className="primary-action" onClick={startRun} disabled={!marketReady}>{marketReady ? <>BEGIN TIER 1 · {omenIcon} {omenName}</> : 'WAITING FOR ACTIVE BTC MARKET…'}</button>
+              <button className="primary-action" onClick={startRun} disabled={!marketReady}>{marketReady ? <>BEGIN TIER 1 · {omenIcon} {omenName}</> : hasLiveMarket && remaining > MAX_LIVE_ENTRY_SECONDS ? `LIVE ENTRY OPENS IN ${formatTime(remaining - MAX_LIVE_ENTRY_SECONDS)}` : 'WAITING FOR NEXT LIVE ENTRY WINDOW…'}</button>
               <button className="judge-action" onClick={() => void startJudgeDemo()} disabled={judgeLoading}>⚡ {judgeLoading ? 'LOADING SETTLED MARKET…' : '2-MIN JUDGE DEMO · REAL MARKET REPLAY'}</button>
               <small>Judge Demo starts with one wounded Tier 4 guard before the wounded boss, using a finalized BTC Event Contract from Somnia mainnet.</small>
             </div>
           ) : phase === 'TIER_SETUP' ? (
             <div className="tier-action">
-              <button className="primary-action" onClick={startNextTier} disabled={!marketReady}>{marketReady ? <>ENTER TIER {tier + 1} · {omenIcon} {omenName}</> : 'WAITING FOR THE NEXT BTC MARKET…'}</button>
+              <button className="primary-action" onClick={startNextTier} disabled={!marketReady}>{marketReady ? <>ENTER TIER {tier + 1} · {omenIcon} {omenName}</> : hasLiveMarket && remaining > MAX_LIVE_ENTRY_SECONDS ? `TIER ${tier + 1} ENTRY OPENS IN ${formatTime(remaining - MAX_LIVE_ENTRY_SECONDS)}` : 'WAITING FOR THE NEXT LIVE ENTRY WINDOW…'}</button>
               <small>Same run: gold, potions, health, attack and defense continue into the next tier.</small>
             </div>
           ) : phase === 'COMBAT' ? (
