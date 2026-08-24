@@ -175,6 +175,7 @@ export default function Home() {
   const expiryLabel = useMemo(() => gateTime(market.expiryIso), [market.expiryIso]);
   const omenName = direction === 'UP' ? 'GOLD AWAKENS' : 'SHADOWS RISE';
   const omenIcon = direction === 'UP' ? <GoldIcon /> : '🌑';
+  const judgeStep = phase === 'VICTORY' ? 3 : ['ORACLE', 'FINAL_MERCHANT'].includes(phase) ? 2 : 1;
 
   const subtitle = phase === 'SETUP'
     ? 'The complete Delveworn loop, powered by a live Event Contract.'
@@ -428,6 +429,21 @@ export default function Home() {
           <div><span>DUNGEON OMEN</span><strong className={direction === 'UP' ? 'text-up' : 'text-down'}>{omenIcon} {omenName}</strong><small>BTC {direction}</small></div>
         </section>
 
+        {judgeMode && phase !== 'SETUP' && (
+          <section className="judge-replay-banner" aria-label="Judge Demo progress">
+            <div className="judge-replay-heading">
+              <span>⚡ 2-MIN JUDGE DEMO</span>
+              <strong>FINALIZED MARKET REPLAY · #{marketCode}</strong>
+              <small>Rooms 1–9 were fast-forwarded. Combat and the final Somnia settlement remain real.</small>
+            </div>
+            <div className="judge-replay-steps">
+              <span className={judgeStep === 1 ? 'active' : 'done'}><b>1</b> DEFEAT BOSS</span>
+              <span className={judgeStep === 2 ? 'active' : judgeStep > 2 ? 'done' : ''}><b>2</b> MERCHANT OPTIONAL</span>
+              <span className={judgeStep === 3 ? 'active' : ''}><b>3</b> REVEAL CHEST</span>
+            </div>
+          </section>
+        )}
+
         {phase !== 'SETUP' && (
           <section className="sticky-hud" aria-label="Expedition status">
             <div><span>HEALTH</span><strong>❤️ {hp}/100</strong><div className="mini-bar"><i style={{ width: `${playerPercent}%` }} /></div></div>
@@ -485,8 +501,9 @@ export default function Home() {
           ) : phase === 'VICTORY' ? (
             <div className="result-view">
               <div className="result-icon">{oracleResult === 'BLESSED' ? '✨' : oracleResult === 'CURSED' ? '📉' : '👑'}</div>
-              <p className="section-kicker">TEN ROOMS CLEARED · {oracleResult ?? 'SETTLED'}</p>
+              <p className="section-kicker">{judgeMode ? 'JUDGE DEMO COMPLETE · ONCHAIN RESULT VERIFIED' : 'TEN ROOMS CLEARED'} · {oracleResult ?? 'SETTLED'}</p>
               <h2>{resultHeading}</h2><p className="muted">{resultCopy}</p>
+              {judgeMode && <div className="judge-verification"><span>✓ VERIFIED REPLAY</span><strong>dreamDEX market #{marketCode}</strong><small>Finalized outcome read from Somnia chain 5031 · no mocked settlement</small></div>}
               <div className="final-stats"><div><span>ROOMS</span><strong>10</strong></div><div><span>FINAL GOLD</span><strong><GoldIcon /> {gold}</strong></div></div>
             </div>
           ) : phase === 'DEAD' ? (
@@ -506,7 +523,9 @@ export default function Home() {
                 </div>
               </div>
               <div className="monster-stage">
-                <img src={monster.image} alt={monster.name} /><div className="stage-fade" />
+                <img src={monster.image} alt={monster.name} />
+                {judgeMode && <div className="judge-stage-label">⚡ REPLAY START · ROOMS 1–9 CLEARED · BOSS WOUNDED FOR FAST DEMO</div>}
+                <div className="stage-fade" />
               </div>
               <div className="monster-info">
                 {isBoss && <p className="boss-label">👑 DUNGEON MANAGEMENT</p>}
@@ -533,6 +552,7 @@ export default function Home() {
             </div>
           ) : phase === 'COMBAT' ? (
             <>
+              {judgeMode && <div className="judge-next-action"><span>JUDGE STEP 1 OF 3</span><b>Defeat the wounded boss, then choose merchant or final chest.</b></div>}
               <div className="combat-actions">
                 <button className="attack" onClick={() => act('attack')}><b>⚔️ ATTACK</b><strong>DAMAGE {attackMin}–{attackMax}</strong><small>Reliable · 15% critical</small></button>
                 <button className="storm" onClick={() => act('storm')}><b>⚡ STORM</b><strong>DAMAGE 0–{stormMax}</strong><small>High variance · no critical</small></button>
