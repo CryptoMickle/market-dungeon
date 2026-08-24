@@ -110,7 +110,7 @@ app/
   layout.tsx            Metadata and social preview configuration
   page.tsx              Complete ten-room game and Judge Demo state machine
 public/
-  assets/                Canonical Delveworn gold coin
+  assets/                Canonical gold coin and Market Dungeon homepage hero
   characters/            Travelling merchant artwork
   monsters/              Four progression tiers for each enemy class
 ```

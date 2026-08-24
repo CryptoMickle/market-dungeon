@@ -540,10 +540,8 @@ export default function Home() {
         <section className={`main-card ${isBoss && !['SETUP', 'TIER_SETUP'].includes(phase) ? 'boss-card' : ''}`}>
           {phase === 'SETUP' ? (
             <div className="setup-view">
-              <div className="setup-monsters" aria-hidden="true">
-                <img src="/monsters/zombie-1-grave-belle.webp" alt="" />
-                <img className="front" src="/monsters/goblin-1-gary.webp" alt="" />
-                <img src="/monsters/orc-1-thud.webp" alt="" />
+              <div className="setup-hero">
+                <img src="/assets/market-dungeon-party-hero.webp" alt="A dark fantasy dungeon party with an undead sorceress, goblin and armored orc" />
               </div>
               <p className="section-kicker">THE REAL DELVEWORN LOOP · THE BITCOIN HOARD</p>
               <h2>Defeat the boss. Predict correctly. Survive both.</h2>
