@@ -25,9 +25,9 @@ Gold persists between runs. Potions have a hard maximum of five: a new run resto
 Select **2-MIN JUDGE DEMO · REAL MARKET REPLAY** on the start screen. This mode:
 
 - queries the latest finalized BTC 15-minute Event Contract;
-- fast-forwards Tiers 1–3 and starts at the wounded Tier 4 boss with an explicit `JUDGE DEMO` label;
+- fast-forwards Tiers 1–3 and Rooms 1–8, then starts with one wounded Tier 4 guard before the wounded final boss;
 - preserves the player's chosen UP/DOWN omen;
-- requires the player to defeat the boss through normal combat; and
+- requires the player to defeat both the guard and boss through normal combat; and
 - resolves whether the boss stays down or strikes back from that market's real recorded Somnia outcome.
 
 It is a fast replay, not a mocked settlement.

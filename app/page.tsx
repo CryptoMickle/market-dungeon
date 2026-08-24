@@ -226,7 +226,13 @@ export default function Home() {
   const expiryLabel = useMemo(() => gateTime(market.expiryIso), [market.expiryIso]);
   const omenName = direction === 'UP' ? 'GOLD AWAKENS' : 'SHADOWS RISE';
   const omenIcon = direction === 'UP' ? <GoldIcon /> : '🌑';
-  const judgeStep = ['VICTORY', 'DEAD'].includes(phase) ? 3 : ['ORACLE', 'FINAL_MERCHANT'].includes(phase) ? 2 : 1;
+  const judgeStep = ['VICTORY', 'DEAD'].includes(phase)
+    ? 4
+    : ['ORACLE', 'FINAL_MERCHANT'].includes(phase)
+      ? 3
+      : room === TOTAL_ROOMS - 2 && phase === 'COMBAT'
+        ? 1
+        : 2;
 
   const subtitle = phase === 'SETUP'
     ? 'The complete Delveworn loop, powered by a live Event Contract.'
@@ -266,14 +272,14 @@ export default function Home() {
       if (!response.ok || !data.market) throw new Error(data.error ?? 'Replay unavailable');
       const replayMarket = data.market as Market;
       const nextRoster = buildRoster((TOTAL_TIERS - 1) * TOTAL_ROOMS + 1);
-      const bossRoom = TOTAL_ROOMS - 1;
-      setMarket(replayMarket); setRoster(nextRoster); setTier(TOTAL_TIERS); setRoom(bossRoom); setTurn(0); setPhase('COMBAT');
-      setHp(72); setMonsterHp(Math.min(24, nextRoster[bossRoom].hp)); setPotions(2); setGold(62); setWeapon(4); setArmor(1);
+      const guardRoom = TOTAL_ROOMS - 2;
+      setMarket(replayMarket); setRoster(nextRoster); setTier(TOTAL_TIERS); setRoom(guardRoom); setTurn(0); setPhase('COMBAT');
+      setHp(76); setMonsterHp(Math.min(12, nextRoster[guardRoom].hp)); setPotions(2); setGold(62); setWeapon(4); setArmor(1);
       setCombatPotionUses(0); setBandageUsed(false); setMerchantPotions(2); setWeaponSold(false); setArmorSold(false);
       setOracleChecks(0); setOracleResult(null); setOracleBusy(false); oracleBusyRef.current = false; setLastReward('');
       setJudgeMode(true); setDeathCause('COMBAT');
       setCombatLog([`Judge Demo loaded finalized dreamDEX market #${replayMarket.marketId.slice(-4).toUpperCase()}. The replay uses its real Somnia settlement.`]);
-      setNotice('JUDGE DEMO · FINAL BOSS REPLAY · REAL SETTLED MARKET');
+      setNotice('JUDGE DEMO · FINAL GUARD + BOSS REPLAY · REAL SETTLED MARKET');
     } catch {
       setNotice('JUDGE DEMO UNAVAILABLE · LIVE EXPEDITION STILL READY');
     } finally {
@@ -399,7 +405,8 @@ export default function Home() {
   function nextRoom() {
     if (!['CLEARED', 'MERCHANT'].includes(phase)) return;
     const next = room + 1;
-    setRoom(next); setTurn(0); setMonsterHp(roster[next].hp); setCombatPotionUses(0); setPhase('COMBAT');
+    const nextMonsterHp = judgeMode && next === TOTAL_ROOMS - 1 ? Math.min(24, roster[next].hp) : roster[next].hp;
+    setRoom(next); setTurn(0); setMonsterHp(nextMonsterHp); setCombatPotionUses(0); setPhase('COMBAT');
     setNotice(next === TOTAL_ROOMS - 1 ? 'ROOM 10 · DUNGEON MANAGEMENT' : `ROOM ${next + 1} · ${roster[next].species.toUpperCase()}`);
     addLog(`The gate opens. ${roster[next].name} is regrettably employed here.`);
   }
@@ -507,12 +514,13 @@ export default function Home() {
             <div className="judge-replay-heading">
               <span>⚡ 2-MIN JUDGE DEMO</span>
               <strong>FINALIZED MARKET REPLAY · #{marketCode}</strong>
-              <small>Tiers 1–3 and Rooms 1–9 were fast-forwarded. Defeat the final boss, then the real prediction decides who stays down.</small>
+              <small>Tiers 1–3 and Rooms 1–8 were fast-forwarded. Defeat one wounded guard and the final boss, then the real prediction decides who stays down.</small>
             </div>
             <div className="judge-replay-steps">
-              <span className={judgeStep === 1 ? 'active' : 'done'}><b>1</b> DEFEAT FINAL BOSS</span>
-              <span className={judgeStep === 2 ? 'active' : judgeStep > 2 ? 'done' : ''}><b>2</b> MERCHANT OPTIONAL</span>
-              <span className={judgeStep === 3 ? 'active' : ''}><b>3</b> REVEAL BOSS FATE</span>
+              <span className={judgeStep === 1 ? 'active' : 'done'}><b>1</b> DEFEAT GUARD</span>
+              <span className={judgeStep === 2 ? 'active' : judgeStep > 2 ? 'done' : ''}><b>2</b> DEFEAT BOSS</span>
+              <span className={judgeStep === 3 ? 'active' : judgeStep > 3 ? 'done' : ''}><b>3</b> MERCHANT OPTIONAL</span>
+              <span className={judgeStep === 4 ? 'active' : ''}><b>4</b> REVEAL FATE</span>
             </div>
           </section>
         )}
@@ -585,8 +593,8 @@ export default function Home() {
           ) : phase === 'CLEARED' ? (
             <div className="result-view cleared-view">
               <div className="result-icon">🏆</div><p className="section-kicker">ROOM {room + 1} CLEARED</p>
-              <h2>Against all evidence, you remain alive.</h2>
-              <p className="muted">Heal safely with a potion before opening the next gate.</p>
+              <h2>{judgeMode ? 'The final boss gate is open.' : 'Against all evidence, you remain alive.'}</h2>
+              <p className="muted">{judgeMode ? 'The guard demonstrated normal combat. Continue to the wounded boss for the dual-condition finale.' : 'Heal safely with a potion before opening the next gate.'}</p>
               <div className="reward-box"><span>RECOVERED</span><strong><GoldIcon /> {lastReward}</strong></div>
             </div>
           ) : phase === 'VICTORY' ? (
@@ -618,7 +626,7 @@ export default function Home() {
               </div>
               <div className="monster-stage">
                 <img src={monster.image} alt={monster.name} />
-                {judgeMode && <div className="judge-stage-label">⚡ FINAL TIER REPLAY · TIERS 1–3 + ROOMS 1–9 CLEARED · BOSS WOUNDED</div>}
+                {judgeMode && <div className="judge-stage-label">{room === TOTAL_ROOMS - 2 ? '⚡ FINAL TIER REPLAY · ONE WOUNDED GUARD REMAINS BEFORE THE BOSS' : '⚡ FINAL BOSS · WOUNDED FOR THE FAST DEMO'}</div>}
                 <div className="stage-fade" />
               </div>
               <div className="monster-info">
@@ -643,7 +651,7 @@ export default function Home() {
             <div className="judge-entry">
               <button className="primary-action" onClick={startRun} disabled={!marketReady}>{marketReady ? <>BEGIN TIER 1 · {omenIcon} {omenName}</> : 'WAITING FOR ACTIVE BTC MARKET…'}</button>
               <button className="judge-action" onClick={() => void startJudgeDemo()} disabled={judgeLoading}>⚡ {judgeLoading ? 'LOADING SETTLED MARKET…' : '2-MIN JUDGE DEMO · REAL MARKET REPLAY'}</button>
-              <small>Judge Demo skips directly to the wounded Tier 4 boss using a finalized BTC Event Contract from Somnia mainnet.</small>
+              <small>Judge Demo starts with one wounded Tier 4 guard before the wounded boss, using a finalized BTC Event Contract from Somnia mainnet.</small>
             </div>
           ) : phase === 'TIER_SETUP' ? (
             <div className="tier-action">
@@ -652,7 +660,7 @@ export default function Home() {
             </div>
           ) : phase === 'COMBAT' ? (
             <>
-              {judgeMode && <div className="judge-next-action"><span>JUDGE STEP 1 OF 3</span><b>Defeat the wounded boss, then choose merchant or reveal its prediction fate.</b></div>}
+              {judgeMode && <div className="judge-next-action"><span>JUDGE STEP {judgeStep} OF 4</span><b>{room === TOTAL_ROOMS - 2 ? 'Defeat the wounded guard to open the final boss gate.' : 'Defeat the wounded boss, then choose merchant or reveal its prediction fate.'}</b></div>}
               <div className="combat-actions">
                 <button className="attack" onClick={() => act('attack')}><b>⚔️ ATTACK</b><strong>DAMAGE {attackMin}–{attackMax}</strong><small>Reliable · 15% critical</small></button>
                 <button className="storm" onClick={() => act('storm')}><b>⚡ STORM</b><strong>DAMAGE 0–{stormMax}</strong><small>High variance · no critical</small></button>
@@ -662,7 +670,7 @@ export default function Home() {
           ) : phase === 'CLEARED' ? (
             <div className="between-actions">
               <button className="heal-action" onClick={useBetweenRoomPotion} disabled={potions === 0 || hp >= 100}>🧪 HEAL +25 HP · {potions}/{MAX_POTIONS}</button>
-              <button className="primary-action" onClick={nextRoom}>🎲 NEXT ROOM</button>
+              <button className="primary-action" onClick={nextRoom}>{judgeMode ? '👑 ENTER FINAL BOSS' : '🎲 NEXT ROOM'}</button>
             </div>
           ) : phase === 'MERCHANT' ? (
             <div className="merchant-shop">

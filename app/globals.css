@@ -72,7 +72,7 @@ button { font: inherit; }
 .judge-replay-heading span { display: block; color: #e9d5ff; font-size: 9px; font-weight: 950; letter-spacing: .18em; }
 .judge-replay-heading strong { display: block; margin-top: 6px; font-size: 14px; }
 .judge-replay-heading small { display: block; margin-top: 4px; color: #c4b5fd; font-size: 9px; line-height: 1.4; }
-.judge-replay-steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-top: 12px; }
+.judge-replay-steps { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-top: 12px; }
 .judge-replay-steps span { display: flex; align-items: center; gap: 5px; min-width: 0; padding: 8px 6px; border: 1px solid rgba(196, 181, 253, .16); border-radius: 9px; background: rgba(9, 9, 11, .34); color: #7e72a0; font-size: 7px; font-weight: 900; }
 .judge-replay-steps span b { display: grid; place-items: center; flex: 0 0 17px; height: 17px; border-radius: 50%; background: #3f3f46; color: #a1a1aa; font-size: 8px; }
 .judge-replay-steps span.active { border-color: #c084fc; background: rgba(126, 34, 206, .34); color: white; }
@@ -336,6 +336,7 @@ footer span { display: block; margin-top: 6px; color: #303035; font-size: 8px; l
   .setup-monsters img { height: 202px; }
   .tier-track { grid-template-columns: 1fr; }
   .tier-track > div:first-child { display: flex; align-items: center; justify-content: space-between; }
+  .judge-replay-steps { grid-template-columns: repeat(2, 1fr); }
 }
 
 @media (max-width: 360px) {
