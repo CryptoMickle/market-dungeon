@@ -107,6 +107,10 @@ function gateTime(expiryIso: string) {
   return new Date(expiryIso).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hourCycle: 'h23', timeZone: 'UTC' });
 }
 
+function GoldIcon() {
+  return <span className="gold-icon" aria-hidden="true" />;
+}
+
 export default function Home() {
   const [market, setMarket] = useState<Market>(fallback);
   const [direction, setDirection] = useState<Direction>('UP');
@@ -167,7 +171,7 @@ export default function Home() {
   const marketReady = market.status !== 'CONNECTING' && market.marketId !== fallback.marketId && remaining > 0;
   const expiryLabel = useMemo(() => gateTime(market.expiryIso), [market.expiryIso]);
   const omenName = direction === 'UP' ? 'GOLD AWAKENS' : 'SHADOWS RISE';
-  const omenIcon = direction === 'UP' ? '🪙' : '🌑';
+  const omenIcon = direction === 'UP' ? <GoldIcon /> : '🌑';
 
   const subtitle = phase === 'SETUP'
     ? 'The complete Delveworn loop, powered by a live Event Contract.'
@@ -200,7 +204,7 @@ export default function Home() {
   }
 
   function awardRoomLoot() {
-    let reward = `🪙 ${monster.reward} gold`;
+    let reward = `${monster.reward} gold`;
     setGold((value) => value + monster.reward);
     if ((room + 1) % 3 === 0 && room < 8) {
       setWeapon((value) => value + 1); reward += ' · ⚔️ weapon +1';
@@ -373,7 +377,7 @@ export default function Home() {
           <section className="sticky-hud" aria-label="Expedition status">
             <div><span>HEALTH</span><strong>❤️ {hp}/100</strong><div className="mini-bar"><i style={{ width: `${playerPercent}%` }} /></div></div>
             <div><span>POTIONS</span><strong>🧪 {potions}/{MAX_POTIONS}</strong></div>
-            <div><span>GOLD</span><strong>🪙 {gold}</strong></div>
+            <div><span>GOLD</span><strong><GoldIcon /> {gold}</strong></div>
             <div className="hud-wide"><span>LOADOUT</span><strong>⚔️ Lv {weapon} · 🛡️ Lv {armor}</strong></div>
             <div className="hud-wide"><span>EXPEDITION</span><strong>{roomsCleared}/{TOTAL_ROOMS} · {omenIcon} {omenName}</strong></div>
           </section>
@@ -393,7 +397,7 @@ export default function Home() {
               <div className="prediction-card">
                 <span>CHOOSE THE FATE OF THE HOARD · MARKET #{marketCode || '—'}</span><strong>${market.strikeUsd}</strong><p>{market.question}</p>
                 <div className="prediction-buttons">
-                  <button className={direction === 'UP' ? 'up selected' : 'up'} onClick={() => setDirection('UP')}><b>🪙 GOLD AWAKENS</b><small>BTC UP · finishes at or above the line</small></button>
+                  <button className={direction === 'UP' ? 'up selected' : 'up'} onClick={() => setDirection('UP')}><b><GoldIcon /> GOLD AWAKENS</b><small>BTC UP · finishes at or above the line</small></button>
                   <button className={direction === 'DOWN' ? 'down selected' : 'down'} onClick={() => setDirection('DOWN')}><b>🌑 SHADOWS RISE</b><small>BTC DOWN · finishes below the line</small></button>
                 </div>
               </div>
@@ -413,7 +417,7 @@ export default function Home() {
                 <h2>Quartermaster Kevin</h2>
                 <p className="merchant-role">Questionable procurement · impeccable timing</p>
                 <p className="flavor">“You look terrible. Fortunately, I accept gold.”</p>
-                <div className="merchant-stats"><div><span>HEALTH</span><strong>❤️ {hp}/100</strong></div><div><span>GOLD</span><strong>🪙 {gold}</strong></div><div><span>POTIONS</span><strong>🧪 {potions}/{MAX_POTIONS}</strong></div></div>
+                <div className="merchant-stats"><div><span>HEALTH</span><strong>❤️ {hp}/100</strong></div><div><span>GOLD</span><strong><GoldIcon /> {gold}</strong></div><div><span>POTIONS</span><strong>🧪 {potions}/{MAX_POTIONS}</strong></div></div>
               </div>
             </div>
           ) : phase === 'CLEARED' ? (
@@ -421,20 +425,20 @@ export default function Home() {
               <div className="result-icon">🏆</div><p className="section-kicker">ROOM {room + 1} CLEARED</p>
               <h2>Against all evidence, you remain alive.</h2>
               <p className="muted">Heal safely with a potion before opening the next gate.</p>
-              <div className="reward-box"><span>RECOVERED</span><strong>{lastReward}</strong></div>
+              <div className="reward-box"><span>RECOVERED</span><strong><GoldIcon /> {lastReward}</strong></div>
             </div>
           ) : phase === 'VICTORY' ? (
             <div className="result-view">
               <div className="result-icon">{oracleResult === 'BLESSED' ? '✨' : oracleResult === 'CURSED' ? '📉' : '👑'}</div>
               <p className="section-kicker">TEN ROOMS CLEARED · {oracleResult ?? 'SETTLED'}</p>
               <h2>{resultHeading}</h2><p className="muted">{resultCopy}</p>
-              <div className="final-stats"><div><span>ROOMS</span><strong>10</strong></div><div><span>FINAL GOLD</span><strong>🪙 {gold}</strong></div></div>
+              <div className="final-stats"><div><span>ROOMS</span><strong>10</strong></div><div><span>FINAL GOLD</span><strong><GoldIcon /> {gold}</strong></div></div>
             </div>
           ) : phase === 'DEAD' ? (
             <div className="result-view">
               <div className="result-icon">☠️</div><p className="section-kicker">EXPEDITION ENDED</p>
               <h2>You died.</h2><p className="muted">The Event Contract never overrides the Delveworn combat result. The market call remains read-only.</p>
-              <div className="final-stats"><div><span>ROOMS</span><strong>{roomsCleared}</strong></div><div><span>GOLD</span><strong>🪙 {gold}</strong></div></div>
+              <div className="final-stats"><div><span>ROOMS</span><strong>{roomsCleared}</strong></div><div><span>GOLD</span><strong><GoldIcon /> {gold}</strong></div></div>
             </div>
           ) : (
             <div className="combat-view">
@@ -455,7 +459,7 @@ export default function Home() {
                 <p className="flavor">“{monster.flavor}”</p>
                 <div className="hp-label"><span>ENEMY HP</span><strong>{monsterHp} / {monster.hp}</strong></div>
                 <div className="enemy-bar"><i className={isBoss ? 'boss-health' : ''} style={{ width: `${monsterPercent}%` }} /></div>
-                <div className="enemy-stats"><div><span>ENEMY DAMAGE</span><strong>💥 {monster.minDamage}–{monster.maxDamage}</strong></div><div><span>BASE REWARD</span><strong>🪙 {monster.reward}</strong></div></div>
+                <div className="enemy-stats"><div><span>ENEMY DAMAGE</span><strong>💥 {monster.minDamage}–{monster.maxDamage}</strong></div><div><span>BASE REWARD</span><strong><GoldIcon /> {monster.reward}</strong></div></div>
                 {phase === 'ORACLE' && <div className="oracle-lock">
                   <div className="oracle-status"><span>🔮 LIVE DREAMDEX SETTLEMENT</span><strong>{remaining > 0 ? formatTime(remaining) : oracleBusy ? 'READING…' : `${oracleChecks} CHECK${oracleChecks === 1 ? '' : 'S'}`}</strong><small>The boss is dead and the run is complete. Only the final chest modifier is pending.</small></div>
                   <div className="integration-proof"><span>SOMNIA CHAIN 5031</span><span>MARKET #{marketCode}</span><span>READ-ONLY CHAIN CALL</span></div>
@@ -467,7 +471,7 @@ export default function Home() {
 
         <section className="action-dock">
           {phase === 'SETUP' ? (
-            <button className="primary-action" onClick={startRun} disabled={!marketReady}>{marketReady ? `ENTER DELVEWORN · ${omenIcon} ${omenName}` : 'WAITING FOR ACTIVE BTC MARKET…'}</button>
+            <button className="primary-action" onClick={startRun} disabled={!marketReady}>{marketReady ? <>ENTER DELVEWORN · {omenIcon} {omenName}</> : 'WAITING FOR ACTIVE BTC MARKET…'}</button>
           ) : phase === 'COMBAT' ? (
             <>
               <div className="combat-actions">
@@ -483,12 +487,12 @@ export default function Home() {
             </div>
           ) : phase === 'MERCHANT' ? (
             <div className="merchant-shop">
-              <div className="shop-heading"><div><span>KEVIN&apos;S SUPPLY SHOP</span><b>Prepare for Room 6</b></div><strong>🪙 {gold}</strong></div>
+              <div className="shop-heading"><div><span>KEVIN&apos;S SUPPLY SHOP</span><b>Prepare for Room 6</b></div><strong><GoldIcon /> {gold}</strong></div>
               <div className="shop-grid">
-                <button onClick={() => merchantBuy('bandage')} disabled={bandageUsed || hp >= 100 || gold < 8}><b>❤️ BANDAGE</b><small>Heal up to 25 HP</small><strong>🪙 8</strong></button>
-                <button onClick={() => merchantBuy('potion')} disabled={merchantPotions === 0 || potions >= MAX_POTIONS || gold < 7}><b>🧪 POTION</b><small>Stock {merchantPotions}/2</small><strong>🪙 7</strong></button>
-                <button onClick={() => merchantBuy('weapon')} disabled={weaponSold || gold < 15}><b>⚔️ WEAPON +1</b><small>{weaponSold ? 'Sold' : `Current Lv ${weapon}`}</small><strong>🪙 15</strong></button>
-                <button onClick={() => merchantBuy('armor')} disabled={armorSold || gold < 15}><b>🛡️ ARMOR +1</b><small>{armorSold ? 'Sold' : `Current Lv ${armor}`}</small><strong>🪙 15</strong></button>
+                <button onClick={() => merchantBuy('bandage')} disabled={bandageUsed || hp >= 100 || gold < 8}><b>❤️ BANDAGE</b><small>Heal up to 25 HP</small><strong><GoldIcon /> 8</strong></button>
+                <button onClick={() => merchantBuy('potion')} disabled={merchantPotions === 0 || potions >= MAX_POTIONS || gold < 7}><b>🧪 POTION</b><small>Stock {merchantPotions}/2</small><strong><GoldIcon /> 7</strong></button>
+                <button onClick={() => merchantBuy('weapon')} disabled={weaponSold || gold < 15}><b>⚔️ WEAPON +1</b><small>{weaponSold ? 'Sold' : `Current Lv ${weapon}`}</small><strong><GoldIcon /> 15</strong></button>
+                <button onClick={() => merchantBuy('armor')} disabled={armorSold || gold < 15}><b>🛡️ ARMOR +1</b><small>{armorSold ? 'Sold' : `Current Lv ${armor}`}</small><strong><GoldIcon /> 15</strong></button>
               </div>
               <button className="heal-action" onClick={useBetweenRoomPotion} disabled={potions === 0 || hp >= 100}>USE OWN POTION SAFELY · {potions}/{MAX_POTIONS}</button>
               <button className="primary-action" onClick={nextRoom}>🚪 CONTINUE TO ROOM 6</button>
