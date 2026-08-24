@@ -80,6 +80,21 @@ button { font: inherit; }
 .judge-replay-steps span.done { color: #a7f3d0; }
 .judge-replay-steps span.done b { background: #047857; color: white; }
 
+.tier-track { display: grid; grid-template-columns: 120px 1fr; align-items: center; gap: 12px; margin-bottom: 12px; padding: 11px 13px; border: 1px solid #3f3f46; border-radius: 14px; background: linear-gradient(135deg, rgba(39, 39, 42, .96), rgba(15, 15, 17, .96)); }
+.tier-track > div:first-child span, .tier-track > div:first-child strong { display: block; }
+.tier-track > div:first-child span { color: #71717a; font-size: 7px; font-weight: 950; letter-spacing: .15em; }
+.tier-track > div:first-child strong { margin-top: 4px; font-size: 9px; }
+.tier-nodes { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; }
+.tier-nodes span { display: flex; align-items: center; gap: 4px; min-width: 0; color: #52525b; }
+.tier-nodes b { display: grid; place-items: center; flex: 0 0 22px; height: 22px; border: 1px solid #3f3f46; border-radius: 50%; background: #18181b; font-size: 8px; }
+.tier-nodes small { font-size: 6px; font-weight: 900; }
+.tier-nodes span.active { color: #fdba74; }
+.tier-nodes span.active b { border-color: var(--orange); background: rgba(194, 65, 12, .48); color: white; box-shadow: 0 0 12px rgba(249, 115, 22, .35); }
+.tier-nodes span.done { color: #6ee7b7; }
+.tier-nodes span.done b { border-color: #047857; background: #065f46; color: white; }
+.tier-nodes span.failed { color: #fca5a5; }
+.tier-nodes span.failed b { border-color: #b91c1c; background: #7f1d1d; color: white; }
+
 .sticky-hud {
   position: sticky;
   top: 8px;
@@ -118,6 +133,17 @@ button { font: inherit; }
 .setup-monsters img:first-child { left: -3%; transform: rotate(-3deg); }
 .setup-monsters img:last-child { right: -3%; transform: rotate(3deg); }
 .setup-monsters img.front { left: 50%; z-index: 2; width: 52%; opacity: 1; transform: translateX(-50%); }
+
+.legacy-inventory { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 18px; padding: 11px; border: 1px solid rgba(251, 191, 36, .23); border-radius: 12px; background: rgba(120, 53, 15, .12); text-align: left; }
+.legacy-inventory > div { padding: 9px 10px; border-radius: 9px; background: rgba(0, 0, 0, .23); }
+.legacy-inventory span, .carry-forward span { display: block; color: #78716c; font-size: 7px; font-weight: 950; letter-spacing: .12em; }
+.legacy-inventory strong, .carry-forward strong { display: block; margin-top: 5px; font-size: 13px; }
+.legacy-inventory > small { grid-column: 1 / -1; color: #a8a29e; font-size: 8px; line-height: 1.4; text-align: center; }
+
+.tier-setup-view { min-height: 560px; padding: 32px 24px 24px; text-align: center; background: radial-gradient(circle at 50% 8%, rgba(52, 211, 153, .11), transparent 35%); }
+.tier-setup-view h2 { margin: 8px 0 0; font-size: 30px; line-height: 1.05; font-weight: 950; letter-spacing: -.025em; }
+.carry-forward { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 20px; text-align: left; }
+.carry-forward > div { padding: 11px; border: 1px solid #2f3c37; border-radius: 10px; background: rgba(6, 78, 59, .14); }
 
 .prediction-card { margin-top: 24px; padding: 18px; background: rgba(0, 0, 0, .34); border: 1px solid var(--line); border-radius: 14px; text-align: left; }
 .prediction-card > strong { display: block; margin-top: 5px; font-size: 30px; letter-spacing: -.035em; }
@@ -171,6 +197,20 @@ button { font: inherit; }
 .enemy-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; margin-top: 14px; }
 .enemy-stats div { padding: 11px; background: rgba(0, 0, 0, .27); border: 1px solid #2b2b30; border-radius: 11px; }
 .enemy-stats strong { display: block; margin-top: 5px; font-size: 12px; }
+
+.victory-conditions { width: 100%; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 14px; text-align: left; }
+.victory-conditions > div { padding: 11px; border: 1px solid #3f3f46; border-radius: 10px; background: rgba(0, 0, 0, .24); }
+.victory-conditions span, .victory-conditions strong { display: block; }
+.victory-conditions span { color: #a1a1aa; font-size: 7px; font-weight: 950; letter-spacing: .13em; }
+.victory-conditions strong { margin-top: 5px; font-size: 9px; line-height: 1.35; }
+.victory-conditions.pending > div:first-child, .victory-conditions.resolved > div { border-color: #047857; background: rgba(6, 78, 59, .2); }
+.victory-conditions.pending > div:first-child span, .victory-conditions.resolved span { color: #6ee7b7; }
+.victory-conditions.pending > div:last-child { border-color: #7c3aed; background: rgba(88, 28, 135, .24); }
+.victory-conditions.pending > div:last-child span { color: #c084fc; }
+.victory-conditions.failed > div:first-child { border-color: #047857; background: rgba(6, 78, 59, .2); }
+.victory-conditions.failed > div:first-child span { color: #6ee7b7; }
+.victory-conditions.failed > div:last-child { border-color: #b91c1c; background: rgba(127, 29, 29, .24); }
+.victory-conditions.failed > div:last-child span { color: #fca5a5; }
 
 .oracle-lock { padding: 14px; margin-top: 14px; background: rgba(88, 28, 135, .32); border: 1px solid #6b21a8; border-radius: 12px; }
 .oracle-status > span { display: block; color: #c084fc; font-size: 9px; font-weight: 900; letter-spacing: .16em; }
@@ -239,6 +279,8 @@ button { font: inherit; }
 .judge-next-action span, .judge-next-action b { display: block; }
 .judge-next-action span { color: #c084fc; font-size: 7px; font-weight: 950; letter-spacing: .14em; }
 .judge-next-action b { margin-top: 4px; color: #e9d5ff; font-size: 9px; }
+.tier-action, .new-run-action { display: grid; gap: 7px; }
+.tier-action small, .new-run-action small { color: #71717a; font-size: 8px; line-height: 1.35; text-align: center; }
 .between-actions { display: grid; grid-template-columns: .85fr 1.15fr; gap: 8px; }
 .heal-action { min-height: 48px; border: 1px solid #047857; border-radius: 11px; background: #065f46; color: white; font-size: 10px; font-weight: 900; cursor: pointer; }
 .heal-action:disabled { opacity: .35; cursor: not-allowed; }
@@ -292,10 +334,12 @@ footer span { display: block; margin-top: 6px; color: #303035; font-size: 8px; l
   .monster-heading h2 { font-size: 23px; }
   .setup-monsters { height: 190px; }
   .setup-monsters img { height: 202px; }
+  .tier-track { grid-template-columns: 1fr; }
+  .tier-track > div:first-child { display: flex; align-items: center; justify-content: space-between; }
 }
 
 @media (max-width: 360px) {
-  .prediction-buttons, .rule-grid, .combat-actions, .supply-actions, .shop-grid, .between-actions { grid-template-columns: 1fr; }
+  .prediction-buttons, .rule-grid, .combat-actions, .supply-actions, .shop-grid, .between-actions, .victory-conditions { grid-template-columns: 1fr; }
   .sticky-hud > div { padding-inline: 8px; }
   .sticky-hud strong { font-size: 10px; }
   .ten-room-map { gap: 2px; padding-inline: 4px; }
