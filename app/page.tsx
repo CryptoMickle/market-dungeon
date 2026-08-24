@@ -241,7 +241,7 @@ export default function Home() {
     : phase === 'MERCHANT'
       ? 'Quartermaster Kevin has found you. Regrettably.'
       : phase === 'FINAL_MERCHANT'
-        ? 'One last stop before the final chest.'
+        ? 'One last stop before the prediction verdict.'
       : phase === 'ORACLE'
         ? 'The boss is down. The prediction decides who gets back up.'
         : phase === 'VICTORY'
@@ -382,7 +382,7 @@ export default function Home() {
     if (phase !== 'ORACLE') return;
     setPhase('FINAL_MERCHANT');
     setNotice('BOSS DEFEATED · TRAVELLING MERCHANT AVAILABLE');
-    addLog('Quartermaster Kevin appears between you and the final chest. This is probably not a coincidence.');
+    addLog('Quartermaster Kevin appears beside the fallen boss before the prediction verdict. This is probably not a coincidence.');
   }
 
   function finalMerchantHeal(full = false) {
@@ -395,11 +395,11 @@ export default function Home() {
     addLog(`Kevin patches the post-boss damage. +${healed} HP · ${cost} gold.`);
   }
 
-  function returnToFinalChest() {
+  function returnToBossFate() {
     if (phase !== 'FINAL_MERCHANT') return;
     setPhase('ORACLE');
-    setNotice(remaining > 0 ? 'FINAL CHEST READY · ORACLE ARMED' : 'FINAL CHEST READY · CHECKING SETTLEMENT');
-    addLog('You leave Kevin behind and return to the final chest. He keeps the receipt.');
+    setNotice(remaining > 0 ? 'BOSS FATE READY · ORACLE ARMED' : 'BOSS FATE READY · CHECKING SETTLEMENT');
+    addLog('You leave Kevin behind and return to the fallen boss. The prediction will decide who stays down.');
   }
 
   function nextRoom() {
@@ -684,13 +684,13 @@ export default function Home() {
             </div>
           ) : phase === 'FINAL_MERCHANT' ? (
             <div className="merchant-shop">
-              <div className="shop-heading"><div><span>KEVIN&apos;S AFTERCARE</span><b>Patch up before the final chest</b></div><strong><GoldIcon /> {gold}</strong></div>
+              <div className="shop-heading"><div><span>KEVIN&apos;S AFTERCARE</span><b>Patch up before the prediction verdict</b></div><strong><GoldIcon /> {gold}</strong></div>
               <div className="shop-grid">
                 <button onClick={() => finalMerchantHeal(false)} disabled={hp >= 100 || gold < 8}><b>❤️ FIELD DRESSING</b><small>Heal up to 25 HP</small><strong><GoldIcon /> 8</strong></button>
                 <button onClick={() => finalMerchantHeal(true)} disabled={hp >= 100 || gold < finalHealCost}><b>✨ FULL TREATMENT</b><small>{hp >= 100 ? 'Already at full health' : `Restore ${100 - hp} HP`}</small><strong><GoldIcon /> {finalHealCost}</strong></button>
               </div>
               <button className="heal-action" onClick={useBetweenRoomPotion} disabled={potions === 0 || hp >= 100}>USE OWN POTION SAFELY · {potions}/{MAX_POTIONS}</button>
-              <button className="oracle-action" onClick={returnToFinalChest}>🔮 RETURN TO FINAL CHEST</button>
+              <button className="oracle-action" onClick={returnToBossFate}>🔮 RETURN TO BOSS FATE</button>
             </div>
           ) : phase === 'ORACLE' ? (
             <div className="oracle-dock">
