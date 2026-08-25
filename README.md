@@ -6,7 +6,7 @@ The current contest build is intentionally read-only. It reads live market and s
 
 ## Live demo
 
-The public Vercel deployment URL is added here after the hosting migration.
+**Play:** https://market-dungeon.vercel.app
 
 ### Full live expedition
 
