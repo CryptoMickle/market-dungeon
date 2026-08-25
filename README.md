@@ -6,7 +6,7 @@ The current contest build is intentionally read-only. It reads live market and s
 
 ## Live demo
 
-**Play:** https://market-dungeon.vtalityinnovation.chatgpt.site
+The public Vercel deployment URL is added here after the hosting migration.
 
 ### Full live expedition
 

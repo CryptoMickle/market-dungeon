@@ -1,19 +1,13 @@
 import type { Metadata } from 'next';
-import { Geist, Geist_Mono } from 'next/font/google';
 import './globals.css';
 
-const geistSans = Geist({
-  variable: '--font-geist-sans',
-  subsets: ['latin'],
-});
-
-const geistMono = Geist_Mono({
-  variable: '--font-geist-mono',
-  subsets: ['latin'],
-});
+const productionHost = process.env.VERCEL_PROJECT_PRODUCTION_URL;
+const metadataBase = new URL(
+  productionHost ? `https://${productionHost}` : 'http://localhost:3000',
+);
 
 export const metadata: Metadata = {
-  metadataBase: new URL('https://market-dungeon.vtalityinnovation.chatgpt.site'),
+  metadataBase,
   title: 'Market Dungeon — Your Call. Your Fate.',
   description: 'The complete Delveworn dungeon loop, powered by live dreamDEX Event Contracts on Somnia.',
   openGraph: {
@@ -44,11 +38,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
-        {children}
-      </body>
+      <body>{children}</body>
     </html>
   );
 }
