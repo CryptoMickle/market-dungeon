@@ -283,6 +283,8 @@ button { font: inherit; }
 .heal-action { min-height: 48px; border: 1px solid #047857; border-radius: 11px; background: #065f46; color: white; font-size: 10px; font-weight: 900; cursor: pointer; }
 .heal-action:disabled { opacity: .35; cursor: not-allowed; }
 .combat-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.combat-actions .storm { order: 1; }
+.combat-actions .attack { order: 2; }
 .combat-actions button { display: flex; flex-direction: column; align-items: flex-start; min-height: 93px; padding: 13px; border: 0; border-radius: 11px; text-align: left; }
 .combat-actions .attack { background: var(--orange); color: #090909; }
 .combat-actions .storm { background: var(--violet); color: white; }
