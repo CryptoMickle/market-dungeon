@@ -473,6 +473,25 @@ footer span { display: block; margin-top: 6px; color: #303035; font-size: 8px; l
   .in-expedition .result-view { min-height: 360px; padding: 24px 16px; }
   .in-expedition .result-icon { font-size: 54px; }
 
+  .in-expedition.phase-dead .game-column,
+  .in-expedition.phase-victory .game-column {
+    display: flex;
+    min-height: calc(100svh - 28px - env(safe-area-inset-bottom));
+    flex-direction: column;
+  }
+
+  .in-expedition.phase-dead .main-card,
+  .in-expedition.phase-victory .main-card {
+    display: flex;
+    flex: 1 0 auto;
+  }
+
+  .in-expedition.phase-dead .result-view,
+  .in-expedition.phase-victory .result-view {
+    width: 100%;
+    flex: 1;
+  }
+
   .in-expedition .dungeon-log { padding: 9px 10px; }
   .in-expedition .dungeon-log > div:first-child { align-items: center; gap: 8px; padding-bottom: 0; border-bottom: 0; }
   .in-expedition .dungeon-log > div:first-child b { flex: 1; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }

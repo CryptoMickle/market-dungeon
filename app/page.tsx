@@ -500,7 +500,7 @@ export default function Home() {
       : 'The Event Contract was voided, so the defeated boss remained down without a prediction penalty.';
 
   return (
-    <main className={`game-shell ${phase === 'SETUP' ? 'setup-shell' : 'in-expedition'}`}>
+    <main className={`game-shell phase-${phase.toLowerCase()} ${phase === 'SETUP' ? 'setup-shell' : 'in-expedition'}`}>
       <div className="game-column">
         <header className="game-header">
           <p className="eyebrow">DELVEWORN · EVENT CONTRACTS EDITION</p>
