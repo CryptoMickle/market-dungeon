@@ -115,6 +115,7 @@ button { font: inherit; }
 .sticky-hud > .hud-wide { grid-column: span 3; border-top: 1px solid var(--line); }
 .sticky-hud > .hud-wide:last-child { border-right: 0; }
 .sticky-hud strong { display: block; font-size: 11px; margin-top: 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mobile-hud-value { display: none !important; }
 .mini-bar { height: 3px; background: #27272a; border-radius: 99px; margin-top: 6px; overflow: hidden; }
 .mini-bar i { display: block; height: 100%; background: var(--green); transition: width .2s ease; }
 
@@ -311,8 +312,9 @@ button { font: inherit; }
 .merchant-shop > .primary-action, .merchant-shop > .heal-action { min-height: 45px; }
 
 .dungeon-log { padding: 15px; background: var(--panel); border: 1px solid var(--line); border-radius: 14px; }
-.dungeon-log > div { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding-bottom: 10px; border-bottom: 1px solid #26262b; }
-.dungeon-log > div b { color: #71717a; font-size: 8px; text-align: right; letter-spacing: .04em; }
+.dungeon-log > div:first-child { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding-bottom: 10px; border-bottom: 1px solid #26262b; }
+.dungeon-log > div:first-child b { color: #71717a; font-size: 8px; text-align: right; letter-spacing: .04em; }
+.dungeon-log > div:first-child button { display: none; }
 .dungeon-log p { margin: 9px 0 0; color: #71717a; font-size: 11px; line-height: 1.45; }
 .dungeon-log p.latest { color: #e4e4e7; }
 
@@ -320,19 +322,152 @@ footer { padding: 24px 8px 0; text-align: center; }
 footer p { margin: 0; color: #3f3f46; font-size: 8px; font-weight: 900; letter-spacing: .08em; }
 footer span { display: block; margin-top: 6px; color: #303035; font-size: 8px; line-height: 1.5; }
 
-@media (max-width: 480px) {
+@media (max-width: 600px) {
   .game-shell { padding: 20px 10px 72px; }
   .market-ribbon { grid-template-columns: 1fr 1fr; }
   .market-ribbon > div:nth-child(2) { border-right: 0; }
   .market-ribbon > div:nth-child(n+3) { border-top: 1px solid var(--line); }
   .setup-view { padding: 26px 16px 20px; }
-  .monster-stage { height: 325px; }
-  .monster-info { padding-inline: 16px; }
-  .monster-heading h2 { font-size: 23px; }
   .setup-hero { margin-inline: -16px; }
   .tier-track { grid-template-columns: 1fr; }
   .tier-track > div:first-child { display: flex; align-items: center; justify-content: space-between; }
   .judge-replay-steps { grid-template-columns: repeat(2, 1fr); }
+
+  .game-shell.in-expedition {
+    padding: 0 8px calc(28px + env(safe-area-inset-bottom));
+    background: #070708;
+  }
+
+  .in-expedition .game-header,
+  .in-expedition .market-ribbon,
+  .in-expedition .tier-track,
+  .in-expedition .judge-replay-banner,
+  .in-expedition footer { display: none; }
+
+  .in-expedition .sticky-hud {
+    top: 0;
+    grid-template-columns: 1.35fr repeat(4, 1fr);
+    margin: 0 -8px 7px;
+    border-width: 0 0 1px;
+    border-radius: 0 0 13px 13px;
+    box-shadow: 0 8px 22px rgba(0, 0, 0, .55);
+  }
+
+  .in-expedition .sticky-hud > div,
+  .in-expedition .sticky-hud > .hud-wide {
+    grid-column: auto;
+    min-width: 0;
+    padding: 7px 4px 6px;
+    border-top: 0;
+    border-right: 1px solid var(--line);
+    text-align: center;
+  }
+
+  .in-expedition .sticky-hud > div:last-child { border-right: 0; }
+  .in-expedition .sticky-hud span { font-size: 6px; letter-spacing: .08em; }
+  .in-expedition .sticky-hud strong { margin-top: 3px; font-size: 10px; }
+  .in-expedition .sticky-hud .desktop-hud-value { display: none; }
+  .in-expedition .sticky-hud .mobile-hud-value { display: block !important; }
+  .in-expedition .mini-bar { height: 2px; margin: 4px 3px 0; }
+
+  .in-expedition .main-card { margin-bottom: 7px; border-radius: 14px; }
+  .in-expedition .room-progress { padding: 6px 7px; }
+  .in-expedition .room-map { padding: 4px; }
+  .in-expedition .ten-room-map span { width: 19px; height: 19px; font-size: 7px; }
+
+  .in-expedition .monster-stage,
+  .in-expedition .merchant-stage {
+    width: 100%;
+    height: auto;
+    aspect-ratio: 16 / 9;
+    background: #09090b;
+  }
+
+  .in-expedition .monster-stage img,
+  .in-expedition .merchant-stage img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+  }
+
+  .in-expedition .boss-card .monster-stage img { transform: none; }
+  .in-expedition .stage-fade { height: 62px; }
+  .in-expedition .judge-stage-label { left: 7px; right: 7px; bottom: 7px; padding: 6px 7px; font-size: 6px; }
+
+  .in-expedition .monster-info { padding: 1px 12px 12px; }
+  .in-expedition .boss-label { margin-bottom: 5px; font-size: 7px; }
+  .in-expedition .monster-heading { align-items: center; }
+  .in-expedition .monster-heading h2 { font-size: 21px; }
+  .in-expedition .monster-heading span { margin-top: 3px; font-size: 8px; }
+  .in-expedition .monster-heading > b { padding: 4px 6px; font-size: 7px; }
+  .in-expedition .monster-info > .flavor { display: none; }
+  .in-expedition .hp-label { margin-top: 9px; }
+  .in-expedition .hp-label strong { font-size: 11px; }
+  .in-expedition .enemy-bar { height: 8px; margin-top: 5px; }
+  .in-expedition .enemy-stats { gap: 6px; margin-top: 7px; }
+  .in-expedition .enemy-stats div { padding: 7px 9px; }
+  .in-expedition .enemy-stats strong { margin-top: 3px; font-size: 10px; }
+  .in-expedition .victory-conditions { gap: 5px; margin-top: 8px; }
+  .in-expedition .victory-conditions > div { padding: 7px; }
+  .in-expedition .victory-conditions strong { margin-top: 3px; font-size: 8px; }
+  .in-expedition .oracle-lock { padding: 9px; margin-top: 8px; }
+  .in-expedition .oracle-status > strong { margin-top: 4px; font-size: 15px; }
+  .in-expedition .oracle-status > small,
+  .in-expedition .integration-proof { display: none; }
+
+  .in-expedition .merchant-view { min-height: 0; }
+  .in-expedition .merchant-copy { padding: 0 12px 12px; }
+  .in-expedition .merchant-copy .section-kicker { margin-top: 6px; }
+  .in-expedition .merchant-copy h2 { margin-top: 5px; font-size: 22px; }
+  .in-expedition .merchant-role,
+  .in-expedition .merchant-copy .flavor,
+  .in-expedition .merchant-stats { display: none; }
+
+  .in-expedition .action-dock {
+    bottom: 0;
+    padding: 7px 7px calc(7px + env(safe-area-inset-bottom));
+    margin: 0 -1px 7px;
+    border-radius: 13px;
+  }
+
+  .in-expedition .judge-next-action { margin-bottom: 5px; padding: 5px 8px; }
+  .in-expedition .judge-next-action b { display: none; }
+  .in-expedition .combat-actions { gap: 6px; }
+  .in-expedition .combat-actions button { min-height: 55px; padding: 9px 10px; }
+  .in-expedition .combat-actions b { font-size: 11px; }
+  .in-expedition .combat-actions strong { margin-top: 5px; font-size: 10px; }
+  .in-expedition .combat-actions small { display: none; }
+  .in-expedition .potion { min-height: 37px; margin-top: 6px; padding: 7px 10px; }
+  .in-expedition .potion span b { font-size: 10px; }
+  .in-expedition .potion span small { display: none; }
+
+  .in-expedition .between-actions { grid-template-columns: .85fr 1.15fr; }
+  .in-expedition .primary-action,
+  .in-expedition .oracle-action,
+  .in-expedition .heal-action { min-height: 43px; font-size: 10px; }
+  .in-expedition .oracle-dock small { margin-top: 5px; }
+
+  .in-expedition .merchant-shop { gap: 6px; }
+  .in-expedition .shop-heading { margin-bottom: 0; }
+  .in-expedition .shop-heading b { margin-top: 2px; font-size: 9px; }
+  .in-expedition .shop-heading > strong { padding: 6px 8px; }
+  .in-expedition .shop-grid { gap: 5px; }
+  .in-expedition .shop-grid button { min-height: 52px; padding: 8px; }
+  .in-expedition .shop-grid small { display: none; }
+  .in-expedition .shop-grid strong { top: 8px; right: 8px; }
+  .in-expedition .merchant-shop > .primary-action,
+  .in-expedition .merchant-shop > .heal-action { min-height: 39px; }
+
+  .in-expedition .result-view { min-height: 360px; padding: 24px 16px; }
+  .in-expedition .result-icon { font-size: 54px; }
+
+  .in-expedition .dungeon-log { padding: 9px 10px; }
+  .in-expedition .dungeon-log > div:first-child { align-items: center; gap: 8px; padding-bottom: 0; border-bottom: 0; }
+  .in-expedition .dungeon-log > div:first-child b { flex: 1; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+  .in-expedition .dungeon-log > div:first-child button { display: block; flex: 0 0 auto; padding: 5px 7px; border: 1px solid #3f3f46; border-radius: 7px; background: #101012; color: #a1a1aa; font-size: 7px; font-weight: 900; }
+  .in-expedition .dungeon-log-entries { display: none; padding-top: 1px; }
+  .in-expedition .dungeon-log.mobile-open .dungeon-log-entries { display: block; }
 }
 
 @media (max-width: 360px) {
