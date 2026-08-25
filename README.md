@@ -8,6 +8,8 @@ The current contest build is intentionally read-only. It reads live market and s
 
 **Play:** https://market-dungeon.vercel.app
 
+**Watch the 3-minute hackathon demo:** https://youtu.be/YIoSSdMTsEM
+
 ### Full live expedition
 
 1. Choose `GOLD AWAKENS` or `SHADOWS RISE` against the active BTC market.
@@ -130,6 +132,7 @@ public/
 - Finalized onchain settlement replay: complete
 - Two-minute judge path: complete
 - Four-tier dual-condition progression: complete
+- Three-minute hackathon demo video: complete
 - Wallet writes: intentionally disabled
 
 ## License
