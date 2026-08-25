@@ -174,6 +174,7 @@ export default function Home() {
   const [judgeLoading, setJudgeLoading] = useState(false);
   const [deathCause, setDeathCause] = useState<DeathCause>('COMBAT');
   const [profileReady, setProfileReady] = useState(false);
+  const [mobileLogOpen, setMobileLogOpen] = useState(false);
   const oracleBusyRef = useRef(false);
 
   useEffect(() => {
@@ -499,7 +500,7 @@ export default function Home() {
       : 'The Event Contract was voided, so the defeated boss remained down without a prediction penalty.';
 
   return (
-    <main className="game-shell">
+    <main className={`game-shell phase-${phase.toLowerCase()} ${phase === 'SETUP' ? 'setup-shell' : 'in-expedition'}`}>
       <div className="game-column">
         <header className="game-header">
           <p className="eyebrow">DELVEWORN · EVENT CONTRACTS EDITION</p>
@@ -538,8 +539,8 @@ export default function Home() {
             <div><span>HEALTH</span><strong>❤️ {hp}/100</strong><div className="mini-bar"><i style={{ width: `${playerPercent}%` }} /></div></div>
             <div><span>POTIONS</span><strong>🧪 {potions}/{MAX_POTIONS}</strong></div>
             <div><span>GOLD</span><strong><GoldIcon /> {gold}</strong></div>
-            <div className="hud-wide"><span>LOADOUT</span><strong>⚔️ Lv {weapon} · 🛡️ Lv {armor}</strong></div>
-            <div className="hud-wide"><span>EXPEDITION</span><strong>TIER {tier}/{TOTAL_TIERS} · {roomsCleared}/{TOTAL_ROOMS} · {omenIcon} {omenName}</strong></div>
+            <div className="hud-wide"><span>LOADOUT</span><strong className="desktop-hud-value">⚔️ Lv {weapon} · 🛡️ Lv {armor}</strong><strong className="mobile-hud-value">⚔️ {weapon} · 🛡️ {armor}</strong></div>
+            <div className="hud-wide"><span>EXPEDITION</span><strong className="desktop-hud-value">TIER {tier}/{TOTAL_TIERS} · {roomsCleared}/{TOTAL_ROOMS} · {omenIcon} {omenName}</strong><strong className="mobile-hud-value">T{tier} · R{Math.min(room + 1, TOTAL_ROOMS)}</strong></div>
           </section>
         )}
 
@@ -650,7 +651,7 @@ export default function Home() {
           )}
         </section>
 
-        <section className="action-dock">
+        <section className={`action-dock action-dock-${phase.toLowerCase()}`}>
           {phase === 'SETUP' ? (
             <div className="judge-entry">
               <button className="primary-action" onClick={startRun} disabled={!marketReady}>{marketReady ? <>BEGIN TIER 1 · {omenIcon} {omenName}</> : 'WAITING FOR ACTIVE BTC MARKET…'}</button>
@@ -711,9 +712,11 @@ export default function Home() {
           )}
         </section>
 
-        <section className="dungeon-log">
-          <div><span>DUNGEON LOG</span><b>{notice}</b></div>
-          {combatLog.length ? combatLog.map((entry, index) => <p key={`${entry}-${index}`} className={index === 0 ? 'latest' : ''}>{entry}</p>) : <p>The dungeon is quiet. This is almost certainly temporary.</p>}
+        <section className={`dungeon-log ${mobileLogOpen ? 'mobile-open' : ''}`}>
+          <div><span>DUNGEON LOG</span><b>{notice}</b><button type="button" onClick={() => setMobileLogOpen((open) => !open)} aria-expanded={mobileLogOpen}>{mobileLogOpen ? 'HIDE' : 'SHOW'}</button></div>
+          <div className="dungeon-log-entries">
+            {combatLog.length ? combatLog.map((entry, index) => <p key={`${entry}-${index}`} className={index === 0 ? 'latest' : ''}>{entry}</p>) : <p>The dungeon is quiet. This is almost certainly temporary.</p>}
+          </div>
         </section>
 
         <footer><p>DELVEWORN × DREAMDEX EVENT CONTRACTS · SOMNIA</p><span>Competition prototype · no wallet · no approval · no order submission · market #{marketCode || '—'}</span></footer>
