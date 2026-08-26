@@ -548,7 +548,7 @@ export default function Home() {
           {phase === 'SETUP' ? (
             <div className="setup-view">
               <div className="setup-hero">
-                <img src="/assets/market-dungeon-party-hero.webp" alt="A dark fantasy dungeon party with an undead sorceress, goblin and armored orc" />
+                <img src="/assets/delveworn-tier2-party-hero.webp" alt="Miss Morgue, Kevin the Unqualified and Brutus assembled in the dungeon" />
               </div>
               <p className="section-kicker">THE REAL DELVEWORN LOOP · THE BITCOIN HOARD</p>
               <h2>Defeat the boss. Predict correctly. Survive both.</h2>
