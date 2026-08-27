@@ -606,25 +606,27 @@ export default function Home() {
               <div className="setup-hero">
                 <img src="/assets/delveworn-tier2-party-hero.webp" alt="Miss Morgue, Kevin the Unqualified and Brutus assembled in the dungeon" />
               </div>
-              <p className="section-kicker">THE REAL DELVEWORN LOOP · THE BITCOIN HOARD</p>
-              <h2>Defeat the boss. Predict correctly. Survive both.</h2>
-              <p className="muted">Each tier has ten combat rooms and a fresh BTC prediction. A boss victory only becomes permanent when the dreamDEX prediction is also correct; otherwise the boss delivers a fatal last strike.</p>
-              <div className="legacy-inventory"><div><span>PERSISTENT GOLD</span><strong><GoldIcon /> {gold}</strong></div><div><span>NEXT-RUN POTIONS</span><strong>🧪 {potions}/{MAX_POTIONS}</strong></div><small>Gold and potions above the starting amount survive a new run. Attack and defense reset.</small></div>
-              <div className="prediction-card">
-                <span>TIER 1 PREDICTION · MARKET #{marketCode || '—'}</span><strong>${market.strikeUsd}</strong><p>{market.question}</p>
-                <div className="prediction-buttons">
-                  <button className={direction === 'UP' ? 'up selected' : 'up'} onClick={() => setDirection('UP')}><b><GoldIcon /> GOLD AWAKENS</b><small>BTC UP · finishes at or above the line</small></button>
-                  <button className={direction === 'DOWN' ? 'down selected' : 'down'} onClick={() => setDirection('DOWN')}><b>🌑 SHADOWS RISE</b><small>BTC DOWN · finishes below the line</small></button>
+              <div className="setup-content">
+                <p className="section-kicker">THE REAL DELVEWORN LOOP · THE BITCOIN HOARD</p>
+                <h2>Defeat the boss. Predict correctly. Survive both.</h2>
+                <p className="muted">Each tier has ten combat rooms and a fresh BTC prediction. A boss victory only becomes permanent when the dreamDEX prediction is also correct; otherwise the boss delivers a fatal last strike.</p>
+                <div className="legacy-inventory"><div><span>PERSISTENT GOLD</span><strong><GoldIcon /> {gold}</strong></div><div><span>NEXT-RUN POTIONS</span><strong>🧪 {potions}/{MAX_POTIONS}</strong></div><small>Gold and potions above the starting amount survive a new run. Attack and defense reset.</small></div>
+                <div className="prediction-card">
+                  <span>TIER 1 PREDICTION · MARKET #{marketCode || '—'}</span><strong>${market.strikeUsd}</strong><p>{market.question}</p>
+                  <div className="prediction-buttons">
+                    <button className={direction === 'UP' ? 'up selected' : 'up'} onClick={() => setDirection('UP')}><b><GoldIcon /> GOLD AWAKENS</b><small>BTC UP · finishes at or above the line</small></button>
+                    <button className={direction === 'DOWN' ? 'down selected' : 'down'} onClick={() => setDirection('DOWN')}><b>🌑 SHADOWS RISE</b><small>BTC DOWN · finishes below the line</small></button>
+                  </div>
                 </div>
+                <div className="rule-grid">
+                  <div><span>⚔️</span><b>WIN THE COMBAT</b><small>Fight normally and reduce the boss to zero HP</small></div>
+                  <div><span>🔮</span><b>WIN THE PREDICTION</b><small>Correct BTC outcome keeps the defeated boss down</small></div>
+                  <div><span>🧰</span><b>BUILD WITHIN THE RUN</b><small>Kevin&apos;s attack and defense upgrades last until defeat</small></div>
+                  <div><span>🏰</span><b>CLIMB FOUR TIERS</b><small>Every tier brings a new roster, boss and prediction</small></div>
+                </div>
+                <div className="competition-note"><b>LIVE CONTRACT INTEGRATION:</b> Each tier immediately locks the active BTC 15-minute dreamDEX market. Its real market ID, expiry and Somnia settlement are preserved.</div>
+                <MarketProof market={market} mode="live" />
               </div>
-              <div className="rule-grid">
-                <div><span>⚔️</span><b>WIN THE COMBAT</b><small>Fight normally and reduce the boss to zero HP</small></div>
-                <div><span>🔮</span><b>WIN THE PREDICTION</b><small>Correct BTC outcome keeps the defeated boss down</small></div>
-                <div><span>🧰</span><b>BUILD WITHIN THE RUN</b><small>Kevin&apos;s attack and defense upgrades last until defeat</small></div>
-                <div><span>🏰</span><b>CLIMB FOUR TIERS</b><small>Every tier brings a new roster, boss and prediction</small></div>
-              </div>
-              <div className="competition-note"><b>LIVE CONTRACT INTEGRATION:</b> Each tier immediately locks the active BTC 15-minute dreamDEX market. Its real market ID, expiry and Somnia settlement are preserved.</div>
-              <MarketProof market={market} mode="live" />
             </div>
           ) : phase === 'JUDGE_SETUP' ? (
             <div className="judge-setup-view">
