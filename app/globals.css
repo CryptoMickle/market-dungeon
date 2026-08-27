@@ -368,8 +368,28 @@ footer span { display: block; margin-top: 6px; color: #303035; font-size: 8px; l
 
   .game-header { margin-bottom: 22px; }
   .game-header h1 { font-size: 58px; }
-  .market-ribbon > div { padding: 13px 16px; }
-  .market-ribbon strong { font-size: 12px; }
+  .market-ribbon > div { padding: 15px 16px; }
+  .market-ribbon span,
+  .sticky-hud span { color: #8f8f99; font-size: 10px; }
+  .market-ribbon strong { font-size: 14px; }
+  .market-ribbon small { margin-top: 4px; color: #71717a; font-size: 10px; }
+
+  .tier-track { grid-template-columns: 150px 1fr; padding: 13px 16px; }
+  .tier-track > div:first-child span { color: #8f8f99; font-size: 9px; }
+  .tier-track > div:first-child strong { margin-top: 5px; font-size: 12px; }
+  .tier-nodes { gap: 10px; }
+  .tier-nodes b { flex-basis: 28px; height: 28px; font-size: 10px; }
+  .tier-nodes small { color: #73737d; font-size: 8px; }
+
+  .sticky-hud > div { padding: 14px 16px; }
+  .sticky-hud strong { margin-top: 6px; font-size: 14px; }
+  .mini-bar { height: 4px; margin-top: 8px; }
+
+  .judge-replay-heading span { font-size: 10px; }
+  .judge-replay-heading strong { font-size: 17px; }
+  .judge-replay-heading small { font-size: 11px; }
+  .judge-replay-steps span { padding: 10px 9px; font-size: 9px; }
+  .judge-replay-steps span b { flex-basis: 21px; height: 21px; font-size: 9px; }
 
   .setup-view {
     display: grid;
