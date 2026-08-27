@@ -23,9 +23,11 @@ button { font: inherit; }
 
 .gold-icon {
   display: inline-block;
-  width: 1em;
-  height: 1em;
-  vertical-align: -.14em;
+  width: 1.2em;
+  min-width: 11px;
+  height: 1.2em;
+  min-height: 11px;
+  vertical-align: -.19em;
   background: url('/assets/delveworn-gold-coin.webp') center / contain no-repeat;
   filter: drop-shadow(0 .07em .08em rgba(0, 0, 0, .55));
 }
@@ -63,6 +65,7 @@ button { font: inherit; }
 .market-ribbon span, .sticky-hud span, .section-kicker, .prediction-card > span,
 .hp-label span, .enemy-stats span, .reward-box span, .final-stats span,
 .dungeon-log > div span { display: block; color: #71717a; font-size: 8px; font-weight: 900; letter-spacing: .12em; }
+span.gold-icon { display: inline-block !important; }
 .market-ribbon strong { display: block; margin-top: 5px; font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .market-ribbon small { display: block; color: #52525b; font-size: 8px; margin-top: 2px; }
 .text-up { color: var(--green); }
@@ -319,6 +322,7 @@ button { font: inherit; }
 .combat-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .combat-actions .storm { order: 1; }
 .combat-actions .attack { order: 2; }
+.combat-actions .potion { grid-column: 1 / -1; order: 3; }
 .combat-actions button { display: flex; flex-direction: column; align-items: flex-start; min-height: 93px; padding: 13px; border: 0; border-radius: 11px; text-align: left; }
 .combat-actions .attack { background: var(--orange); color: #090909; }
 .combat-actions .storm { background: var(--violet); color: white; }
@@ -406,7 +410,8 @@ footer span { display: block; margin-top: 6px; color: #303035; font-size: 8px; l
   .combat-view .monster-stage {
     grid-column: 1;
     grid-row: 2;
-    height: 100%;
+    align-self: start;
+    height: 500px;
     min-height: 500px;
     border-right: 1px solid var(--line);
   }
@@ -443,13 +448,22 @@ footer span { display: block; margin-top: 6px; color: #303035; font-size: 8px; l
   }
 
   .action-dock-combat {
-    display: grid;
-    grid-template-columns: minmax(0, 2fr) minmax(260px, 1fr);
-    gap: 10px;
+    display: block;
   }
-  .action-dock-combat .judge-next-action { grid-column: 1 / -1; margin-bottom: 0; }
-  .action-dock-combat .combat-actions { grid-column: 1; }
-  .action-dock-combat .potion { grid-column: 2; min-height: 93px; margin-top: 0; }
+  .action-dock-combat .judge-next-action { margin-bottom: 10px; }
+  .action-dock-combat .combat-actions { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+  .action-dock-combat .combat-actions .storm { grid-column: auto; order: 1; }
+  .action-dock-combat .combat-actions .potion {
+    grid-column: auto;
+    order: 2;
+    min-height: 93px;
+    margin-top: 0;
+    border-color: #10b981;
+    background: linear-gradient(135deg, #047857, #065f46);
+    color: white;
+  }
+  .action-dock-combat .potion:disabled { opacity: .62; }
+  .action-dock-combat .combat-actions .attack { grid-column: auto; order: 3; }
 
   .merchant-shop {
     grid-template-columns: minmax(0, 2fr) minmax(260px, 1fr);
