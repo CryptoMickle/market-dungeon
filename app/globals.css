@@ -126,7 +126,7 @@ span.gold-icon { display: inline-block !important; }
 .main-card.boss-card { background: linear-gradient(180deg, rgba(88, 28, 135, .42), #121214 70%); border-color: #6b21a8; }
 
 .setup-view { min-height: 570px; padding: 20px 24px 24px; text-align: center; }
-.setup-content { display: contents; }
+.setup-content, .setup-intro, .setup-details { display: contents; }
 .dungeon-sigil { font-size: 64px; filter: drop-shadow(0 12px 28px rgba(249, 115, 22, .12)); }
 .section-kicker { color: var(--orange-light); margin: 16px 0 0; letter-spacing: .24em; }
 .setup-view h2, .result-view h2 { margin: 8px 0 0; font-size: 30px; line-height: 1.05; font-weight: 950; letter-spacing: -.025em; }
@@ -394,15 +394,18 @@ footer span { display: block; margin-top: 6px; color: #303035; font-size: 8px; l
   .setup-view {
     display: grid;
     grid-template-columns: minmax(0, 3fr) minmax(390px, 2fr);
-    min-height: 720px;
+    grid-template-rows: minmax(520px, auto) auto;
+    min-height: 0;
     padding: 0;
     text-align: left;
   }
   .setup-hero {
+    grid-column: 1;
+    grid-row: 1;
     width: 100%;
     min-width: 0;
     height: 100%;
-    min-height: 720px;
+    min-height: 520px;
     aspect-ratio: auto;
     margin: 0;
     border-right: 1px solid #2f2733;
@@ -410,9 +413,67 @@ footer span { display: block; margin-top: 6px; color: #303035; font-size: 8px; l
   }
   .setup-hero::after { background: linear-gradient(90deg, transparent 62%, var(--panel)); }
   .setup-hero img { object-position: center; }
-  .setup-content { display: block; padding: 38px 32px 32px; }
+  .setup-content { display: contents; }
+  .setup-intro {
+    grid-column: 2;
+    grid-row: 1;
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    justify-content: center;
+    padding: 30px 32px;
+  }
+  .setup-details {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    display: block;
+    padding: 20px 24px 24px;
+    border-top: 1px solid #2f2733;
+    background: rgba(9, 9, 11, .44);
+  }
+  .setup-intro .prediction-buttons { display: none; }
+  .setup-details .rule-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); margin-top: 0; }
   .setup-content .section-kicker { margin-top: 0; }
   .setup-content .muted { max-width: none; margin-inline: 0; }
+  .setup-intro .legacy-inventory span { font-size: 9px; }
+  .setup-intro .legacy-inventory strong { margin-top: 6px; font-size: 15px; }
+  .setup-intro .legacy-inventory > small { font-size: 10px; }
+  .section-kicker,
+  .prediction-card > span,
+  .hp-label span,
+  .enemy-stats span,
+  .reward-box span,
+  .final-stats span,
+  .dungeon-log > div span { font-size: 10px; }
+  .setup-details .rule-grid b { font-size: 12px; }
+  .setup-details .rule-grid small { font-size: 11px; }
+  .setup-details .competition-note { font-size: 11px; }
+
+  .judge-seal-note { padding: 15px 16px; }
+  .judge-seal-note span { font-size: 10px; }
+  .judge-seal-note strong { margin-top: 7px; font-size: 13px; }
+  .judge-seal-note small { margin-top: 6px; font-size: 11px; }
+  .onchain-proof summary { padding: 14px 15px; }
+  .onchain-proof summary span { font-size: 10px; }
+  .onchain-proof summary strong { font-size: 9px; }
+  .proof-grid { gap: 10px; padding: 0 14px 14px; }
+  .proof-grid > div { margin-top: 10px; padding: 12px; }
+  .proof-grid span { font-size: 9px; }
+  .proof-grid strong,
+  .proof-grid code { margin-top: 7px; font-size: 10px; }
+  .judge-stage-label { left: 16px; right: 16px; bottom: 16px; padding: 12px 14px; font-size: 10px; }
+  .action-dock-combat .judge-next-action { padding: 12px 14px; }
+  .judge-next-action span { font-size: 9px; }
+  .judge-next-action b { margin-top: 6px; font-size: 11px; }
+  .victory-conditions > div { padding: 14px; }
+  .victory-conditions span { font-size: 9px; }
+  .victory-conditions strong { margin-top: 6px; font-size: 11px; }
+  .judge-verification { padding: 16px; }
+  .judge-verification span { font-size: 10px; }
+  .judge-verification strong { margin-top: 7px; font-size: 15px; }
+  .judge-verification small { margin-top: 6px; font-size: 10px; }
+  .final-stats span { font-size: 10px; }
+  .judge-entry > small { font-size: 10px; }
 
   .judge-setup-view,
   .tier-setup-view,
@@ -508,8 +569,8 @@ footer span { display: block; margin-top: 6px; color: #303035; font-size: 8px; l
   }
   .desktop-omen-picker b,
   .desktop-omen-picker small { display: block; }
-  .desktop-omen-picker b { color: white; font-size: 10px; }
-  .desktop-omen-picker small { margin-top: 4px; color: #71717a; font-size: 7px; font-weight: 900; letter-spacing: .08em; }
+  .desktop-omen-picker b { color: white; font-size: 11px; }
+  .desktop-omen-picker small { margin-top: 4px; color: #8f8f99; font-size: 9px; font-weight: 900; letter-spacing: .08em; }
   .desktop-omen-picker .up.selected { border-color: #059669; background: rgba(6, 78, 59, .35); }
   .desktop-omen-picker .up.selected b { color: var(--green); }
   .desktop-omen-picker .down.selected { border-color: #be123c; background: rgba(136, 19, 55, .28); }
