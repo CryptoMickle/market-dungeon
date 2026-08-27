@@ -1,63 +1,6 @@
-const INDEXER = 'https://prd.smk.somnia.host/v1/graphql';
-const RPC = 'https://api.infra.mainnet.somnia.network';
+import { graphql, hydrateMarket } from '../dreamdex';
+
 const IDEAL_ENTRY_SECONDS = 6 * 60;
-
-async function graphql(query: string, variables: Record<string, unknown> = {}) {
-  const response = await fetch(INDEXER, {
-    method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ query, variables }),
-  });
-  const payload = await response.json() as { data?: Record<string, unknown>; errors?: unknown };
-  if (!response.ok || payload.errors) throw new Error(JSON.stringify(payload.errors ?? payload));
-  return payload.data as Record<string, unknown>;
-}
-
-async function rpc(method: string, params: unknown[]) {
-  const response = await fetch(RPC, {
-    method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params }),
-  });
-  const payload = await response.json() as { result?: string; error?: unknown };
-  if (payload.error || !payload.result) throw new Error(JSON.stringify(payload.error));
-  return payload.result;
-}
-
-function words(hex: string) {
-  const data = hex.slice(2);
-  return Array.from({ length: data.length / 64 }, (_, i) => BigInt(`0x${data.slice(i * 64, i * 64 + 64)}`));
-}
-
-async function hydrateMarket(market: Record<string, unknown>, demoReplay = false) {
-  let strikeRaw = String(market.strike ?? '0');
-  if (BigInt(strikeRaw) === 0n) {
-    const refs = await graphql(`query OpeningRefs($ids: [String!]) {
-      MarketReferenceLink(where: {market_id: {_in: $ids}}) { referenceQuestionId }
-    }`, { ids: [String(market.marketId).toLowerCase()] });
-    const qid = (refs.MarketReferenceLink as Array<{ referenceQuestionId: string }>)?.[0]?.referenceQuestionId;
-    if (qid) {
-      const answers = await graphql(`query OpeningAnswers($qids: [String!]) {
-        OracleAnswer(where: {id: {_in: $qids}}) { numericValue }
-      }`, { qids: [String(qid)] });
-      strikeRaw = (answers.OracleAnswer as Array<{ numericValue: string }>)?.[0]?.numericValue ?? strikeRaw;
-    }
-  }
-
-  const chainId = Number(BigInt(await rpc('eth_chainId', [])));
-  if (chainId !== 5031) throw new Error(`Unexpected chain ${chainId}`);
-  const rawParams = await rpc('eth_call', [{ to: market.poolAddress, data: '0x0765910c' }, 'latest']);
-  const [tickSize, minQuantity, lotSize] = words(rawParams);
-
-  return {
-    market: {
-      ...market,
-      winningOutcome: market.winningOutcome ?? null,
-      strikeUsd: (Number(strikeRaw) / 100).toFixed(2),
-      expiryIso: new Date(Number(market.expiry) * 1000).toISOString(),
-      demoReplay,
-    },
-    network: { name: 'Somnia mainnet', chainId },
-    book: { tickSize: tickSize.toString(), minQuantity: minQuantity.toString(), lotSize: lotSize.toString() },
-    safety: { mode: 'DRY_RUN', writesEnabled: false },
-  };
-}
 
 export async function GET(request: Request) {
   try {
@@ -70,19 +13,11 @@ export async function GET(request: Request) {
       return Response.json({ market: data.Market_by_pk }, { headers: { 'cache-control': 'no-store' } });
     }
 
-    if (searchParams.get('demo') === 'settled') {
-      const data = await graphql(`query LatestSettledBtc15m {
-        Market(where: {
-          marketType: {_eq: "BINARY"}, asset: {_eq: "BTC"}, intervalSec: {_eq: "900"},
-          finalized: {_eq: true}, voided: {_eq: false}, winningOutcome: {_is_null: false}
-        }, order_by: {expiry: desc}, limit: 1) {
-          marketId marketAddress poolAddress collateral asset question strike tradingStart expiry
-          status: clobStatus intervalSec quoteDecimals yesTokenId noTokenId voided finalized resolvedAtTimestamp lastPrice
-        }
-      }`);
-      const market = ((data.Market as Array<Record<string, unknown>>) ?? [])[0];
-      if (!market) return Response.json({ error: 'No finalized BTC 15m market available for replay' }, { status: 404 });
-      return Response.json(await hydrateMarket({ ...market, winningOutcome: null }, true), { headers: { 'cache-control': 'no-store' } });
+    if (searchParams.has('demo')) {
+      return Response.json(
+        { error: 'Legacy replay endpoint removed. Use the sealed Judge Replay flow.' },
+        { status: 410, headers: { 'cache-control': 'private, no-store, max-age=0' } },
+      );
     }
 
     const now = Math.floor(Date.now() / 1000).toString();
