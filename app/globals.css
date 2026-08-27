@@ -298,6 +298,7 @@ button { font: inherit; }
 .oracle-action { background: var(--violet); color: white; }
 .oracle-dock small { display: block; margin-top: 8px; color: #8b78a0; font-size: 8px; text-align: center; }
 .judge-entry { display: grid; gap: 8px; }
+.desktop-omen-picker { display: none; }
 .judge-entry > small { color: #71717a; font-size: 8px; line-height: 1.35; text-align: center; }
 .judge-action { width: 100%; min-height: 46px; border: 1px solid #6d28d9; border-radius: 11px; background: rgba(88, 28, 135, .34); color: #e9d5ff; font-size: 10px; font-weight: 950; letter-spacing: .025em; }
 .judge-lock-action { display: grid; grid-template-columns: 1fr 1.05fr; align-items: stretch; gap: 8px; }
@@ -374,8 +375,11 @@ footer span { display: block; margin-top: 6px; color: #303035; font-size: 8px; l
     text-align: left;
   }
   .setup-hero {
+    width: 100%;
+    min-width: 0;
     height: 100%;
     min-height: 720px;
+    aspect-ratio: auto;
     margin: 0;
     border-right: 1px solid #2f2733;
     border-bottom: 0;
@@ -457,7 +461,25 @@ footer span { display: block; margin-top: 6px; color: #303035; font-size: 8px; l
   .merchant-shop > .primary-action,
   .merchant-shop > .oracle-action { grid-column: 2; }
 
-  .judge-entry { grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); }
+  .judge-entry { grid-template-columns: minmax(300px, 1.1fr) minmax(0, 1.25fr) minmax(0, 1fr); }
+  .desktop-omen-picker { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
+  .desktop-omen-picker button {
+    min-width: 0;
+    padding: 9px 10px;
+    border: 1px solid var(--line-strong);
+    border-radius: 10px;
+    background: #18181b;
+    color: #a1a1aa;
+    text-align: left;
+  }
+  .desktop-omen-picker b,
+  .desktop-omen-picker small { display: block; }
+  .desktop-omen-picker b { color: white; font-size: 10px; }
+  .desktop-omen-picker small { margin-top: 4px; color: #71717a; font-size: 7px; font-weight: 900; letter-spacing: .08em; }
+  .desktop-omen-picker .up.selected { border-color: #059669; background: rgba(6, 78, 59, .35); }
+  .desktop-omen-picker .up.selected b { color: var(--green); }
+  .desktop-omen-picker .down.selected { border-color: #be123c; background: rgba(136, 19, 55, .28); }
+  .desktop-omen-picker .down.selected b { color: #fb7185; }
   .judge-entry > small { grid-column: 1 / -1; }
 }
 

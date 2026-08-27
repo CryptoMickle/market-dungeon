@@ -731,6 +731,10 @@ export default function Home() {
         <section className={`action-dock action-dock-${phase.toLowerCase()}`}>
           {phase === 'SETUP' ? (
             <div className="judge-entry">
+              <div className="desktop-omen-picker" aria-label="Choose BTC direction">
+                <button className={direction === 'UP' ? 'up selected' : 'up'} onClick={() => setDirection('UP')}><b><GoldIcon /> BTC UP</b><small>GOLD AWAKENS</small></button>
+                <button className={direction === 'DOWN' ? 'down selected' : 'down'} onClick={() => setDirection('DOWN')}><b>🌑 BTC DOWN</b><small>SHADOWS RISE</small></button>
+              </div>
               <button className="primary-action" onClick={startRun} disabled={!marketReady}>{marketReady ? <>BEGIN TIER 1 · {omenIcon} {omenName}</> : 'WAITING FOR ACTIVE BTC MARKET…'}</button>
               <button className="judge-action" onClick={() => void startJudgeDemo()} disabled={judgeLoading}>⚡ {judgeLoading ? 'LOADING SETTLED MARKET…' : '2-MIN JUDGE DEMO · REAL MARKET REPLAY'}</button>
               <small>Judge Demo first loads the exact finalized market for inspection and omen selection. Its outcome stays sealed until the final reveal.</small>
