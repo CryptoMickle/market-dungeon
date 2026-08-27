@@ -727,17 +727,17 @@ export default function Home() {
   }
 
   const verifiedSharePanel = judgeMode && market.replayProof && market.combatProof && oracleResult ? (
-    <div className="verified-share">
+    <div className="judge-verification verified-share">
       <div>
         <span>SHAREABLE VERIFIED RESULT</span>
         <strong>LOCKED BTC {market.replayProof.lockedDirection} · OUTCOME BTC {market.replayProof.committedOutcome === 0 ? 'UP' : 'DOWN'}</strong>
         <small>Includes market ID, commitment, combat verification, Somnia proof and the Market Dungeon link.</small>
       </div>
-      <div className="verified-share-actions">
-        <button type="button" onClick={() => void shareVerifiedRun(true)}>↗ SHARE VERIFIED RUN</button>
-        <button type="button" onClick={() => void shareVerifiedRun(false)}>COPY RESULT</button>
+      <div className="between-actions verified-share-actions">
+        <button className="judge-action" type="button" onClick={() => void shareVerifiedRun(true)}>↗ SHARE VERIFIED RUN</button>
+        <button className="heal-action" type="button" onClick={() => void shareVerifiedRun(false)}>COPY RESULT</button>
       </div>
-      <p aria-live="polite">{shareStatus}</p>
+      <small className="verified-share-status" aria-live="polite">{shareStatus}</small>
     </div>
   ) : null;
 
