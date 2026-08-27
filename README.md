@@ -31,8 +31,9 @@ Select **2-MIN JUDGE DEMO · SEALED MARKET REPLAY** on the start screen. This mo
 - encrypts the selected market and locked direction with AES-256-GCM under a server-only key;
 - returns only an opaque seal, a salted SHA-256 commitment and an independent public combat seed to the browser;
 - fast-forwards Tiers 1–3 and Rooms 1–8, then starts with one wounded Tier 4 guard before the wounded final boss;
-- requires the player to defeat both the guard and boss through normal combat; and
-- reveals the full market proof, salt and canonical commitment input after **Reveal Boss Fate**, then verifies the commitment in the browser before applying the real recorded outcome.
+- records a bounded structured log of `Attack`, `Storm`, and `Potion` actions while the player defeats both the guard and boss;
+- replays that log stateless on the server from the sealed `gameSeed` and refuses reveal unless both enemies were legitimately defeated; and
+- reveals the full market proof, combat transcript digest, salt and canonical commitment input after **Reveal Boss Fate**, then verifies both digests in the browser before applying the real recorded outcome.
 
 It is a fast replay, not a mocked settlement.
 
@@ -41,8 +42,9 @@ It is a fast replay, not a mocked settlement.
 1. Enter Judge Demo and confirm that no market ID, address, strike, expiry or outcome is present before the choice.
 2. Choose `UP` or `DOWN`, then press **Lock Omen & Seal Replay**.
 3. Note the full SHA-256 commitment shown during combat, then defeat the wounded guard and boss.
-4. Press **Reveal Boss Fate**. The result screen reveals the full market proof and salt, recomputes the same commitment in the browser and confirms the locked direction.
-5. Open the market and contract links in the Somnia explorer. No wallet, approval, order or other transaction is requested.
+4. Press **Reveal Boss Fate**. The server first replays the combat transcript; the result screen then shows **Combat verified** beside commitment and settlement verification.
+5. Use **Share verified run** or **Copy result** to export the locked choice, actual outcome, market ID, commitment and Somnia proof.
+6. Open the market and contract links in the Somnia explorer. No wallet, approval, order or other transaction is requested.
 
 ## Why Event Contracts fit the game
 
@@ -65,10 +67,12 @@ flowchart LR
     START -->|CSPRNG-select finalized market| IDX
     START -->|AES-GCM seal + salted commitment + game seed| UI
     UI --> LOOP[Deterministic dungeon loop]
-    UI -->|Reveal Boss Fate| SETTLE[/api/judge-replay/reveal/]
+    UI -->|Seal + bounded action log| SETTLE[/api/judge-replay/reveal/]
+    SETTLE --> COMBAT[Server replays guard + boss combat]
     SETTLE --> IDX
     SETTLE --> RPC
-    SETTLE -->|Full proof + salt + winningOutcome| VERIFY[Browser recomputes SHA-256 commitment]
+    COMBAT -->|Both defeated| VERIFY[Browser verifies transcript + commitment digests]
+    SETTLE -->|Full proof + salt + winningOutcome| VERIFY
     VERIFY --> GATE[Boss fate gate]
     LOOP -->|Boss HP reaches zero| GATE
     GATE -->|Combat + correct prediction| NEXT[Next tier and fresh market]
@@ -86,6 +90,8 @@ flowchart LR
 - No selected-market identifier or identifying metadata is returned at lock time.
 - The selected market, recorded outcome and locked direction are authenticated inside an AES-256-GCM seal under `JUDGE_REPLAY_SEAL_KEY`.
 - The public commitment is salted, combat randomness is independent of the hidden market, and the salt is withheld until reveal.
+- The reveal payload is limited to 8 KiB and 64 structured combat steps. Extra fields, invalid room transitions, impossible potion use, player death, incomplete combat, and post-terminal actions fail closed.
+- The reveal server deterministically replays every Judge `Attack`, `Storm`, and `Potion` action and requires both the guard and boss to be defeated before it reads or returns settlement data.
 - The reveal route re-fetches the exact settlement and fails closed if it no longer matches the committed outcome.
 
 ## Verified integration surface
@@ -105,6 +111,8 @@ Verified against Somnia mainnet on 27 August 2026:
 | Settlement fields | `finalized`, `voided`, `winningOutcome`, `payoutNumerators`, `payoutDenominator` |
 
 Active-market discovery uses dreamDEX's indexer. Opening strike resolution follows `MarketReferenceLink.referenceQuestionId` to `OracleAnswer.numericValue`. Pool tick, minimum quantity, and lot size are read directly through Somnia RPC.
+
+See the concise [dreamDEX Integration Report](docs/DREAMDEX_INTEGRATION_REPORT.md) for the exact GraphQL fields, active/finalized discovery rules, RPC verification, metadata/settlement boundary, cache and security limits, documentation gaps, and recommended improvements.
 
 ## Local development
 
@@ -141,6 +149,7 @@ public/
   monsters/              Four progression tiers for each enemy class
 docs/
   DORAHACKS_SUBMISSION.md Submission-ready project description and judge path
+  DREAMDEX_INTEGRATION_REPORT.md Exact implemented integration surface and gaps
 ```
 
 ## Safety and current limitations
@@ -149,7 +158,7 @@ docs/
 - The interface must not be used to bypass dreamDEX eligibility or jurisdiction checks.
 - A future wallet-enabled mode should use exact-amount approval, transaction simulation, explicit maximum-loss disclosure, and separate user confirmation for every write.
 - Gold and the next-run potion count are stored only on the player's device; active combat and loadout state reset on refresh.
-- Judge combat remains browser-side. The normal interface offers reveal only after boss defeat, while the API itself enforces a 15-second anti-peek hold rather than server-authenticated combat progression. The seal guarantees that the chosen direction is bound and the selected market identity is hidden before a reveal request; it does not make combat server-authoritative.
+- Judge combat is rendered in the browser, but reveal is server-gated by a stateless deterministic replay of the submitted structured action log. This proves that the transcript is valid under the published seed and rules; because the seed is public, it is not proof of human input or elapsed play time.
 - Production and Preview require separate `JUDGE_REPLAY_SEAL_KEY` values, each encoded as exactly 64 hexadecimal characters (32 bytes). Rotating a key cleanly invalidates in-flight replay seals.
 - Availability depends on the public dreamDEX indexer and Somnia RPC.
 
@@ -160,6 +169,9 @@ docs/
 - Finalized onchain settlement replay: complete
 - Two-minute judge path: complete
 - Salted pre-reveal commitment and clickable post-reveal onchain proof: complete
+- Stateless server-verified Judge combat transcript: complete
+- Share/copy verified post-reveal result: complete
+- Implementation-specific dreamDEX integration report: complete
 - Desktop and 390 px mobile judge-flow QA: complete
 - Four-tier dual-condition progression: complete
 - Three-minute hackathon demo video: complete

@@ -24,15 +24,16 @@ Neither condition replaces the other. This gives the Event Contract a clear, dra
 1. Open the live demo and select **2-MIN JUDGE DEMO · SEALED MARKET REPLAY**.
 2. Confirm that no selected-market ID, address, strike, expiry or outcome is present before the choice.
 3. Choose `UP` or `DOWN`, then press **Lock Omen & Seal Replay**. The server now randomly selects a finalized market and binds it with an encrypted token and salted commitment.
-4. Note the full SHA-256 commitment, then defeat one wounded Tier 4 guard and the wounded final boss through normal combat.
+4. Note the full SHA-256 commitment, then defeat one wounded Tier 4 guard and the wounded final boss through normal combat. `Attack`, `Storm`, and `Potion` are recorded as a bounded structured action log.
 5. Confirm that the exact market identity and outcome remain sealed after the boss reaches zero HP.
-6. Press **Reveal Boss Fate**. Market Dungeon reveals the full proof and salt, recomputes the commitment in the browser and resolves the server-locked prediction against the real recorded outcome.
+6. Press **Reveal Boss Fate**. The server first replays the combat log from the sealed deterministic seed and refuses reveal unless both enemies were defeated. Market Dungeon then reveals the full proof and salt, verifies the combat transcript digest and commitment in the browser, and resolves the server-locked prediction against the real recorded outcome.
+7. Use **Share verified run** or **Copy result** to export the locked choice, actual outcome, market ID, commitment, Somnia proof, and demo link.
 
 The replay is fast, but the settlement is not mocked.
 
 ## Onchain proof and safety
 
-Before reveal, the interface exposes only generic BTC 15-minute / Somnia `5031` facts and a salted commitment. After reveal, it exposes clickable proof for the full market ID, market contract, and pool contract through the [Somnia explorer](https://explorer.somnia.network), plus the revealed salt and browser-verified commitment.
+Before reveal, the interface exposes only generic BTC 15-minute / Somnia `5031` facts and a salted commitment. After reveal, it exposes clickable proof for the full market ID, market contract, and pool contract through the [Somnia explorer](https://explorer.somnia.network), plus server-verified combat, the combat transcript digest, the revealed salt, and the browser-verified commitment.
 
 The hackathon build is intentionally read-only:
 
@@ -44,17 +45,17 @@ The hackathon build is intentionally read-only:
 
 The Judge Demo sends no identifying market metadata before reveal. The selected market and locked direction are authenticated inside an AES-256-GCM seal under a server-only key; combat uses an unrelated public seed so damage rolls cannot identify the hidden market.
 
-The browser presents **Reveal Boss Fate** only after boss defeat. Because combat is intentionally client-side, the API does not claim to prove combat completion; it enforces a short 15-second anti-peek hold and cryptographically binds the already-chosen direction to the sealed replay.
+The browser presents **Reveal Boss Fate** only after boss defeat, and the API independently replays the structured action log before returning any settlement. The replay is stateless, capped at 64 actions and 8 KiB, and fails closed for invalid transitions, impossible potion use, player death, incomplete combat, or actions after completion. It proves a valid transcript under the public deterministic seed, not human input or elapsed play time. A short 15-second anti-peek hold still applies.
 
 ## Technical architecture
 
 - Next.js application with a deterministic client-side dungeon state machine.
 - Server route for live dreamDEX market discovery.
-- Separate Judge Replay start and reveal routes with CSPRNG selection, AES-256-GCM sealing and salted SHA-256 commitments.
+- Separate Judge Replay start and reveal routes with CSPRNG selection, AES-256-GCM sealing, salted SHA-256 commitments, and deterministic server-side combat replay.
 - dreamDEX GraphQL indexer for market metadata, reference question, and settlement data.
 - Somnia mainnet RPC verification for chain ID and pool parameters when live or revealed market details are hydrated.
 - `cache-control: private, no-store, max-age=0` for replay state.
-- Responsive desktop and mobile layouts with a focused five-step judge flow.
+- Responsive desktop and mobile layouts with a focused five-step judge flow and a share/copy verified result.
 
 ## Links
 
@@ -64,4 +65,4 @@ The browser presents **Reveal Boss Fate** only after boss defeat. Because combat
 
 ## Current scope
 
-The contest build includes the full four-tier roguelite, live active-market integration, finalized onchain settlement replay, the two-minute judge path, clickable Somnia proof, and responsive presentation. Wallet writes are deliberately outside this submission's scope so judges can verify the complete integration without signing or risking assets.
+The contest build includes the full four-tier roguelite, live active-market integration, finalized onchain settlement replay, stateless server-verified Judge combat, shareable verified results, the two-minute judge path, clickable Somnia proof, and responsive presentation. Wallet writes are deliberately outside this submission's scope so judges can verify the complete integration without signing or risking assets. The repository also includes an implementation-specific [dreamDEX integration report](DREAMDEX_INTEGRATION_REPORT.md) covering fields, discovery, RPC verification, security boundaries, documentation gaps, and recommended improvements.

@@ -18,6 +18,17 @@ export type ReplayProof = ReplayCommitmentPayload & {
   canonical: string;
 };
 
+export type ReplayCombatProof = {
+  verified: boolean;
+  ruleset: 'market-dungeon/judge-combat/v1';
+  transcriptDigest: string;
+  steps: number;
+  guardDefeated: boolean;
+  bossDefeated: boolean;
+  playerSurvived: boolean;
+  finalHp: number;
+};
+
 export const REPLAY_COMMITMENT_DOMAIN = 'market-dungeon/judge-replay/v1';
 
 export function canonicalReplayProof(proof: ReplayCommitmentPayload) {
