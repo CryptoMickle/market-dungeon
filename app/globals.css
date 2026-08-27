@@ -123,6 +123,7 @@ button { font: inherit; }
 .main-card.boss-card { background: linear-gradient(180deg, rgba(88, 28, 135, .42), #121214 70%); border-color: #6b21a8; }
 
 .setup-view { min-height: 570px; padding: 20px 24px 24px; text-align: center; }
+.setup-content { display: contents; }
 .dungeon-sigil { font-size: 64px; filter: drop-shadow(0 12px 28px rgba(249, 115, 22, .12)); }
 .section-kicker { color: var(--orange-light); margin: 16px 0 0; letter-spacing: .24em; }
 .setup-view h2, .result-view h2 { margin: 8px 0 0; font-size: 30px; line-height: 1.05; font-weight: 950; letter-spacing: -.025em; }
@@ -355,6 +356,110 @@ button { font: inherit; }
 footer { padding: 24px 8px 0; text-align: center; }
 footer p { margin: 0; color: #3f3f46; font-size: 8px; font-weight: 900; letter-spacing: .08em; }
 footer span { display: block; margin-top: 6px; color: #303035; font-size: 8px; line-height: 1.5; }
+
+@media (min-width: 1024px) {
+  .game-shell { padding: 32px 32px 96px; }
+  .game-column { max-width: 1152px; }
+
+  .game-header { margin-bottom: 22px; }
+  .game-header h1 { font-size: 58px; }
+  .market-ribbon > div { padding: 13px 16px; }
+  .market-ribbon strong { font-size: 12px; }
+
+  .setup-view {
+    display: grid;
+    grid-template-columns: minmax(0, 3fr) minmax(390px, 2fr);
+    min-height: 720px;
+    padding: 0;
+    text-align: left;
+  }
+  .setup-hero {
+    height: 100%;
+    min-height: 720px;
+    margin: 0;
+    border-right: 1px solid #2f2733;
+    border-bottom: 0;
+  }
+  .setup-hero::after { background: linear-gradient(90deg, transparent 62%, var(--panel)); }
+  .setup-hero img { object-position: center; }
+  .setup-content { display: block; padding: 38px 32px 32px; }
+  .setup-content .section-kicker { margin-top: 0; }
+  .setup-content .muted { max-width: none; margin-inline: 0; }
+
+  .judge-setup-view,
+  .tier-setup-view,
+  .result-view {
+    width: min(100%, 820px);
+    margin-inline: auto;
+  }
+
+  .combat-view {
+    display: grid;
+    grid-template-columns: minmax(0, 3fr) minmax(350px, 2fr);
+    grid-template-rows: auto minmax(500px, auto);
+  }
+  .combat-view .room-progress { grid-column: 1 / -1; }
+  .combat-view .monster-stage {
+    grid-column: 1;
+    grid-row: 2;
+    height: 100%;
+    min-height: 500px;
+    border-right: 1px solid var(--line);
+  }
+  .combat-view .monster-stage img { object-fit: cover; }
+  .combat-view .monster-info {
+    grid-column: 2;
+    grid-row: 2;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    padding: 32px;
+  }
+  .combat-view .stage-fade { background: linear-gradient(90deg, transparent 72%, #18181b); }
+  .boss-card .combat-view .stage-fade { background: linear-gradient(90deg, transparent 72%, #151018); }
+
+  .merchant-view {
+    display: grid;
+    grid-template-columns: minmax(0, 3fr) minmax(350px, 2fr);
+    min-height: 500px;
+  }
+  .merchant-stage {
+    height: 100%;
+    min-height: 500px;
+    border-right: 1px solid #3f3429;
+  }
+  .merchant-stage img { object-fit: cover; }
+  .merchant-stage .stage-fade { background: linear-gradient(90deg, transparent 72%, #171412); }
+  .merchant-copy {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 32px;
+    text-align: left;
+  }
+
+  .action-dock-combat {
+    display: grid;
+    grid-template-columns: minmax(0, 2fr) minmax(260px, 1fr);
+    gap: 10px;
+  }
+  .action-dock-combat .judge-next-action { grid-column: 1 / -1; margin-bottom: 0; }
+  .action-dock-combat .combat-actions { grid-column: 1; }
+  .action-dock-combat .potion { grid-column: 2; min-height: 93px; margin-top: 0; }
+
+  .merchant-shop {
+    grid-template-columns: minmax(0, 2fr) minmax(260px, 1fr);
+    align-items: stretch;
+  }
+  .merchant-shop .shop-heading { grid-column: 1 / -1; }
+  .merchant-shop .shop-grid { grid-column: 1; grid-row: 2 / span 2; }
+  .merchant-shop > .heal-action,
+  .merchant-shop > .primary-action,
+  .merchant-shop > .oracle-action { grid-column: 2; }
+
+  .judge-entry { grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); }
+  .judge-entry > small { grid-column: 1 / -1; }
+}
 
 @media (max-width: 600px) {
   .game-shell { padding: 20px 10px 72px; }
