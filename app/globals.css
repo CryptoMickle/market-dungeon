@@ -23,9 +23,11 @@ button { font: inherit; }
 
 .gold-icon {
   display: inline-block;
-  width: 1em;
-  height: 1em;
-  vertical-align: -.14em;
+  width: 1.2em;
+  min-width: 11px;
+  height: 1.2em;
+  min-height: 11px;
+  vertical-align: -.19em;
   background: url('/assets/delveworn-gold-coin.webp') center / contain no-repeat;
   filter: drop-shadow(0 .07em .08em rgba(0, 0, 0, .55));
 }
@@ -63,6 +65,7 @@ button { font: inherit; }
 .market-ribbon span, .sticky-hud span, .section-kicker, .prediction-card > span,
 .hp-label span, .enemy-stats span, .reward-box span, .final-stats span,
 .dungeon-log > div span { display: block; color: #71717a; font-size: 8px; font-weight: 900; letter-spacing: .12em; }
+span.gold-icon { display: inline-block !important; }
 .market-ribbon strong { display: block; margin-top: 5px; font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .market-ribbon small { display: block; color: #52525b; font-size: 8px; margin-top: 2px; }
 .text-up { color: var(--green); }
@@ -298,6 +301,7 @@ button { font: inherit; }
 .oracle-action { background: var(--violet); color: white; }
 .oracle-dock small { display: block; margin-top: 8px; color: #8b78a0; font-size: 8px; text-align: center; }
 .judge-entry { display: grid; gap: 8px; }
+.desktop-omen-picker { display: none; }
 .judge-entry > small { color: #71717a; font-size: 8px; line-height: 1.35; text-align: center; }
 .judge-action { width: 100%; min-height: 46px; border: 1px solid #6d28d9; border-radius: 11px; background: rgba(88, 28, 135, .34); color: #e9d5ff; font-size: 10px; font-weight: 950; letter-spacing: .025em; }
 .judge-lock-action { display: grid; grid-template-columns: 1fr 1.05fr; align-items: stretch; gap: 8px; }
@@ -318,6 +322,7 @@ button { font: inherit; }
 .combat-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .combat-actions .storm { order: 1; }
 .combat-actions .attack { order: 2; }
+.combat-actions .potion { grid-column: 1 / -1; order: 3; }
 .combat-actions button { display: flex; flex-direction: column; align-items: flex-start; min-height: 93px; padding: 13px; border: 0; border-radius: 11px; text-align: left; }
 .combat-actions .attack { background: var(--orange); color: #090909; }
 .combat-actions .storm { background: var(--violet); color: white; }
@@ -363,8 +368,28 @@ footer span { display: block; margin-top: 6px; color: #303035; font-size: 8px; l
 
   .game-header { margin-bottom: 22px; }
   .game-header h1 { font-size: 58px; }
-  .market-ribbon > div { padding: 13px 16px; }
-  .market-ribbon strong { font-size: 12px; }
+  .market-ribbon > div { padding: 15px 16px; }
+  .market-ribbon span,
+  .sticky-hud span { color: #8f8f99; font-size: 10px; }
+  .market-ribbon strong { font-size: 14px; }
+  .market-ribbon small { margin-top: 4px; color: #71717a; font-size: 10px; }
+
+  .tier-track { grid-template-columns: 150px 1fr; padding: 13px 16px; }
+  .tier-track > div:first-child span { color: #8f8f99; font-size: 9px; }
+  .tier-track > div:first-child strong { margin-top: 5px; font-size: 12px; }
+  .tier-nodes { gap: 10px; }
+  .tier-nodes b { flex-basis: 28px; height: 28px; font-size: 10px; }
+  .tier-nodes small { color: #73737d; font-size: 8px; }
+
+  .sticky-hud > div { padding: 14px 16px; }
+  .sticky-hud strong { margin-top: 6px; font-size: 14px; }
+  .mini-bar { height: 4px; margin-top: 8px; }
+
+  .judge-replay-heading span { font-size: 10px; }
+  .judge-replay-heading strong { font-size: 17px; }
+  .judge-replay-heading small { font-size: 11px; }
+  .judge-replay-steps span { padding: 10px 9px; font-size: 9px; }
+  .judge-replay-steps span b { flex-basis: 21px; height: 21px; font-size: 9px; }
 
   .setup-view {
     display: grid;
@@ -374,8 +399,11 @@ footer span { display: block; margin-top: 6px; color: #303035; font-size: 8px; l
     text-align: left;
   }
   .setup-hero {
+    width: 100%;
+    min-width: 0;
     height: 100%;
     min-height: 720px;
+    aspect-ratio: auto;
     margin: 0;
     border-right: 1px solid #2f2733;
     border-bottom: 0;
@@ -402,7 +430,8 @@ footer span { display: block; margin-top: 6px; color: #303035; font-size: 8px; l
   .combat-view .monster-stage {
     grid-column: 1;
     grid-row: 2;
-    height: 100%;
+    align-self: start;
+    height: 500px;
     min-height: 500px;
     border-right: 1px solid var(--line);
   }
@@ -439,13 +468,22 @@ footer span { display: block; margin-top: 6px; color: #303035; font-size: 8px; l
   }
 
   .action-dock-combat {
-    display: grid;
-    grid-template-columns: minmax(0, 2fr) minmax(260px, 1fr);
-    gap: 10px;
+    display: block;
   }
-  .action-dock-combat .judge-next-action { grid-column: 1 / -1; margin-bottom: 0; }
-  .action-dock-combat .combat-actions { grid-column: 1; }
-  .action-dock-combat .potion { grid-column: 2; min-height: 93px; margin-top: 0; }
+  .action-dock-combat .judge-next-action { margin-bottom: 10px; }
+  .action-dock-combat .combat-actions { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+  .action-dock-combat .combat-actions .storm { grid-column: auto; order: 1; }
+  .action-dock-combat .combat-actions .potion {
+    grid-column: auto;
+    order: 2;
+    min-height: 93px;
+    margin-top: 0;
+    border-color: #10b981;
+    background: linear-gradient(135deg, #047857, #065f46);
+    color: white;
+  }
+  .action-dock-combat .potion:disabled { opacity: .62; }
+  .action-dock-combat .combat-actions .attack { grid-column: auto; order: 3; }
 
   .merchant-shop {
     grid-template-columns: minmax(0, 2fr) minmax(260px, 1fr);
@@ -457,7 +495,25 @@ footer span { display: block; margin-top: 6px; color: #303035; font-size: 8px; l
   .merchant-shop > .primary-action,
   .merchant-shop > .oracle-action { grid-column: 2; }
 
-  .judge-entry { grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); }
+  .judge-entry { grid-template-columns: minmax(300px, 1.1fr) minmax(0, 1.25fr) minmax(0, 1fr); }
+  .desktop-omen-picker { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
+  .desktop-omen-picker button {
+    min-width: 0;
+    padding: 9px 10px;
+    border: 1px solid var(--line-strong);
+    border-radius: 10px;
+    background: #18181b;
+    color: #a1a1aa;
+    text-align: left;
+  }
+  .desktop-omen-picker b,
+  .desktop-omen-picker small { display: block; }
+  .desktop-omen-picker b { color: white; font-size: 10px; }
+  .desktop-omen-picker small { margin-top: 4px; color: #71717a; font-size: 7px; font-weight: 900; letter-spacing: .08em; }
+  .desktop-omen-picker .up.selected { border-color: #059669; background: rgba(6, 78, 59, .35); }
+  .desktop-omen-picker .up.selected b { color: var(--green); }
+  .desktop-omen-picker .down.selected { border-color: #be123c; background: rgba(136, 19, 55, .28); }
+  .desktop-omen-picker .down.selected b { color: #fb7185; }
   .judge-entry > small { grid-column: 1 / -1; }
 }
 
