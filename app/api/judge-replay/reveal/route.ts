@@ -1,29 +1,46 @@
 import { fetchFullMarket, hydrateMarket } from '../../dreamdex.ts';
-import { canonicalReplay, openReplay, replayCommitment, replayTimeStatus } from '../crypto.ts';
+import { JUDGE_COMBAT, replayJudgeCombat, type JudgeCombatAction } from '../../../judge-combat.ts';
+import { canonicalReplay, combatTranscriptDigest, openReplay, replayCommitment, replayTimeStatus } from '../crypto.ts';
 
 export const runtime = 'nodejs';
 
 const NO_STORE = { 'cache-control': 'private, no-store, max-age=0' };
+const MAX_REVEAL_BYTES = 8_192;
 
-async function sealFrom(request: Request) {
+async function replayRequestFrom(request: Request) {
   if (!request.headers.get('content-type')?.toLowerCase().startsWith('application/json')) {
     throw new Error('Invalid request');
   }
+  const contentLength = Number(request.headers.get('content-length'));
+  if (Number.isFinite(contentLength) && contentLength > MAX_REVEAL_BYTES) throw new Error('Invalid request');
   const raw = await request.text();
-  if (raw.length > 4600) throw new Error('Invalid request');
+  if (raw.length > MAX_REVEAL_BYTES) throw new Error('Invalid request');
   const body = JSON.parse(raw) as unknown;
   if (!body || typeof body !== 'object' || Array.isArray(body)) throw new Error('Invalid request');
-  const keys = Object.keys(body);
-  if (keys.length !== 1 || keys[0] !== 'seal') throw new Error('Invalid request');
-  const seal = (body as { seal?: unknown }).seal;
-  if (typeof seal !== 'string' || !seal) throw new Error('Invalid request');
-  return seal;
+  const keys = Object.keys(body).sort();
+  if (keys.length !== 2 || keys[0] !== 'actions' || keys[1] !== 'seal') throw new Error('Invalid request');
+  const { seal, actions } = body as { seal?: unknown; actions?: unknown };
+  if (typeof seal !== 'string' || !seal || seal.length > 4_096) throw new Error('Invalid request');
+  if (!Array.isArray(actions) || actions.length === 0 || actions.length > JUDGE_COMBAT.maxSteps) throw new Error('Invalid request');
+
+  for (const value of actions) {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('Invalid request');
+    const actionKeys = Object.keys(value).sort();
+    const entry = value as Partial<JudgeCombatAction>;
+    if (actionKeys.length !== 2 || actionKeys[0] !== 'action' || actionKeys[1] !== 'room') throw new Error('Invalid request');
+    if (entry.room !== JUDGE_COMBAT.guard.room && entry.room !== JUDGE_COMBAT.boss.room) throw new Error('Invalid request');
+    if (entry.action !== 'attack' && entry.action !== 'storm' && entry.action !== 'potion') throw new Error('Invalid request');
+  }
+  return { seal, actions: actions as JudgeCombatAction[] };
 }
 
 export async function POST(request: Request) {
   let claims;
+  let actions: JudgeCombatAction[];
   try {
-    claims = openReplay(await sealFrom(request));
+    const replayRequest = await replayRequestFrom(request);
+    claims = openReplay(replayRequest.seal);
+    actions = replayRequest.actions;
   } catch {
     return Response.json({ error: 'Invalid or expired replay seal. Start a new Judge Replay.' }, { status: 400, headers: NO_STORE });
   }
@@ -37,6 +54,14 @@ export async function POST(request: Request) {
     return Response.json(
       { error: 'Replay remains sealed during the minimum anti-peek hold.', retryAfter: claims.revealAfter - now },
       { status: 425, headers: { ...NO_STORE, 'retry-after': String(claims.revealAfter - now) } },
+    );
+  }
+
+  const combat = replayJudgeCombat(claims.gameSeed, actions);
+  if (!combat.verified) {
+    return Response.json(
+      { error: 'Combat transcript did not verify. Defeat both the guard and boss before revealing fate.' },
+      { status: 422, headers: NO_STORE },
     );
   }
 
@@ -64,6 +89,16 @@ export async function POST(request: Request) {
         issuedAt: claims.issuedAt,
         revealAfter: claims.revealAfter,
         expiresAt: claims.expiresAt,
+      },
+      combatProof: {
+        verified: true,
+        ruleset: 'market-dungeon/judge-combat/v1',
+        transcriptDigest: combatTranscriptDigest(claims.gameSeed, actions),
+        steps: combat.steps,
+        guardDefeated: true,
+        bossDefeated: true,
+        playerSurvived: true,
+        finalHp: combat.finalHp,
       },
     }, { headers: NO_STORE });
   } catch {

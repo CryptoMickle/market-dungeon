@@ -1,5 +1,6 @@
 import { createCipheriv, createDecipheriv, createHash, randomBytes } from 'node:crypto';
 
+import { canonicalJudgeActionLog, type JudgeCombatAction } from '../../judge-combat.ts';
 import { canonicalReplayProof, type ReplayDirection } from '../../replay-proof.ts';
 
 export type { ReplayDirection } from '../../replay-proof.ts';
@@ -54,6 +55,10 @@ export function canonicalReplay(claims: ReplayClaims) {
 
 export function replayCommitment(claims: ReplayClaims) {
   return `0x${createHash('sha256').update(canonicalReplay(claims), 'utf8').digest('hex')}`;
+}
+
+export function combatTranscriptDigest(gameSeed: string, actions: JudgeCombatAction[]) {
+  return `0x${createHash('sha256').update(canonicalJudgeActionLog(gameSeed, actions), 'utf8').digest('hex')}`;
 }
 
 export function newReplayClaims(input: {

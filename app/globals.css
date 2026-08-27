@@ -292,6 +292,16 @@ span.gold-icon { display: inline-block !important; }
 .judge-verification span { color: #6ee7b7; font-size: 8px; font-weight: 950; letter-spacing: .14em; }
 .judge-verification strong { margin-top: 5px; font-size: 13px; }
 .judge-verification small { margin-top: 4px; color: #a7f3d0; font-size: 8px; }
+.verified-share { width: 100%; margin-top: 10px; padding: 13px; border: 1px solid rgba(192, 132, 252, .42); border-radius: 11px; background: rgba(88, 28, 135, .2); text-align: left; }
+.verified-share span, .verified-share strong, .verified-share small { display: block; }
+.verified-share span { color: #d8b4fe; font-size: 8px; font-weight: 950; letter-spacing: .14em; }
+.verified-share strong { margin-top: 5px; font-size: 11px; line-height: 1.35; }
+.verified-share small { margin-top: 4px; color: #a78bfa; font-size: 8px; line-height: 1.4; }
+.verified-share-actions { display: grid; grid-template-columns: 1.3fr .7fr; gap: 7px; margin-top: 10px; }
+.verified-share-actions button { min-height: 42px; padding: 10px; border: 1px solid #7c3aed; border-radius: 9px; background: #6d28d9; color: white; font-size: 9px; font-weight: 950; cursor: pointer; }
+.verified-share-actions button:last-child { background: rgba(9, 9, 11, .52); color: #e9d5ff; }
+.verified-share-actions button:hover { filter: brightness(1.12); }
+.verified-share > .verified-share-status { min-height: 10px; margin: 7px 0 0; color: #a7f3d0; font-size: 7px; font-weight: 900; letter-spacing: .08em; text-align: center; }
 
 .action-dock { position: sticky; bottom: 8px; z-index: 20; padding: 11px; margin-bottom: 12px; background: rgba(9, 9, 11, .97); border: 1px solid var(--line-strong); border-radius: 16px; box-shadow: 0 18px 50px rgba(0,0,0,.52); backdrop-filter: blur(18px); }
 .action-dock button { cursor: pointer; transition: transform .14s ease, filter .14s ease, opacity .14s ease; }
@@ -474,6 +484,12 @@ footer span { display: block; margin-top: 6px; color: #303035; font-size: 8px; l
   .judge-verification span { font-size: 10px; }
   .judge-verification strong { margin-top: 7px; font-size: 15px; }
   .judge-verification small { margin-top: 6px; font-size: 10px; }
+  .verified-share { padding: 16px; }
+  .verified-share span { font-size: 10px; }
+  .verified-share strong { margin-top: 7px; font-size: 13px; }
+  .verified-share small { margin-top: 6px; font-size: 10px; }
+  .verified-share-actions button { min-height: 48px; font-size: 11px; }
+  .verified-share > .verified-share-status { font-size: 9px; }
   .final-stats span { font-size: 10px; }
   .judge-entry > small { font-size: 10px; }
 
