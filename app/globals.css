@@ -164,6 +164,11 @@ span.gold-icon { display: inline-block !important; }
 .judge-setup-view { min-height: 560px; padding: 26px 24px 24px; background: radial-gradient(circle at 50% 0, rgba(124, 58, 237, .18), transparent 40%); text-align: center; }
 .judge-setup-view h2 { margin: 8px 0 0; font-size: 30px; line-height: 1.05; font-weight: 950; letter-spacing: -.025em; }
 .judge-prediction-card { border-color: rgba(192, 132, 252, .45); background: rgba(46, 16, 101, .22); }
+.judge-live-context { margin-top: 12px; padding: 12px; border: 1px solid rgba(56, 189, 248, .28); border-radius: 11px; background: rgba(8, 47, 73, .32); }
+.judge-live-context span, .judge-live-context strong, .judge-live-context small { display: block; }
+.judge-live-context span { color: #7dd3fc; font-size: 8px; font-weight: 950; letter-spacing: .14em; }
+.judge-live-context strong { margin-top: 5px; color: #e0f2fe; font-size: 22px; letter-spacing: -.025em; }
+.judge-live-context small { margin-top: 4px; color: #a5d8ee; font-size: 8px; line-height: 1.4; }
 .judge-seal-note { margin-top: 12px; padding: 12px; border: 1px solid rgba(192, 132, 252, .28); border-radius: 11px; background: rgba(15, 15, 17, .72); text-align: left; }
 .judge-seal-note span, .judge-seal-note strong, .judge-seal-note small { display: block; }
 .judge-seal-note span { color: #c084fc; font-size: 8px; font-weight: 950; letter-spacing: .14em; }
@@ -462,6 +467,10 @@ footer span { display: block; margin-top: 6px; color: #303035; font-size: 8px; l
   .setup-details .competition-note { font-size: 11px; }
 
   .judge-seal-note { padding: 15px 16px; }
+  .judge-live-context { padding: 15px 16px; }
+  .judge-live-context span { font-size: 10px; }
+  .judge-live-context strong { margin-top: 7px; font-size: 26px; }
+  .judge-live-context small { margin-top: 6px; font-size: 10px; }
   .judge-seal-note span { font-size: 10px; }
   .judge-seal-note strong { margin-top: 7px; font-size: 13px; }
   .judge-seal-note small { margin-top: 6px; font-size: 11px; }

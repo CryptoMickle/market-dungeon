@@ -3,6 +3,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { canonicalJudgeActionLog, JUDGE_COMBAT, seededRoll, type JudgeCombatAction } from './judge-combat';
+import {
+  liveBtcContextFromMarket,
+  liveBtcContextPrice,
+  liveBtcContextTime,
+  type LiveBtcContext,
+} from './live-btc-context';
 import { canonicalReplayProof, type ReplayCombatProof, type ReplayProof } from './replay-proof';
 import { verifiedRunShareText } from './share-verified-run';
 
@@ -262,6 +268,7 @@ export default function Home() {
   const [profileReady, setProfileReady] = useState(false);
   const [mobileLogOpen, setMobileLogOpen] = useState(false);
   const [judgeActionLog, setJudgeActionLog] = useState<JudgeCombatAction[]>([]);
+  const [liveBtcContext, setLiveBtcContext] = useState<LiveBtcContext | null>(null);
   const [shareStatus, setShareStatus] = useState('');
   const oracleBusyRef = useRef(false);
 
@@ -285,9 +292,23 @@ export default function Home() {
     if (!['SETUP', 'TIER_SETUP'].includes(phase)) return;
     let cancelled = false;
     const load = () => fetch('/api/market').then((response) => response.json()).then((data) => {
-      if (!cancelled && data.market) setMarket(data.market);
+      if (!cancelled && data.market) {
+        setMarket(data.market);
+        setLiveBtcContext(liveBtcContextFromMarket(data.market));
+      }
       else if (!cancelled) setNotice('DREAMDEX FEED RETRYING · NO ACTION REQUIRED');
     }).catch(() => { if (!cancelled) setNotice('DREAMDEX FEED RETRYING · NO ACTION REQUIRED'); });
+    void load();
+    const refresh = window.setInterval(() => { void load(); }, 15000);
+    return () => { cancelled = true; window.clearInterval(refresh); };
+  }, [phase]);
+
+  useEffect(() => {
+    if (phase !== 'JUDGE_SETUP') return;
+    let cancelled = false;
+    const load = () => fetch('/api/market').then((response) => response.json()).then((data) => {
+      if (!cancelled && data.market) setLiveBtcContext(liveBtcContextFromMarket(data.market));
+    }).catch(() => undefined);
     void load();
     const refresh = window.setInterval(() => { void load(); }, 15000);
     return () => { cancelled = true; window.clearInterval(refresh); };
@@ -829,6 +850,13 @@ export default function Home() {
                 <span>SEALED BTC 15-MIN REPLAY · SOMNIA MAINNET</span>
                 <strong>UP OR DOWN</strong>
                 <p>The exact market ID, addresses, strike, expiry and outcome are not selected or sent before your choice locks.</p>
+                <div className="judge-live-context" aria-live="polite">
+                  <span>BTC LIVE CONTEXT</span>
+                  <strong>{liveBtcContext ? liveBtcContextPrice(liveBtcContext) : 'REFERENCE UNAVAILABLE'}</strong>
+                  <small>{liveBtcContext
+                    ? `Current dreamDEX 15-minute opening line · ${liveBtcContextTime(liveBtcContext)} · context only`
+                    : 'The live reference does not affect replay availability. The sealed historical line remains hidden.'}</small>
+                </div>
                 <div className="prediction-buttons">
                   <button className={direction === 'UP' ? 'up selected' : 'up'} onClick={() => setDirection('UP')}><b><GoldIcon /> GOLD AWAKENS</b><small>BTC UP · finishes at or above the line</small></button>
                   <button className={direction === 'DOWN' ? 'down selected' : 'down'} onClick={() => setDirection('DOWN')}><b>🌑 SHADOWS RISE</b><small>BTC DOWN · finishes below the line</small></button>
