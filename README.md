@@ -24,24 +24,25 @@ Gold persists between runs. Potions have a hard maximum of five: a new run resto
 
 ### Two-minute Judge Demo
 
-Select **2-MIN JUDGE DEMO · REAL MARKET REPLAY** on the start screen. This mode:
+Select **2-MIN JUDGE DEMO · SEALED MARKET REPLAY** on the start screen. This mode:
 
-- loads the latest finalized BTC 15-minute Event Contract without sending its winning outcome to the browser;
-- shows the exact question, opening strike, full market ID, market address, pool address, and Somnia network before the player chooses;
-- lets the judge choose and lock `UP` or `DOWN` against that exact market;
+- asks the judge to choose and lock `UP` or `DOWN` before any historical market is selected;
+- uses server-side cryptographic randomness to choose a finalized, non-voided BTC 15-minute market from a recent settlement pool;
+- encrypts the selected market and locked direction with AES-256-GCM under a server-only key;
+- returns only an opaque seal, a salted SHA-256 commitment and an independent public combat seed to the browser;
 - fast-forwards Tiers 1–3 and Rooms 1–8, then starts with one wounded Tier 4 guard before the wounded final boss;
 - requires the player to defeat both the guard and boss through normal combat; and
-- fetches the separate settlement response only after **Reveal Boss Fate**, then resolves whether the boss stays down or strikes back from that market's real recorded Somnia outcome.
+- reveals the full market proof, salt and canonical commitment input after **Reveal Boss Fate**, then verifies the commitment in the browser before applying the real recorded outcome.
 
 It is a fast replay, not a mocked settlement.
 
 #### Judge verification checklist
 
-1. Open **Finalized replay proof** before combat and verify the full market ID, market address, pool address, and `Somnia mainnet · 5031`.
-2. Choose `UP` or `DOWN`, then press **Lock Omen & Start Replay**.
-3. Defeat the wounded guard and boss. The screen continues to state that the outcome is sealed.
-4. Press **Reveal Boss Fate**. The result screen confirms that settlement was fetched after the reveal and keeps the same proof links visible.
-5. No wallet, approval, order, or other transaction is requested at any point.
+1. Enter Judge Demo and confirm that no market ID, address, strike, expiry or outcome is present before the choice.
+2. Choose `UP` or `DOWN`, then press **Lock Omen & Seal Replay**.
+3. Note the full SHA-256 commitment shown during combat, then defeat the wounded guard and boss.
+4. Press **Reveal Boss Fate**. The result screen reveals the full market proof and salt, recomputes the same commitment in the browser and confirms the locked direction.
+5. Open the market and contract links in the Somnia explorer. No wallet, approval, order or other transaction is requested.
 
 ## Why Event Contracts fit the game
 
@@ -57,16 +58,18 @@ A correct prediction cannot replace combat victory, while combat victory alone c
 ```mermaid
 flowchart LR
     P[Player] --> UI[Market Dungeon UI]
-    UI -->|Start or judge setup| META[/api/market market metadata/]
+    UI -->|Live expedition| META[/api/market/]
     META --> IDX[dreamDEX GraphQL indexer]
     META --> RPC[Somnia mainnet RPC]
-    IDX -->|Active or finalized BTC market| META
-    RPC -->|Chain ID and pool parameters| META
-    META -->|Finalized replay with outcome redacted| UI
+    UI -->|Lock UP or DOWN| START[/api/judge-replay/start/]
+    START -->|CSPRNG-select finalized market| IDX
+    START -->|AES-GCM seal + salted commitment + game seed| UI
     UI --> LOOP[Deterministic dungeon loop]
-    UI -->|Reveal Boss Fate after boss HP reaches zero| SETTLE[/api/market settlement lookup/]
+    UI -->|Reveal Boss Fate| SETTLE[/api/judge-replay/reveal/]
     SETTLE --> IDX
-    SETTLE -->|winningOutcome / finalized / voided| GATE[Boss fate gate]
+    SETTLE --> RPC
+    SETTLE -->|Full proof + salt + winningOutcome| VERIFY[Browser recomputes SHA-256 commitment]
+    VERIFY --> GATE[Boss fate gate]
     LOOP -->|Boss HP reaches zero| GATE
     GATE -->|Combat + correct prediction| NEXT[Next tier and fresh market]
     GATE -->|Incorrect prediction| LOSS[Boss last strike]
@@ -76,11 +79,14 @@ flowchart LR
 
 - The browser never receives a private key.
 - The app sends no approval, order, redemption, or other transaction.
-- Server responses use `cache-control: no-store` for time-sensitive market state.
-- The API verifies Somnia chain ID `5031` before returning a playable market.
-- Judge Demo data is selected from finalized, non-voided BTC markets with a recorded outcome.
-- The Judge Demo setup response explicitly redacts `winningOutcome`, `payoutNumerators`, and `payoutDenominator`.
-- Settlement fields are requested separately only after the defeated boss reaches the **Reveal Boss Fate** gate.
+- Replay responses use `cache-control: private, no-store, max-age=0`.
+- Live market hydration verifies Somnia chain ID `5031`; Judge Replay repeats that chain verification when the sealed settlement is revealed.
+- Judge Replay selection is randomized across recent finalized, non-voided BTC markets rather than exposing the latest settlement.
+- Replay start requires recent candidates for both possible outcomes and fails closed if the available pool is one-sided.
+- No selected-market identifier or identifying metadata is returned at lock time.
+- The selected market, recorded outcome and locked direction are authenticated inside an AES-256-GCM seal under `JUDGE_REPLAY_SEAL_KEY`.
+- The public commitment is salted, combat randomness is independent of the hidden market, and the salt is withheld until reveal.
+- The reveal route re-fetches the exact settlement and fails closed if it no longer matches the committed outcome.
 
 ## Verified integration surface
 
@@ -115,6 +121,7 @@ Then open the local URL printed by the development server.
 
 ```bash
 npm run lint
+npm test
 npm run build
 ```
 
@@ -122,7 +129,9 @@ npm run build
 
 ```text
 app/
-  api/market/route.ts   Live market discovery and finalized replay lookup
+  api/dreamdex.ts       Shared server-only dreamDEX and Somnia reads
+  api/market/route.ts   Live market discovery and settlement lookup
+  api/judge-replay/     Encrypted replay start, reveal and commitment logic
   globals.css           Responsive game presentation
   layout.tsx            Metadata and social preview configuration
   page.tsx              Complete ten-room game and Judge Demo state machine
@@ -140,6 +149,8 @@ docs/
 - The interface must not be used to bypass dreamDEX eligibility or jurisdiction checks.
 - A future wallet-enabled mode should use exact-amount approval, transaction simulation, explicit maximum-loss disclosure, and separate user confirmation for every write.
 - Gold and the next-run potion count are stored only on the player's device; active combat and loadout state reset on refresh.
+- Judge combat remains browser-side. The normal interface offers reveal only after boss defeat, while the API itself enforces a 15-second anti-peek hold rather than server-authenticated combat progression. The seal guarantees that the chosen direction is bound and the selected market identity is hidden before a reveal request; it does not make combat server-authoritative.
+- Production and Preview require separate `JUDGE_REPLAY_SEAL_KEY` values, each encoded as exactly 64 hexadecimal characters (32 bytes). Rotating a key cleanly invalidates in-flight replay seals.
 - Availability depends on the public dreamDEX indexer and Somnia RPC.
 
 ## Contest status
@@ -148,7 +159,7 @@ docs/
 - Live active-market integration: complete
 - Finalized onchain settlement replay: complete
 - Two-minute judge path: complete
-- Clickable onchain proof before and after reveal: complete
+- Salted pre-reveal commitment and clickable post-reveal onchain proof: complete
 - Desktop and 390 px mobile judge-flow QA: complete
 - Four-tier dual-condition progression: complete
 - Three-minute hackathon demo video: complete
