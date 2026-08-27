@@ -26,13 +26,22 @@ Gold persists between runs. Potions have a hard maximum of five: a new run resto
 
 Select **2-MIN JUDGE DEMO · REAL MARKET REPLAY** on the start screen. This mode:
 
-- queries the latest finalized BTC 15-minute Event Contract;
+- loads the latest finalized BTC 15-minute Event Contract without sending its winning outcome to the browser;
+- shows the exact question, opening strike, full market ID, market address, pool address, and Somnia network before the player chooses;
+- lets the judge choose and lock `UP` or `DOWN` against that exact market;
 - fast-forwards Tiers 1–3 and Rooms 1–8, then starts with one wounded Tier 4 guard before the wounded final boss;
-- preserves the player's chosen UP/DOWN omen;
 - requires the player to defeat both the guard and boss through normal combat; and
-- resolves whether the boss stays down or strikes back from that market's real recorded Somnia outcome.
+- fetches the separate settlement response only after **Reveal Boss Fate**, then resolves whether the boss stays down or strikes back from that market's real recorded Somnia outcome.
 
 It is a fast replay, not a mocked settlement.
+
+#### Judge verification checklist
+
+1. Open **Finalized replay proof** before combat and verify the full market ID, market address, pool address, and `Somnia mainnet · 5031`.
+2. Choose `UP` or `DOWN`, then press **Lock Omen & Start Replay**.
+3. Defeat the wounded guard and boss. The screen continues to state that the outcome is sealed.
+4. Press **Reveal Boss Fate**. The result screen confirms that settlement was fetched after the reveal and keeps the same proof links visible.
+5. No wallet, approval, order, or other transaction is requested at any point.
 
 ## Why Event Contracts fit the game
 
@@ -48,13 +57,16 @@ A correct prediction cannot replace combat victory, while combat victory alone c
 ```mermaid
 flowchart LR
     P[Player] --> UI[Market Dungeon UI]
-    UI --> API[Server route /api/market]
-    API --> IDX[dreamDEX GraphQL indexer]
-    API --> RPC[Somnia mainnet RPC]
-    IDX -->|Active or finalized BTC market| API
-    RPC -->|Chain ID and pool parameters| API
+    UI -->|Start or judge setup| META[/api/market market metadata/]
+    META --> IDX[dreamDEX GraphQL indexer]
+    META --> RPC[Somnia mainnet RPC]
+    IDX -->|Active or finalized BTC market| META
+    RPC -->|Chain ID and pool parameters| META
+    META -->|Finalized replay with outcome redacted| UI
     UI --> LOOP[Deterministic dungeon loop]
-    API -->|winningOutcome / finalized / voided| GATE[Boss fate gate]
+    UI -->|Reveal Boss Fate after boss HP reaches zero| SETTLE[/api/market settlement lookup/]
+    SETTLE --> IDX
+    SETTLE -->|winningOutcome / finalized / voided| GATE[Boss fate gate]
     LOOP -->|Boss HP reaches zero| GATE
     GATE -->|Combat + correct prediction| NEXT[Next tier and fresh market]
     GATE -->|Incorrect prediction| LOSS[Boss last strike]
@@ -67,14 +79,17 @@ flowchart LR
 - Server responses use `cache-control: no-store` for time-sensitive market state.
 - The API verifies Somnia chain ID `5031` before returning a playable market.
 - Judge Demo data is selected from finalized, non-voided BTC markets with a recorded outcome.
+- The Judge Demo setup response explicitly redacts `winningOutcome`, `payoutNumerators`, and `payoutDenominator`.
+- Settlement fields are requested separately only after the defeated boss reaches the **Reveal Boss Fate** gate.
 
 ## Verified integration surface
 
-Verified against Somnia mainnet on 24 August 2026:
+Verified against Somnia mainnet on 27 August 2026:
 
 | Surface | Value |
 | --- | --- |
 | Somnia chain ID | `5031` |
+| Somnia explorer | `https://explorer.somnia.network` |
 | dreamDEX indexer | `https://prd.smk.somnia.host/v1/graphql` |
 | Somnia RPC | `https://api.infra.mainnet.somnia.network` |
 | BinaryModule | `0x3ecC694Cef705358864a646142ac17A90E29e388` |
@@ -115,6 +130,8 @@ public/
   assets/                Canonical gold coin and Market Dungeon homepage hero
   characters/            Travelling merchant artwork
   monsters/              Four progression tiers for each enemy class
+docs/
+  DORAHACKS_SUBMISSION.md Submission-ready project description and judge path
 ```
 
 ## Safety and current limitations
@@ -131,6 +148,8 @@ public/
 - Live active-market integration: complete
 - Finalized onchain settlement replay: complete
 - Two-minute judge path: complete
+- Clickable onchain proof before and after reveal: complete
+- Desktop and 390 px mobile judge-flow QA: complete
 - Four-tier dual-condition progression: complete
 - Three-minute hackathon demo video: complete
 - Wallet writes: intentionally disabled

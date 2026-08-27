@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 
 type Direction = 'UP' | 'DOWN';
 type Action = 'attack' | 'storm' | 'potion';
-type Phase = 'SETUP' | 'COMBAT' | 'CLEARED' | 'MERCHANT' | 'FINAL_MERCHANT' | 'ORACLE' | 'TIER_SETUP' | 'VICTORY' | 'DEAD';
+type Phase = 'SETUP' | 'JUDGE_SETUP' | 'COMBAT' | 'CLEARED' | 'MERCHANT' | 'FINAL_MERCHANT' | 'ORACLE' | 'TIER_SETUP' | 'VICTORY' | 'DEAD';
 type OracleResult = 'BLESSED' | 'CURSED' | 'VOID' | null;
 type DeathCause = 'COMBAT' | 'PREDICTION';
 type Species = 'Zombie' | 'Goblin' | 'Orc' | 'Boss';
@@ -28,6 +28,7 @@ const START_POTIONS = 3;
 const MAX_POTIONS = 5;
 const PROFILE_KEY = 'market-dungeon-profile-v1';
 const MERCHANT_IMAGE = '/characters/merchant-quartermaster-kevin.webp';
+const SOMNIA_EXPLORER = 'https://explorer.somnia.network';
 
 const fallback: Market = {
   marketId: '0x0000000000000000000000000000000000000000000000000000000000000000',
@@ -113,6 +114,48 @@ function gateTime(expiryIso: string) {
 
 function GoldIcon() {
   return <span className="gold-icon" aria-hidden="true" />;
+}
+
+function MarketProof({
+  market,
+  mode,
+  open = false,
+}: {
+  market: Market;
+  mode: 'live' | 'sealed' | 'revealed';
+  open?: boolean;
+}) {
+  const hasMarket = market.marketId !== fallback.marketId;
+  const status = mode === 'sealed'
+    ? 'OUTCOME SEALED UNTIL REVEAL'
+    : mode === 'revealed'
+      ? 'SETTLEMENT FETCHED AFTER REVEAL'
+      : 'LIVE READ-ONLY MARKET';
+
+  return (
+    <details className={`onchain-proof proof-${mode}`} open={open || undefined}>
+      <summary>
+        <span>{mode === 'live' ? 'LIVE MARKET PROOF' : 'FINALIZED REPLAY PROOF'}</span>
+        <strong>{status}</strong>
+      </summary>
+      <div className="proof-grid">
+        <div className="proof-wide">
+          <span>FULL MARKET ID</span>
+          {hasMarket ? <a href={`${SOMNIA_EXPLORER}/search?q=${encodeURIComponent(market.marketId)}`} target="_blank" rel="noreferrer"><code>{market.marketId}</code><b>↗</b></a> : <code>Loading…</code>}
+        </div>
+        <div>
+          <span>MARKET ADDRESS</span>
+          {market.marketAddress ? <a href={`${SOMNIA_EXPLORER}/address/${market.marketAddress}`} target="_blank" rel="noreferrer"><code>{market.marketAddress}</code><b>↗</b></a> : <code>Loading…</code>}
+        </div>
+        <div>
+          <span>POOL ADDRESS</span>
+          {market.poolAddress ? <a href={`${SOMNIA_EXPLORER}/address/${market.poolAddress}`} target="_blank" rel="noreferrer"><code>{market.poolAddress}</code><b>↗</b></a> : <code>Loading…</code>}
+        </div>
+        <div><span>NETWORK</span><strong>SOMNIA MAINNET · 5031</strong></div>
+        <div><span>SAFETY</span><strong>READ ONLY · NO WALLET · NO APPROVAL · NO ORDER</strong></div>
+      </div>
+    </details>
+  );
 }
 
 function TierTrack({ activeTier, complete = false, failed = false }: { activeTier: number; complete?: boolean; failed?: boolean }) {
@@ -228,16 +271,22 @@ export default function Home() {
   const expiryLabel = useMemo(() => gateTime(market.expiryIso), [market.expiryIso]);
   const omenName = direction === 'UP' ? 'GOLD AWAKENS' : 'SHADOWS RISE';
   const omenIcon = direction === 'UP' ? <GoldIcon /> : '🌑';
-  const judgeStep = ['VICTORY', 'DEAD'].includes(phase)
-    ? 4
-    : ['ORACLE', 'FINAL_MERCHANT'].includes(phase)
-      ? 3
-      : room === TOTAL_ROOMS - 2 && phase === 'COMBAT'
-        ? 1
-        : 2;
+  const judgeStep = phase === 'JUDGE_SETUP'
+    ? 1
+    : room === TOTAL_ROOMS - 2 && phase === 'COMBAT'
+      ? 2
+      : room === TOTAL_ROOMS - 1 && phase === 'COMBAT'
+        ? 3
+        : phase === 'FINAL_MERCHANT'
+          ? 4
+          : ['ORACLE', 'VICTORY', 'DEAD'].includes(phase)
+            ? 5
+            : 3;
 
   const subtitle = phase === 'SETUP'
     ? 'The complete Delveworn loop, powered by a live Event Contract.'
+    : phase === 'JUDGE_SETUP'
+      ? 'Inspect the finalized market, choose an omen, then lock the replay.'
     : phase === 'TIER_SETUP'
       ? `Tier ${tier} cleared. Choose a fresh prediction for Tier ${tier + 1}.`
     : phase === 'MERCHANT'
@@ -275,21 +324,27 @@ export default function Home() {
       const data = await response.json();
       if (!response.ok || !data.market) throw new Error(data.error ?? 'Replay unavailable');
       const replayMarket = data.market as Market;
-      const nextRoster = buildRoster((TOTAL_TIERS - 1) * TOTAL_ROOMS + 1);
-      const guardRoom = TOTAL_ROOMS - 2;
-      setMarket(replayMarket); setRoster(nextRoster); setTier(TOTAL_TIERS); setRoom(guardRoom); setTurn(0); setPhase('COMBAT');
-      setHp(76); setMonsterHp(Math.min(12, nextRoster[guardRoom].hp)); setPotions(2); setGold(62); setWeapon(4); setArmor(1);
-      setCombatPotionUses(0); setBandageUsed(false); setMerchantPotions(2); setWeaponSold(false); setArmorSold(false);
-      setOracleChecks(0); setOracleResult(null); setOracleBusy(false); oracleBusyRef.current = false; setLastReward('');
-      setJudgeMode(true); setDeathCause('COMBAT');
+      setMarket(replayMarket); setPhase('JUDGE_SETUP'); setJudgeMode(true); setDeathCause('COMBAT');
       setMarketEntryRemaining(null);
-      setCombatLog([`Judge Demo loaded finalized dreamDEX market #${replayMarket.marketId.slice(-4).toUpperCase()}. The replay uses its real Somnia settlement.`]);
-      setNotice('JUDGE DEMO · FINAL GUARD + BOSS REPLAY · REAL SETTLED MARKET');
+      setCombatLog([`Finalized dreamDEX market #${replayMarket.marketId.slice(-4).toUpperCase()} loaded. Its outcome remains sealed until Reveal Boss Fate.`]);
+      setNotice('JUDGE DEMO · INSPECT MARKET · CHOOSE AND LOCK OMEN');
     } catch {
       setNotice('JUDGE DEMO UNAVAILABLE · LIVE EXPEDITION STILL READY');
     } finally {
       setJudgeLoading(false);
     }
+  }
+
+  function startJudgeReplay() {
+    if (phase !== 'JUDGE_SETUP' || !market.demoReplay) return;
+    const nextRoster = buildRoster((TOTAL_TIERS - 1) * TOTAL_ROOMS + 1);
+    const guardRoom = TOTAL_ROOMS - 2;
+    setRoster(nextRoster); setTier(TOTAL_TIERS); setRoom(guardRoom); setTurn(0); setPhase('COMBAT');
+    setHp(76); setMonsterHp(Math.min(12, nextRoster[guardRoom].hp)); setPotions(2); setGold(62); setWeapon(4); setArmor(1);
+    setCombatPotionUses(0); setBandageUsed(false); setMerchantPotions(2); setWeaponSold(false); setArmorSold(false);
+    setOracleChecks(0); setOracleResult(null); setOracleBusy(false); oracleBusyRef.current = false; setLastReward('');
+    setCombatLog([`${omenName} locked: BTC ${direction} against finalized market #${market.marketId.slice(-4).toUpperCase()}. The recorded outcome is still hidden.`]);
+    setNotice(`JUDGE DEMO · ${omenName} LOCKED · DEFEAT THE WOUNDED GUARD`);
   }
 
   function incomingDamage(action: Action, nextTurn: number) {
@@ -483,7 +538,7 @@ export default function Home() {
   function reset() {
     const profile = judgeMode ? readProfile() : { gold, potions: Math.min(MAX_POTIONS, Math.max(START_POTIONS, potions)) };
     const nextRoster = buildRoster();
-    setRoster(nextRoster); setTier(1); setPhase('SETUP'); setRoom(0); setTurn(0); setHp(100); setMonsterHp(nextRoster[0].hp);
+    setMarket(fallback); setRoster(nextRoster); setTier(1); setPhase('SETUP'); setRoom(0); setTurn(0); setHp(100); setMonsterHp(nextRoster[0].hp);
     setPotions(profile.potions); setGold(profile.gold); setWeapon(1); setArmor(0); setCombatPotionUses(0); setCombatLog([]); setLastReward('');
     setBandageUsed(false); setMerchantPotions(2); setWeaponSold(false); setArmorSold(false);
     setOracleChecks(0); setOracleResult(null); setOracleBusy(false); oracleBusyRef.current = false;
@@ -500,7 +555,7 @@ export default function Home() {
       : 'The Event Contract was voided, so the defeated boss remained down without a prediction penalty.';
 
   return (
-    <main className={`game-shell phase-${phase.toLowerCase()} ${phase === 'SETUP' ? 'setup-shell' : 'in-expedition'}`}>
+    <main className={`game-shell phase-${phase.toLowerCase()} ${['SETUP', 'JUDGE_SETUP'].includes(phase) ? 'setup-shell' : 'in-expedition'}`}>
       <div className="game-column">
         <header className="game-header">
           <p className="eyebrow">DELVEWORN · EVENT CONTRACTS EDITION</p>
@@ -521,20 +576,21 @@ export default function Home() {
             <div className="judge-replay-heading">
               <span>⚡ 2-MIN JUDGE DEMO</span>
               <strong>FINALIZED MARKET REPLAY · #{marketCode}</strong>
-              <small>Tiers 1–3 and Rooms 1–8 were fast-forwarded. Defeat one wounded guard and the final boss, then the real prediction decides who stays down.</small>
+              <small>Inspect the exact market, lock UP or DOWN, defeat one wounded guard and the final boss, then reveal the real recorded settlement.</small>
             </div>
             <div className="judge-replay-steps">
-              <span className={judgeStep === 1 ? 'active' : 'done'}><b>1</b> DEFEAT GUARD</span>
-              <span className={judgeStep === 2 ? 'active' : judgeStep > 2 ? 'done' : ''}><b>2</b> DEFEAT BOSS</span>
-              <span className={judgeStep === 3 ? 'active' : judgeStep > 3 ? 'done' : ''}><b>3</b> MERCHANT OPTIONAL</span>
-              <span className={judgeStep === 4 ? 'active' : ''}><b>4</b> REVEAL FATE</span>
+              <span className={judgeStep === 1 ? 'active' : 'done'}><b>1</b> LOCK OMEN</span>
+              <span className={judgeStep === 2 ? 'active' : judgeStep > 2 ? 'done' : ''}><b>2</b> DEFEAT GUARD</span>
+              <span className={judgeStep === 3 ? 'active' : judgeStep > 3 ? 'done' : ''}><b>3</b> DEFEAT BOSS</span>
+              <span className={judgeStep === 4 ? 'active' : judgeStep > 4 ? 'done' : ''}><b>4</b> HEAL OPTIONAL</span>
+              <span className={judgeStep === 5 ? 'active' : ''}><b>5</b> REVEAL FATE</span>
             </div>
           </section>
         )}
 
         {!judgeMode && <TierTrack activeTier={phase === 'TIER_SETUP' ? tier + 1 : tier} complete={phase === 'VICTORY'} failed={phase === 'DEAD'} />}
 
-        {phase !== 'SETUP' && (
+        {!['SETUP', 'JUDGE_SETUP'].includes(phase) && (
           <section className="sticky-hud" aria-label="Expedition status">
             <div><span>HEALTH</span><strong>❤️ {hp}/100</strong><div className="mini-bar"><i style={{ width: `${playerPercent}%` }} /></div></div>
             <div><span>POTIONS</span><strong>🧪 {potions}/{MAX_POTIONS}</strong></div>
@@ -544,7 +600,7 @@ export default function Home() {
           </section>
         )}
 
-        <section className={`main-card ${isBoss && !['SETUP', 'TIER_SETUP'].includes(phase) ? 'boss-card' : ''}`}>
+        <section className={`main-card ${isBoss && !['SETUP', 'JUDGE_SETUP', 'TIER_SETUP'].includes(phase) ? 'boss-card' : ''}`}>
           {phase === 'SETUP' ? (
             <div className="setup-view">
               <div className="setup-hero">
@@ -568,6 +624,24 @@ export default function Home() {
                 <div><span>🏰</span><b>CLIMB FOUR TIERS</b><small>Every tier brings a new roster, boss and prediction</small></div>
               </div>
               <div className="competition-note"><b>LIVE CONTRACT INTEGRATION:</b> Each tier immediately locks the active BTC 15-minute dreamDEX market. Its real market ID, expiry and Somnia settlement are preserved.</div>
+              <MarketProof market={market} mode="live" />
+            </div>
+          ) : phase === 'JUDGE_SETUP' ? (
+            <div className="judge-setup-view">
+              <p className="section-kicker">STEP 1 · FINALIZED MARKET LOADED</p>
+              <h2>Choose your omen against this exact market.</h2>
+              <p className="muted">The market is already finalized on Somnia, but its winning outcome has not been sent to this screen. Your choice locks before combat begins.</p>
+              <div className="prediction-card judge-prediction-card">
+                <span>FINALIZED BTC 15-MIN MARKET · #{marketCode}</span>
+                <strong>${market.strikeUsd}</strong>
+                <p>{market.question}</p>
+                <div className="prediction-buttons">
+                  <button className={direction === 'UP' ? 'up selected' : 'up'} onClick={() => setDirection('UP')}><b><GoldIcon /> GOLD AWAKENS</b><small>BTC UP · finishes at or above the line</small></button>
+                  <button className={direction === 'DOWN' ? 'down selected' : 'down'} onClick={() => setDirection('DOWN')}><b>🌑 SHADOWS RISE</b><small>BTC DOWN · finishes below the line</small></button>
+                </div>
+              </div>
+              <div className="judge-seal-note"><span>SEALED SETTLEMENT</span><strong>No winning outcome is present in the replay setup response.</strong><small>It will be fetched separately only after the boss is defeated and you press Reveal Boss Fate.</small></div>
+              <MarketProof market={market} mode="sealed" open />
             </div>
           ) : phase === 'TIER_SETUP' ? (
             <div className="tier-setup-view">
@@ -607,7 +681,7 @@ export default function Home() {
               <div className="result-icon">{oracleResult === 'BLESSED' ? '✨' : oracleResult === 'CURSED' ? '📉' : '👑'}</div>
               <p className="section-kicker">{judgeMode ? 'JUDGE DEMO COMPLETE · ONCHAIN RESULT VERIFIED' : `TIER ${tier}/${TOTAL_TIERS} · FULL RUN COMPLETE`} · {oracleResult ?? 'SETTLED'}</p>
               <h2>{resultHeading}</h2><p className="muted">{resultCopy}</p>
-              {judgeMode && <div className="judge-verification"><span>✓ VERIFIED REPLAY</span><strong>dreamDEX market #{marketCode}</strong><small>Finalized outcome read from Somnia chain 5031 · no mocked settlement</small></div>}
+              {judgeMode && <><div className="judge-verification"><span>✓ VERIFIED REPLAY</span><strong>dreamDEX market #{marketCode}</strong><small>Finalized outcome fetched after Reveal Boss Fate from Somnia chain 5031 · no mocked settlement</small></div><MarketProof market={market} mode="revealed" open /></>}
               <div className="victory-conditions resolved"><div><span>✓ CONDITION 1</span><strong>Boss defeated in combat</strong></div><div><span>{oracleResult === 'VOID' ? '○ VOID EXCEPTION' : '✓ CONDITION 2'}</span><strong>{oracleResult === 'VOID' ? 'Prediction voided · no loss' : 'BTC prediction correct'}</strong></div></div>
               <div className="final-stats"><div><span>TIERS CLEARED</span><strong>{judgeMode ? 'REPLAY' : `${tier}/${TOTAL_TIERS}`}</strong></div><div><span>FINAL GOLD</span><strong><GoldIcon /> {gold}</strong></div></div>
             </div>
@@ -616,7 +690,7 @@ export default function Home() {
               <div className="result-icon">☠️</div><p className="section-kicker">{judgeMode ? 'JUDGE DEMO COMPLETE · ONCHAIN LOSS VERIFIED' : `TIER ${tier} · EXPEDITION ENDED`}</p>
               <h2>{deathCause === 'PREDICTION' ? 'The boss strikes back.' : 'You fell in combat.'}</h2><p className="muted">{deathCause === 'PREDICTION' ? resultCopy : 'The prediction cannot save a lost fight. Gold persists, potions return to at least the starting amount, and attack and defense reset for the next run.'}</p>
               {deathCause === 'PREDICTION' && <div className="victory-conditions failed"><div><span>✓ CONDITION 1</span><strong>Boss defeated in combat</strong></div><div><span>✕ CONDITION 2</span><strong>BTC prediction incorrect</strong></div></div>}
-              {judgeMode && deathCause === 'PREDICTION' && <div className="judge-verification"><span>✓ VERIFIED REPLAY</span><strong>dreamDEX market #{marketCode}</strong><small>The losing outcome is the real finalized result from Somnia chain 5031.</small></div>}
+              {judgeMode && deathCause === 'PREDICTION' && <><div className="judge-verification"><span>✓ VERIFIED REPLAY</span><strong>dreamDEX market #{marketCode}</strong><small>The losing outcome was fetched after Reveal Boss Fate from Somnia chain 5031.</small></div><MarketProof market={market} mode="revealed" open /></>}
               <div className="final-stats"><div><span>TIER / ROOMS</span><strong>{tier} · {roomsCleared}/{TOTAL_ROOMS}</strong></div><div><span>GOLD KEPT</span><strong><GoldIcon /> {gold}</strong></div></div>
             </div>
           ) : (
@@ -644,7 +718,8 @@ export default function Home() {
                 {isBoss && <div className={`victory-conditions ${phase === 'ORACLE' ? 'pending' : ''}`}><div><span>{phase === 'ORACLE' ? '✓ CONDITION 1' : 'CONDITION 1'}</span><strong>{phase === 'ORACLE' ? 'Boss defeated in combat' : 'Reduce boss HP to zero'}</strong></div><div><span>CONDITION 2</span><strong>{phase === 'ORACLE' ? 'BTC prediction awaiting result' : `${omenName} must be correct`}</strong></div></div>}
                 {phase === 'ORACLE' && <div className="oracle-lock">
                   <div className="oracle-status"><span>🔮 {judgeMode ? 'FINALIZED ONCHAIN REPLAY' : 'LIVE DREAMDEX SETTLEMENT'}</span><strong>{judgeMode ? 'READY TO REVEAL' : remaining > 0 ? formatTime(remaining) : oracleBusy ? 'READING…' : `${oracleChecks} CHECK${oracleChecks === 1 ? '' : 'S'}`}</strong><small>{judgeMode ? 'This fast demo uses a real finalized dreamDEX market and its recorded Somnia outcome.' : 'The boss is down, but not permanently defeated. A wrong BTC prediction triggers its fatal last strike.'}</small></div>
-                  <div className="integration-proof"><span>SOMNIA CHAIN 5031</span><span>MARKET #{marketCode}</span><span>READ-ONLY CHAIN CALL</span></div>
+                  <div className="integration-proof"><span>SOMNIA CHAIN 5031</span><span>MARKET #{marketCode}</span><span>READ-ONLY CHAIN CALL</span><span>{judgeMode ? 'OUTCOME STILL SEALED' : 'SETTLEMENT PENDING'}</span></div>
+                  {judgeMode && <MarketProof market={market} mode="sealed" />}
                 </div>}
               </div>
             </div>
@@ -656,7 +731,12 @@ export default function Home() {
             <div className="judge-entry">
               <button className="primary-action" onClick={startRun} disabled={!marketReady}>{marketReady ? <>BEGIN TIER 1 · {omenIcon} {omenName}</> : 'WAITING FOR ACTIVE BTC MARKET…'}</button>
               <button className="judge-action" onClick={() => void startJudgeDemo()} disabled={judgeLoading}>⚡ {judgeLoading ? 'LOADING SETTLED MARKET…' : '2-MIN JUDGE DEMO · REAL MARKET REPLAY'}</button>
-              <small>Judge Demo starts with one wounded Tier 4 guard before the wounded boss, using a finalized BTC Event Contract from Somnia mainnet.</small>
+              <small>Judge Demo first loads the exact finalized market for inspection and omen selection. Its outcome stays sealed until the final reveal.</small>
+            </div>
+          ) : phase === 'JUDGE_SETUP' ? (
+            <div className="judge-lock-action">
+              <div><span>YOUR LOCKED CHOICE WILL BE</span><strong>{omenIcon} {omenName} · BTC {direction}</strong><small>No wallet, approval or order will be requested.</small></div>
+              <button className="judge-action" onClick={startJudgeReplay}>LOCK OMEN & START REPLAY</button>
             </div>
           ) : phase === 'TIER_SETUP' ? (
             <div className="tier-action">

@@ -48,6 +48,7 @@ async function hydrateMarket(market: Record<string, unknown>, demoReplay = false
   return {
     market: {
       ...market,
+      winningOutcome: market.winningOutcome ?? null,
       strikeUsd: (Number(strikeRaw) / 100).toFixed(2),
       expiryIso: new Date(Number(market.expiry) * 1000).toISOString(),
       demoReplay,
@@ -76,12 +77,12 @@ export async function GET(request: Request) {
           finalized: {_eq: true}, voided: {_eq: false}, winningOutcome: {_is_null: false}
         }, order_by: {expiry: desc}, limit: 1) {
           marketId marketAddress poolAddress collateral asset question strike tradingStart expiry
-          status: clobStatus intervalSec quoteDecimals yesTokenId noTokenId winningOutcome payoutNumerators payoutDenominator voided finalized lastPrice
+          status: clobStatus intervalSec quoteDecimals yesTokenId noTokenId voided finalized resolvedAtTimestamp lastPrice
         }
       }`);
       const market = ((data.Market as Array<Record<string, unknown>>) ?? [])[0];
       if (!market) return Response.json({ error: 'No finalized BTC 15m market available for replay' }, { status: 404 });
-      return Response.json(await hydrateMarket(market, true), { headers: { 'cache-control': 'no-store' } });
+      return Response.json(await hydrateMarket({ ...market, winningOutcome: null }, true), { headers: { 'cache-control': 'no-store' } });
     }
 
     const now = Math.floor(Date.now() / 1000).toString();
