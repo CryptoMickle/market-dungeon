@@ -19,6 +19,14 @@ Market Dungeon keeps two independent conditions legible:
 
 Neither condition replaces the other. This gives the Event Contract a clear, dramatic role: it decides whether an earned combat victory becomes permanent.
 
+## Business and ecosystem impact
+
+Market Dungeon is a consumer acquisition layer for Event Contracts. It gives players a reason to understand a live market because the settlement changes an outcome they already care about inside the game.
+
+The current read-only build removes wallet, funding and approval friction so any judge or first-time player can complete the full integration safely. A future opt-in trading mode can convert that engagement into DreamDEX activity by offering an exact-amount Event Contract order before dungeon entry, with transaction simulation, maximum-loss disclosure and a separate confirmation for every write.
+
+Every tier already introduces a fresh BTC Event Contract. The same structure can support additional assets, intervals and seasonal campaigns, turning new dreamDEX markets into reusable game content and giving the ecosystem a differentiated path to game-native users. The contest build does not claim current trading volume; it demonstrates the acquisition and retention loop that can precede it.
+
 ## Two-minute judge path
 
 1. Open the live demo and select **2-MIN JUDGE DEMO · SEALED MARKET REPLAY**.
@@ -60,8 +68,9 @@ The browser presents **Reveal Boss Fate** only after boss defeat, and the API in
 ## Links
 
 - Live demo: https://market-dungeon.vercel.app
-- Three-minute demo video: https://youtu.be/YIoSSdMTsEM
+- Demo video (2:34): https://youtu.be/7J07NkSf1qM
 - Source code: https://github.com/CryptoMickle/market-dungeon
+- Integration and SDK/docs feedback: https://github.com/CryptoMickle/market-dungeon/blob/main/docs/DREAMDEX_INTEGRATION_REPORT.md
 
 ## Current scope
 

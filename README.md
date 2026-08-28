@@ -8,7 +8,11 @@ The current contest build is intentionally read-only. It reads live market and s
 
 **Play:** https://market-dungeon.vercel.app
 
-**Watch the 3-minute hackathon demo:** https://youtu.be/YIoSSdMTsEM
+**Watch the 2:34 hackathon demo:** https://youtu.be/7J07NkSf1qM
+
+**DoraHacks submission:** https://dorahacks.io/buidl/48083
+
+**Integration and SDK/docs feedback:** [docs/DREAMDEX_INTEGRATION_REPORT.md](docs/DREAMDEX_INTEGRATION_REPORT.md)
 
 ### Full live expedition
 
@@ -54,6 +58,17 @@ Market Dungeon combines skill and prediction without turning the prediction into
 - **Market result:** dreamDEX decides whether a combat-defeated boss stays down permanently.
 
 A correct prediction cannot replace combat victory, while combat victory alone cannot clear a tier. The two independent conditions meet only after the boss reaches zero HP.
+
+## Adoption path
+
+Market Dungeon is designed as a consumer on-ramp to Event Contracts rather than another professional trading terminal:
+
+- **Today:** any judge or player can experience real live and finalized dreamDEX markets without a wallet, funds, approvals or jurisdiction-sensitive transaction flow.
+- **Engagement loop:** every dungeon tier introduces a fresh BTC Event Contract, and its settlement has a visible, memorable consequence inside the game.
+- **Next step:** an optional wallet-enabled mode can let eligible players place an exact-amount Event Contract order before entering the dungeon, with simulation, maximum-loss disclosure and a separate confirmation for every write.
+- **Expansion:** additional assets, intervals and seasonal campaigns can turn new dreamDEX markets into new game content without replacing the underlying combat loop.
+
+The contest build does not claim to generate trading volume. It demonstrates the acquisition and engagement layer that can bring game-native users to Event Contracts before an explicitly consented trading mode is added.
 
 ## Architecture
 
@@ -174,7 +189,7 @@ docs/
 - Implementation-specific dreamDEX integration report: complete
 - Desktop and 390 px mobile judge-flow QA: complete
 - Four-tier dual-condition progression: complete
-- Three-minute hackathon demo video: complete
+- 2:34 hackathon demo video: complete
 - Wallet writes: intentionally disabled
 
 ## License

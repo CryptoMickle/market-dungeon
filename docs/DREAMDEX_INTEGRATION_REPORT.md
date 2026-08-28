@@ -1,6 +1,17 @@
 # dreamDEX Integration Report
 
-Implementation snapshot: 27 August 2026. This report describes the code in this repository; it does not claim capabilities outside the deployed read-only build.
+Implementation snapshot: 28 August 2026. This report describes the code in this repository; it does not claim capabilities outside the deployed read-only build.
+
+This document also serves as the hackathon submission's optional SDK and documentation feedback report.
+
+## Judge summary
+
+- The production app reads active BTC 15-minute Event Contracts and finalized settlement data from dreamDEX on Somnia mainnet.
+- The Judge Replay locks the player's direction before a balanced, cryptographically random finalized market is selected.
+- The selected market and direction are authenticated inside an AES-256-GCM seal; the browser receives no identifying market metadata before reveal.
+- The reveal route deterministically replays the bounded combat transcript and rejects the request unless both the guard and boss were defeated and the player survived.
+- Only after combat verification does the server re-fetch the exact committed settlement; the browser then recomputes both the combat digest and salted commitment.
+- No wallet, approval, order or private key is required to reproduce the judge path.
 
 ## Integration surface
 
