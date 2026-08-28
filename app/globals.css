@@ -307,6 +307,14 @@ span.gold-icon { display: inline-block !important; }
 .verified-share-actions button:last-child { background: rgba(9, 9, 11, .52); color: #e9d5ff; }
 .verified-share-actions button:hover { filter: brightness(1.12); }
 .verified-share > .verified-share-status { min-height: 10px; margin: 7px 0 0; color: #a7f3d0; font-size: 7px; font-weight: 900; letter-spacing: .08em; text-align: center; }
+.dreamdex-continue { width: 100%; display: grid; grid-template-columns: 1fr; gap: 10px; margin-top: 10px; padding: 13px; border: 1px solid rgba(249, 115, 22, .55); border-radius: 11px; background: linear-gradient(135deg, rgba(124, 45, 18, .26), rgba(88, 28, 135, .18)); text-align: left; }
+.dreamdex-continue span, .dreamdex-continue strong, .dreamdex-continue small { display: block; }
+.dreamdex-continue span { color: #fdba74; font-size: 8px; font-weight: 950; letter-spacing: .14em; }
+.dreamdex-continue strong { margin-top: 5px; font-size: 12px; line-height: 1.35; }
+.dreamdex-continue small { margin-top: 4px; color: #d4d4d8; font-size: 8px; line-height: 1.45; }
+.dreamdex-continue-action { display: flex; min-height: 44px; align-items: center; justify-content: center; padding: 10px 12px; border: 1px solid #f97316; border-radius: 9px; background: #ea580c; color: white; font-size: 9px; font-weight: 950; letter-spacing: .03em; text-align: center; text-decoration: none; }
+.dreamdex-continue-action:hover { filter: brightness(1.1); }
+.dreamdex-continue-action:focus-visible { outline: 2px solid #fed7aa; outline-offset: 2px; }
 
 .action-dock { position: sticky; bottom: 8px; z-index: 20; padding: 11px; margin-bottom: 12px; background: rgba(9, 9, 11, .97); border: 1px solid var(--line-strong); border-radius: 16px; box-shadow: 0 18px 50px rgba(0,0,0,.52); backdrop-filter: blur(18px); }
 .action-dock button { cursor: pointer; transition: transform .14s ease, filter .14s ease, opacity .14s ease; }
@@ -499,6 +507,11 @@ footer span { display: block; margin-top: 6px; color: #303035; font-size: 8px; l
   .verified-share small { margin-top: 6px; font-size: 10px; }
   .verified-share-actions button { min-height: 48px; font-size: 11px; }
   .verified-share > .verified-share-status { font-size: 9px; }
+  .dreamdex-continue { grid-template-columns: minmax(0, 1fr) auto; align-items: center; padding: 16px; }
+  .dreamdex-continue span { font-size: 10px; }
+  .dreamdex-continue strong { margin-top: 7px; font-size: 14px; }
+  .dreamdex-continue small { margin-top: 6px; font-size: 10px; }
+  .dreamdex-continue-action { min-width: 220px; min-height: 48px; font-size: 11px; }
   .final-stats span { font-size: 10px; }
   .judge-entry > small { font-size: 10px; }
 

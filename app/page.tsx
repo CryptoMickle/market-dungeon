@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { canonicalJudgeActionLog, JUDGE_COMBAT, seededRoll, type JudgeCombatAction } from './judge-combat';
+import { DREAMDEX_BTC_15M_URL } from './dreamdex-link';
 import {
   liveBtcContextFromMarket,
   liveBtcContextPrice,
@@ -762,6 +763,26 @@ export default function Home() {
     </div>
   ) : null;
 
+  const dreamDexContinuePanel = (
+    <div className="judge-verification verified-share dreamdex-continue">
+      <div>
+        <span>NEXT STEP · LIVE DREAMDEX MARKET</span>
+        <strong>Explore the current BTC 15-minute Event Contract.</strong>
+        <small>Opens dreamDEX in a new tab. Wallet connection and any transaction stay on dreamDEX, outside Market Dungeon.</small>
+      </div>
+      <a
+        className="primary-action dreamdex-continue-action"
+        href={DREAMDEX_BTC_15M_URL}
+        target="_blank"
+        rel="noopener noreferrer"
+        aria-label="Continue on dreamDEX — opens in a new tab"
+        style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', textDecoration: 'none' }}
+      >
+        CONTINUE ON DREAMDEX ↗
+      </a>
+    </div>
+  );
+
   return (
     <main className={`game-shell phase-${phase.toLowerCase()} ${['SETUP', 'JUDGE_SETUP'].includes(phase) ? 'setup-shell' : 'in-expedition'}`}>
       <div className="game-column">
@@ -903,7 +924,9 @@ export default function Home() {
               <div className="result-icon">{oracleResult === 'BLESSED' ? '✨' : oracleResult === 'CURSED' ? '📉' : '👑'}</div>
               <p className="section-kicker">{judgeMode ? 'JUDGE DEMO COMPLETE · ONCHAIN RESULT VERIFIED' : `TIER ${tier}/${TOTAL_TIERS} · FULL RUN COMPLETE`} · {oracleResult ?? 'SETTLED'}</p>
               <h2>{resultHeading}</h2><p className="muted">{resultCopy}</p>
-              {judgeMode && <><div className="judge-verification"><span>✓ COMBAT + COMMITMENT + SETTLEMENT VERIFIED</span><strong>dreamDEX market #{marketCode}</strong><small>Server replayed {market.combatProof?.steps ?? 0} seeded combat actions; the browser then verified the transcript digest and salted commitment before applying the Somnia outcome.</small></div>{verifiedSharePanel}<MarketProof market={market} mode="revealed" open /></>}
+              {judgeMode && <><div className="judge-verification"><span>✓ COMBAT + COMMITMENT + SETTLEMENT VERIFIED</span><strong>dreamDEX market #{marketCode}</strong><small>Server replayed {market.combatProof?.steps ?? 0} seeded combat actions; the browser then verified the transcript digest and salted commitment before applying the Somnia outcome.</small></div>{verifiedSharePanel}</>}
+              {dreamDexContinuePanel}
+              {judgeMode && <MarketProof market={market} mode="revealed" open />}
               <div className="victory-conditions resolved"><div><span>✓ CONDITION 1</span><strong>Boss defeated in combat</strong></div><div><span>{oracleResult === 'VOID' ? '○ VOID EXCEPTION' : '✓ CONDITION 2'}</span><strong>{oracleResult === 'VOID' ? 'Prediction voided · no loss' : 'BTC prediction correct'}</strong></div></div>
               <div className="final-stats"><div><span>TIERS CLEARED</span><strong>{judgeMode ? 'REPLAY' : `${tier}/${TOTAL_TIERS}`}</strong></div><div><span>FINAL GOLD</span><strong><GoldIcon /> {gold}</strong></div></div>
             </div>
@@ -912,7 +935,9 @@ export default function Home() {
               <div className="result-icon">☠️</div><p className="section-kicker">{judgeMode ? 'JUDGE DEMO COMPLETE · ONCHAIN LOSS VERIFIED' : `TIER ${tier} · EXPEDITION ENDED`}</p>
               <h2>{deathCause === 'PREDICTION' ? 'The boss strikes back.' : 'You fell in combat.'}</h2><p className="muted">{deathCause === 'PREDICTION' ? resultCopy : 'The prediction cannot save a lost fight. Gold persists, potions return to at least the starting amount, and attack and defense reset for the next run.'}</p>
               {deathCause === 'PREDICTION' && <div className="victory-conditions failed"><div><span>✓ CONDITION 1</span><strong>Boss defeated in combat</strong></div><div><span>✕ CONDITION 2</span><strong>BTC prediction incorrect</strong></div></div>}
-              {judgeMode && deathCause === 'PREDICTION' && <><div className="judge-verification"><span>✓ COMBAT + COMMITMENT + SETTLEMENT VERIFIED</span><strong>dreamDEX market #{marketCode}</strong><small>Server-verified guard and boss combat preceded the reveal; the losing Somnia outcome matched the market hidden inside the pre-combat commitment.</small></div>{verifiedSharePanel}<MarketProof market={market} mode="revealed" open /></>}
+              {judgeMode && deathCause === 'PREDICTION' && <><div className="judge-verification"><span>✓ COMBAT + COMMITMENT + SETTLEMENT VERIFIED</span><strong>dreamDEX market #{marketCode}</strong><small>Server-verified guard and boss combat preceded the reveal; the losing Somnia outcome matched the market hidden inside the pre-combat commitment.</small></div>{verifiedSharePanel}</>}
+              {deathCause === 'PREDICTION' && dreamDexContinuePanel}
+              {judgeMode && deathCause === 'PREDICTION' && <MarketProof market={market} mode="revealed" open />}
               <div className="final-stats"><div><span>TIER / ROOMS</span><strong>{tier} · {roomsCleared}/{TOTAL_ROOMS}</strong></div><div><span>GOLD KEPT</span><strong><GoldIcon /> {gold}</strong></div></div>
             </div>
           ) : (
