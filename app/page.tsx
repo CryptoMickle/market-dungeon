@@ -764,18 +764,19 @@ export default function Home() {
   ) : null;
 
   const dreamDexContinuePanel = (
-    <div className="dreamdex-continue">
+    <div className="judge-verification verified-share dreamdex-continue">
       <div>
         <span>NEXT STEP · LIVE DREAMDEX MARKET</span>
         <strong>Explore the current BTC 15-minute Event Contract.</strong>
         <small>Opens dreamDEX in a new tab. Wallet connection and any transaction stay on dreamDEX, outside Market Dungeon.</small>
       </div>
       <a
-        className="dreamdex-continue-action"
+        className="primary-action dreamdex-continue-action"
         href={DREAMDEX_BTC_15M_URL}
         target="_blank"
         rel="noopener noreferrer"
         aria-label="Continue on dreamDEX — opens in a new tab"
+        style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', textDecoration: 'none' }}
       >
         CONTINUE ON DREAMDEX ↗
       </a>
