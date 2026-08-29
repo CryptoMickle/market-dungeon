@@ -1,12 +1,13 @@
 # dreamDEX Integration Report
 
-Implementation snapshot: 28 August 2026. This report describes the code in this repository; it does not claim capabilities outside the deployed read-only build.
+Implementation snapshot: 29 August 2026. This report describes the code in this repository; it does not claim capabilities outside the deployed read-only build.
 
 This document also serves as the hackathon submission's optional SDK and documentation feedback report.
 
 ## Judge summary
 
 - The production app reads active BTC 15-minute Event Contracts and finalized settlement data from dreamDEX on Somnia mainnet.
+- The active prediction cards show live UP/DOWN implied odds from the market-ID-keyed dreamDEX CLOB through the official `@somnia-chain/markets-sdk` package.
 - The Judge Replay locks the player's direction before a balanced, cryptographically random finalized market is selected.
 - The selected market and direction are authenticated inside an AES-256-GCM seal; the browser receives no identifying market metadata before reveal.
 - The reveal route deterministically replays the bounded combat transcript and rejects the request unless both the guard and boss were defeated and the player survived.
@@ -15,11 +16,12 @@ This document also serves as the hackathon submission's optional SDK and documen
 
 ## Integration surface
 
-Market Dungeon uses two server-side data sources:
+Market Dungeon uses the official dreamDEX Markets SDK plus two server-side data sources:
 
 | Source | Endpoint | Actual use |
 | --- | --- | --- |
 | dreamDEX GraphQL indexer | `https://prd.smk.somnia.host/v1/graphql` | Active-market discovery, finalized replay discovery, market metadata, indexed settlement, opening reference lookup |
+| dreamDEX Markets SDK | `@somnia-chain/markets-sdk` `^0.25.0` | Recycle-safe top-of-book lookup keyed by the exact active `marketId` |
 | Somnia mainnet JSON-RPC | `https://api.infra.mainnet.somnia.network` | `eth_chainId` verification and read-only `eth_call` for pool parameters |
 
 No browser code calls either upstream directly. No wallet, approval, order, redemption, signature, or other write is implemented.
@@ -39,9 +41,20 @@ No browser code calls either upstream directly. No wallet, approval, order, rede
 
 It requests up to eight markets ordered by ascending expiry, then selects the expiry closest to six minutes from entry. Requested fields are:
 
-`marketId`, `marketAddress`, `poolAddress`, `collateral`, `asset`, `question`, `strike`, `tradingStart`, `expiry`, `clobStatus` (aliased to `status`), `intervalSec`, `quoteDecimals`, `yesTokenId`, `noTokenId`, `winningOutcome`, `payoutNumerators`, `payoutDenominator`, `voided`, `finalized`, and `lastPrice`.
+`marketId`, `marketAddress`, `poolAddress`, `collateral`, `asset`, `question`, `strike`, `tradingStart`, `expiry`, `clobStatus` (aliased to `status`), `intervalSec`, `quoteDecimals`, `yesTokenId`, `noTokenId`, `winningOutcome`, `payoutNumerators`, `payoutDenominator`, `voided`, `finalized`, `lastPrice`, and `tradeCount`.
 
 If `strike` is zero, `MarketReferenceLink.referenceQuestionId` is resolved and passed to `OracleAnswer.id`; `OracleAnswer.numericValue` becomes the opening strike. The UI currently formats the raw strike by dividing by 100.
+
+### Live CLOB implied odds
+
+For the exact active `marketId`, the server calls the official SDK's `getBookTops` helper. This query is keyed by market identity rather than pool address, so resting orders from a recycled pool's previous market cannot bleed into the displayed odds.
+
+- With both sides present, UP is the midpoint between the best YES bid and best YES ask.
+- With only one side present, that resting quote is shown as the best available order-book signal.
+- If the book is empty and the market has trades, the most recent traded price is used and labeled as such.
+- DOWN is the complement of UP. Malformed, out-of-range, or crossed data fails closed to an unavailable state.
+
+The API returns the best bid, best ask, spread, source, observation time, and SDK identity alongside the market. The interface labels the values as implied CLOB odds and explicitly states that they are a read-only snapshot, not a guarantee or an order placed by the game.
 
 ### Finalized Judge Replay discovery
 
@@ -70,11 +83,12 @@ The stateless combat check proves that the submitted action sequence is valid un
 ## Cache and security limits
 
 - Replay responses use `Cache-Control: private, no-store, max-age=0`; active market and settlement responses use `no-store`.
-- There is no application-level response cache. The browser refreshes active discovery every 15 seconds and polls live settlement every five seconds after expiry.
+- There is no application-level response cache. The browser refreshes active discovery and CLOB odds every 15 seconds and polls live settlement every five seconds after expiry.
+- The SDK top-of-book read has an application-level four-second budget. If it fails, market loading and gameplay continue using the existing verified metadata path; the odds module falls back to a valid last trade or displays an unavailable state.
 - Judge start accepts one `UP`/`DOWN` field and at most 128 request bytes.
 - Judge reveal accepts only `seal` plus a structured action array, caps the body at 8 KiB, the seal at 4,096 characters, and the transcript at 64 steps, and rejects extra fields.
 - Replay seals have a 15-second minimum hold and a 30-minute lifetime. Environment-bound AES-GCM authentication, strict claim validation, balanced outcome pools, settlement re-validation, and deterministic combat replay all fail closed.
-- Upstream timeouts, retries, rate-limit handling, and circuit breaking are not yet explicit. Availability therefore depends directly on the public indexer, RPC, and hosting platform limits.
+- Broader retry, rate-limit handling, and circuit breaking are not yet explicit. Availability therefore depends directly on the public indexer, RPC, and hosting platform limits.
 
 ## Documentation gaps
 

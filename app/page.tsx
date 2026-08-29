@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 
+import { formatClobPercent, type DreamDexClobOdds } from './clob-odds';
 import { canonicalJudgeActionLog, JUDGE_COMBAT, seededRoll, type JudgeCombatAction } from './judge-combat';
 import { DREAMDEX_BTC_15M_URL } from './dreamdex-link';
 import {
@@ -132,6 +133,37 @@ function GoldIcon() {
   return <span className="gold-icon" aria-hidden="true" />;
 }
 
+function LiveMarketOdds({ odds, direction }: { odds: DreamDexClobOdds | null; direction: Direction }) {
+  const available = odds?.upProbability != null && odds.downProbability != null;
+  const source = odds?.source === 'ORDER_BOOK'
+    ? `BEST BID ${formatClobPercent(odds.bestBid, 1)} · BEST ASK ${formatClobPercent(odds.bestAsk, 1)}${odds.spread == null ? '' : ` · SPREAD ${formatClobPercent(odds.spread, 1)}`}`
+    : odds?.source === 'LAST_TRADE'
+      ? 'ORDER BOOK EMPTY · USING LAST TRADED PRICE'
+      : 'WAITING FOR THE FIRST LIVE BOOK QUOTE';
+  const observedAt = odds?.observedAtIso ? `${odds.observedAtIso.slice(11, 19)} UTC` : 'REFRESHING';
+
+  return (
+    <div className="clob-odds" aria-live="polite" aria-label="Live dreamDEX order book odds">
+      <div className="clob-odds-heading">
+        <span><i /> LIVE DREAMDEX CLOB ODDS</span>
+        <small>OFFICIAL MARKETS SDK · READ ONLY</small>
+      </div>
+      <div className="clob-odds-grid">
+        <div className={`clob-up ${direction === 'UP' ? 'selected' : ''}`}>
+          <span>BTC UP · YES</span>
+          <strong>{available ? formatClobPercent(odds.upProbability) : '—'}</strong>
+        </div>
+        <div className={`clob-down ${direction === 'DOWN' ? 'selected' : ''}`}>
+          <span>BTC DOWN · NO</span>
+          <strong>{available ? formatClobPercent(odds.downProbability) : '—'}</strong>
+        </div>
+      </div>
+      <div className="clob-odds-meta"><span>{source}</span><time>{observedAt}</time></div>
+      <small className="clob-odds-note">Implied odds are a live order-book snapshot, not a guarantee or an order placed by this game.</small>
+    </div>
+  );
+}
+
 function MarketProof({
   market,
   mode,
@@ -238,6 +270,7 @@ function readProfile() {
 
 export default function Home() {
   const [market, setMarket] = useState<Market>(fallback);
+  const [marketOdds, setMarketOdds] = useState<DreamDexClobOdds | null>(null);
   const [direction, setDirection] = useState<Direction>('UP');
   const [phase, setPhase] = useState<Phase>('SETUP');
   const [tier, setTier] = useState(1);
@@ -295,6 +328,7 @@ export default function Home() {
     const load = () => fetch('/api/market').then((response) => response.json()).then((data) => {
       if (!cancelled && data.market) {
         setMarket(data.market);
+        setMarketOdds(data.odds?.marketId?.toLowerCase() === data.market.marketId?.toLowerCase() ? data.odds : null);
         setLiveBtcContext(liveBtcContextFromMarket(data.market));
       }
       else if (!cancelled) setNotice('DREAMDEX FEED RETRYING · NO ACTION REQUIRED');
@@ -308,7 +342,10 @@ export default function Home() {
     if (phase !== 'JUDGE_SETUP') return;
     let cancelled = false;
     const load = () => fetch('/api/market').then((response) => response.json()).then((data) => {
-      if (!cancelled && data.market) setLiveBtcContext(liveBtcContextFromMarket(data.market));
+      if (!cancelled && data.market) {
+        setLiveBtcContext(liveBtcContextFromMarket(data.market));
+        setMarketOdds(data.odds?.marketId?.toLowerCase() === data.market.marketId?.toLowerCase() ? data.odds : null);
+      }
     }).catch(() => undefined);
     void load();
     const refresh = window.setInterval(() => { void load(); }, 15000);
@@ -713,6 +750,7 @@ export default function Home() {
     setJudgeMode(false); setJudgeLoading(false); setDeathCause('COMBAT');
     setJudgeActionLog([]); setShareStatus('');
     setMarketEntryRemaining(null);
+    setMarketOdds(null);
     setNotice('LIVE DREAMDEX MARKET · READ ONLY');
   }
 
@@ -844,6 +882,7 @@ export default function Home() {
                   <div className="legacy-inventory"><div><span>PERSISTENT GOLD</span><strong><GoldIcon /> {gold}</strong></div><div><span>NEXT-RUN POTIONS</span><strong>🧪 {potions}/{MAX_POTIONS}</strong></div><small>Gold and potions above the starting amount survive a new run. Attack and defense reset.</small></div>
                   <div className="prediction-card">
                     <span>TIER 1 PREDICTION · MARKET #{marketCode || '—'}</span><strong>${market.strikeUsd}</strong><p>{market.question}</p>
+                    <LiveMarketOdds odds={marketOdds} direction={direction} />
                     <div className="prediction-buttons">
                       <button className={direction === 'UP' ? 'up selected' : 'up'} onClick={() => setDirection('UP')}><b><GoldIcon /> GOLD AWAKENS</b><small>BTC UP · finishes at or above the line</small></button>
                       <button className={direction === 'DOWN' ? 'down selected' : 'down'} onClick={() => setDirection('DOWN')}><b>🌑 SHADOWS RISE</b><small>BTC DOWN · finishes below the line</small></button>
@@ -878,6 +917,7 @@ export default function Home() {
                     ? `Current dreamDEX 15-minute opening line · ${liveBtcContextTime(liveBtcContext)} · context only`
                     : 'The live reference does not affect replay availability. The sealed historical line remains hidden.'}</small>
                 </div>
+                <LiveMarketOdds odds={marketOdds} direction={direction} />
                 <div className="prediction-buttons">
                   <button className={direction === 'UP' ? 'up selected' : 'up'} onClick={() => setDirection('UP')}><b><GoldIcon /> GOLD AWAKENS</b><small>BTC UP · finishes at or above the line</small></button>
                   <button className={direction === 'DOWN' ? 'down selected' : 'down'} onClick={() => setDirection('DOWN')}><b>🌑 SHADOWS RISE</b><small>BTC DOWN · finishes below the line</small></button>
@@ -895,6 +935,7 @@ export default function Home() {
               <div className="carry-forward"><div><span>GOLD</span><strong><GoldIcon /> {gold}</strong></div><div><span>POTIONS</span><strong>🧪 {potions}/{MAX_POTIONS}</strong></div><div><span>RUN LOADOUT</span><strong>⚔️ {weapon} · 🛡️ {armor}</strong></div></div>
               <div className="prediction-card">
                 <span>TIER {tier + 1} PREDICTION · NEW MARKET #{marketCode || '—'}</span><strong>${market.strikeUsd}</strong><p>{market.question}</p>
+                <LiveMarketOdds odds={marketOdds} direction={direction} />
                 <div className="prediction-buttons">
                   <button className={direction === 'UP' ? 'up selected' : 'up'} onClick={() => setDirection('UP')}><b><GoldIcon /> GOLD AWAKENS</b><small>BTC UP · finishes at or above the line</small></button>
                   <button className={direction === 'DOWN' ? 'down selected' : 'down'} onClick={() => setDirection('DOWN')}><b>🌑 SHADOWS RISE</b><small>BTC DOWN · finishes below the line</small></button>

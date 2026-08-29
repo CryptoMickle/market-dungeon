@@ -2,7 +2,7 @@
 
 Market Dungeon is a playable fantasy roguelite built for the **Somnia × dreamDEX Event Contracts Hackathon**. A live BTC 15-minute Event Contract becomes a dungeon omen: choose **Gold Awakens (UP)** or **Shadows Rise (DOWN)**, clear ten rooms, defeat the tier boss, and survive the finalized onchain outcome. Permanent victory requires both combat success and a correct prediction.
 
-The current contest build is intentionally read-only. It reads live market and settlement data, verifies Somnia mainnet, and never requests a wallet signature, token approval, or trade.
+The current contest build is intentionally read-only. It reads live market and settlement data, shows live UP/DOWN implied odds from the dreamDEX CLOB through the official Markets SDK, verifies Somnia mainnet, and never requests a wallet signature, token approval, or trade.
 
 ## Live demo
 
@@ -16,7 +16,7 @@ The current contest build is intentionally read-only. It reads live market and s
 
 ### Full live expedition
 
-1. Choose `GOLD AWAKENS` or `SHADOWS RISE` against the active BTC market.
+1. Inspect the live dreamDEX CLOB odds, then choose `GOLD AWAKENS` or `SHADOWS RISE` against the active BTC market.
 2. Enter a tier and clear ten deterministic combat rooms.
 3. Use potions and gold, including Quartermaster Kevin's shops after Room 5 and the boss.
 4. Defeat the boss through normal combat, then reveal the dreamDEX result.
@@ -77,6 +77,7 @@ flowchart LR
     P[Player] --> UI[Market Dungeon UI]
     UI -->|Live expedition| META[/api/market/]
     META --> IDX[dreamDEX GraphQL indexer]
+    META --> SDK[Official Markets SDK · CLOB top of book]
     META --> RPC[Somnia mainnet RPC]
     UI -->|Lock UP or DOWN| START[/api/judge-replay/start/]
     START -->|CSPRNG-select finalized market| IDX
@@ -118,14 +119,16 @@ Verified against Somnia mainnet on 27 August 2026:
 | Somnia chain ID | `5031` |
 | Somnia explorer | `https://explorer.somnia.network` |
 | dreamDEX indexer | `https://prd.smk.somnia.host/v1/graphql` |
+| dreamDEX Markets SDK | `@somnia-chain/markets-sdk` `^0.25.0` |
 | Somnia RPC | `https://api.infra.mainnet.somnia.network` |
 | BinaryModule | `0x3ecC694Cef705358864a646142ac17A90E29e388` |
 | BinarySettlement | `0xbF4a49e0Dfd092e5FBE8E5761064C49533e6Ed23` |
 | USDso collateral | `0x00000022dA000002656c64D9eA6011ea952D008A` |
 | Market filter | `BINARY` · `BTC` · `900` seconds |
+| Live implied odds | CLOB best bid / best ask midpoint; one-sided quote or last trade fallback |
 | Settlement fields | `finalized`, `voided`, `winningOutcome`, `payoutNumerators`, `payoutDenominator` |
 
-Active-market discovery uses dreamDEX's indexer. Opening strike resolution follows `MarketReferenceLink.referenceQuestionId` to `OracleAnswer.numericValue`. Pool tick, minimum quantity, and lot size are read directly through Somnia RPC.
+Active-market discovery uses dreamDEX's indexer. The server uses the official Markets SDK to read the active market's recycle-safe, market-ID-keyed CLOB top of book. The UI derives UP from the best bid/ask midpoint and DOWN as its complement, labels one-sided or last-trade fallbacks, and refreshes the no-store snapshot every 15 seconds. Opening strike resolution follows `MarketReferenceLink.referenceQuestionId` to `OracleAnswer.numericValue`. Pool tick, minimum quantity, and lot size are read directly through Somnia RPC.
 
 See the concise [dreamDEX Integration Report](docs/DREAMDEX_INTEGRATION_REPORT.md) for the exact GraphQL fields, active/finalized discovery rules, RPC verification, metadata/settlement boundary, cache and security limits, documentation gaps, and recommended improvements.
 
@@ -152,7 +155,9 @@ npm run build
 
 ```text
 app/
+  clob-odds.ts          Pure implied-odds derivation and formatting
   api/dreamdex.ts       Shared server-only dreamDEX and Somnia reads
+  api/dreamdex-odds.ts  Official Markets SDK top-of-book read with fallback
   api/market/route.ts   Live market discovery and settlement lookup
   api/judge-replay/     Encrypted replay start, reveal and commitment logic
   globals.css           Responsive game presentation
@@ -181,6 +186,7 @@ docs/
 
 - Playable deployed experience: complete
 - Live active-market integration: complete
+- Official dreamDEX Markets SDK CLOB odds: complete
 - Finalized onchain settlement replay: complete
 - Two-minute judge path: complete
 - Salted pre-reveal commitment and clickable post-reveal onchain proof: complete

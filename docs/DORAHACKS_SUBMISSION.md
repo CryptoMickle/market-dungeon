@@ -6,7 +6,7 @@ Market Dungeon turns a live dreamDEX BTC Event Contract into the second victory 
 
 ## Project description
 
-Market Dungeon is a playable Delveworn spin-off built for the Somnia × dreamDEX Event Contracts Hackathon. Each dungeon tier locks a real BTC 15-minute Event Contract as an omen. The player chooses **Gold Awakens (UP)** or **Shadows Rise (DOWN)**, clears ten combat rooms, manages health, potions, gold, attack, and defense, and defeats the boss.
+Market Dungeon is a playable Delveworn spin-off built for the Somnia × dreamDEX Event Contracts Hackathon. Each dungeon tier locks a real BTC 15-minute Event Contract as an omen. Before choosing, the player can inspect live UP/DOWN implied odds derived from that market's dreamDEX CLOB through the official Markets SDK. The player then chooses **Gold Awakens (UP)** or **Shadows Rise (DOWN)**, clears ten combat rooms, manages health, potions, gold, attack, and defense, and defeats the boss.
 
 Combat victory is necessary but not sufficient. After the boss reaches zero HP, the finalized dreamDEX outcome determines whether the boss stays down. A correct prediction awards the boss reward plus prediction gold and opens the next tier. An incorrect prediction triggers the defeated boss's fatal last strike. Four tiers, fresh markets, persistent gold, merchants, and deterministic combat make the market outcome part of a real game loop instead of a decorative price widget.
 
@@ -59,6 +59,7 @@ The browser presents **Reveal Boss Fate** only after boss defeat, and the API in
 
 - Next.js application with a deterministic client-side dungeon state machine.
 - Server route for live dreamDEX market discovery.
+- Official `@somnia-chain/markets-sdk` integration for market-ID-keyed CLOB best bid/ask and live implied UP/DOWN odds.
 - Separate Judge Replay start and reveal routes with CSPRNG selection, AES-256-GCM sealing, salted SHA-256 commitments, and deterministic server-side combat replay.
 - dreamDEX GraphQL indexer for market metadata, reference question, and settlement data.
 - Somnia mainnet RPC verification for chain ID and pool parameters when live or revealed market details are hydrated.
@@ -74,4 +75,4 @@ The browser presents **Reveal Boss Fate** only after boss defeat, and the API in
 
 ## Current scope
 
-The contest build includes the full four-tier roguelite, live active-market integration, finalized onchain settlement replay, stateless server-verified Judge combat, shareable verified results, the two-minute judge path, clickable Somnia proof, and responsive presentation. Wallet writes are deliberately outside this submission's scope so judges can verify the complete integration without signing or risking assets. The repository also includes an implementation-specific [dreamDEX integration report](DREAMDEX_INTEGRATION_REPORT.md) covering fields, discovery, RPC verification, security boundaries, documentation gaps, and recommended improvements.
+The contest build includes the full four-tier roguelite, official-SDK CLOB odds, live active-market integration, finalized onchain settlement replay, stateless server-verified Judge combat, shareable verified results, the two-minute judge path, clickable Somnia proof, and responsive presentation. Wallet writes are deliberately outside this submission's scope so judges can verify the complete integration without signing or risking assets. The repository also includes an implementation-specific [dreamDEX integration report](DREAMDEX_INTEGRATION_REPORT.md) covering fields, discovery, RPC verification, security boundaries, documentation gaps, and recommended improvements.
