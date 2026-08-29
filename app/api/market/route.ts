@@ -1,4 +1,5 @@
 import { graphql, hydrateMarket } from '../dreamdex';
+import { fetchDreamDexClobOdds } from '../dreamdex-odds';
 
 const IDEAL_ENTRY_SECONDS = 6 * 60;
 
@@ -27,7 +28,7 @@ export async function GET(request: Request) {
         tradingStart: {_lte: $now}, expiry: {_gt: $now}, clobStatus: {_in: ["Listed", "Trading"]}
       }, order_by: {expiry: asc}, limit: 8) {
         marketId marketAddress poolAddress collateral asset question strike tradingStart expiry
-        status: clobStatus intervalSec quoteDecimals yesTokenId noTokenId winningOutcome payoutNumerators payoutDenominator voided finalized lastPrice
+        status: clobStatus intervalSec quoteDecimals yesTokenId noTokenId winningOutcome payoutNumerators payoutDenominator voided finalized lastPrice tradeCount
       }
     }`, { now });
     const candidates = (data.Market as Array<Record<string, unknown>>) ?? [];
@@ -38,7 +39,11 @@ export async function GET(request: Request) {
     })[0];
     if (!market) return Response.json({ error: 'No active BTC 15m market' }, { status: 404 });
 
-    return Response.json(await hydrateMarket(market), { headers: { 'cache-control': 'no-store' } });
+    const [hydrated, odds] = await Promise.all([
+      hydrateMarket(market),
+      fetchDreamDexClobOdds(market),
+    ]);
+    return Response.json({ ...hydrated, odds }, { headers: { 'cache-control': 'no-store' } });
   } catch (error) {
     return Response.json({ error: error instanceof Error ? error.message : 'Market fetch failed' }, { status: 502 });
   }

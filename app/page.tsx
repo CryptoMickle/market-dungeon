@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 
+import { formatClobPercent, type DreamDexClobOdds } from './clob-odds';
 import { canonicalJudgeActionLog, JUDGE_COMBAT, seededRoll, type JudgeCombatAction } from './judge-combat';
 import { DREAMDEX_BTC_15M_URL } from './dreamdex-link';
 import {
@@ -10,7 +11,7 @@ import {
   liveBtcContextTime,
   type LiveBtcContext,
 } from './live-btc-context';
-import { canonicalReplayProof, type ReplayCombatProof, type ReplayProof } from './replay-proof';
+import { canonicalReplayProof, secondsUntilReplayReveal, type ReplayCombatProof, type ReplayProof } from './replay-proof';
 import { verifiedRunShareText } from './share-verified-run';
 
 type Direction = 'UP' | 'DOWN';
@@ -132,6 +133,37 @@ function GoldIcon() {
   return <span className="gold-icon" aria-hidden="true" />;
 }
 
+function LiveMarketOdds({ odds, direction }: { odds: DreamDexClobOdds | null; direction: Direction }) {
+  const available = odds?.upProbability != null && odds.downProbability != null;
+  const source = odds?.source === 'ORDER_BOOK'
+    ? `BEST BID ${formatClobPercent(odds.bestBid, 1)} · BEST ASK ${formatClobPercent(odds.bestAsk, 1)}${odds.spread == null ? '' : ` · SPREAD ${formatClobPercent(odds.spread, 1)}`}`
+    : odds?.source === 'LAST_TRADE'
+      ? 'ORDER BOOK EMPTY · USING LAST TRADED PRICE'
+      : 'WAITING FOR THE FIRST LIVE BOOK QUOTE';
+  const observedAt = odds?.observedAtIso ? `${odds.observedAtIso.slice(11, 19)} UTC` : 'REFRESHING';
+
+  return (
+    <div className="clob-odds" aria-live="polite" aria-label="Live dreamDEX order book odds">
+      <div className="clob-odds-heading">
+        <span><i /> LIVE DREAMDEX CLOB ODDS</span>
+        <small>OFFICIAL MARKETS SDK · READ ONLY</small>
+      </div>
+      <div className="clob-odds-grid">
+        <div className={`clob-up ${direction === 'UP' ? 'selected' : ''}`}>
+          <span>BTC UP · YES</span>
+          <strong>{available ? formatClobPercent(odds.upProbability) : '—'}</strong>
+        </div>
+        <div className={`clob-down ${direction === 'DOWN' ? 'selected' : ''}`}>
+          <span>BTC DOWN · NO</span>
+          <strong>{available ? formatClobPercent(odds.downProbability) : '—'}</strong>
+        </div>
+      </div>
+      <div className="clob-odds-meta"><span>{source}</span><time>{observedAt}</time></div>
+      <small className="clob-odds-note">Implied odds are a live order-book snapshot, not a guarantee or an order placed by this game.</small>
+    </div>
+  );
+}
+
 function MarketProof({
   market,
   mode,
@@ -238,6 +270,7 @@ function readProfile() {
 
 export default function Home() {
   const [market, setMarket] = useState<Market>(fallback);
+  const [marketOdds, setMarketOdds] = useState<DreamDexClobOdds | null>(null);
   const [direction, setDirection] = useState<Direction>('UP');
   const [phase, setPhase] = useState<Phase>('SETUP');
   const [tier, setTier] = useState(1);
@@ -271,6 +304,7 @@ export default function Home() {
   const [judgeActionLog, setJudgeActionLog] = useState<JudgeCombatAction[]>([]);
   const [liveBtcContext, setLiveBtcContext] = useState<LiveBtcContext | null>(null);
   const [shareStatus, setShareStatus] = useState('');
+  const [replayRevealRemaining, setReplayRevealRemaining] = useState(0);
   const oracleBusyRef = useRef(false);
 
   useEffect(() => {
@@ -295,6 +329,7 @@ export default function Home() {
     const load = () => fetch('/api/market').then((response) => response.json()).then((data) => {
       if (!cancelled && data.market) {
         setMarket(data.market);
+        setMarketOdds(data.odds?.marketId?.toLowerCase() === data.market.marketId?.toLowerCase() ? data.odds : null);
         setLiveBtcContext(liveBtcContextFromMarket(data.market));
       }
       else if (!cancelled) setNotice('DREAMDEX FEED RETRYING · NO ACTION REQUIRED');
@@ -308,7 +343,10 @@ export default function Home() {
     if (phase !== 'JUDGE_SETUP') return;
     let cancelled = false;
     const load = () => fetch('/api/market').then((response) => response.json()).then((data) => {
-      if (!cancelled && data.market) setLiveBtcContext(liveBtcContextFromMarket(data.market));
+      if (!cancelled && data.market) {
+        setLiveBtcContext(liveBtcContextFromMarket(data.market));
+        setMarketOdds(data.odds?.marketId?.toLowerCase() === data.market.marketId?.toLowerCase() ? data.odds : null);
+      }
     }).catch(() => undefined);
     void load();
     const refresh = window.setInterval(() => { void load(); }, 15000);
@@ -321,6 +359,14 @@ export default function Home() {
     const timer = window.setInterval(tick, 1000);
     return () => window.clearInterval(timer);
   }, [market.expiry]);
+
+  useEffect(() => {
+    if (!judgeMode || !market.replayRevealAfter) return;
+    const tick = () => setReplayRevealRemaining(secondsUntilReplayReveal(market.replayRevealAfter));
+    tick();
+    const timer = window.setInterval(tick, 1000);
+    return () => window.clearInterval(timer);
+  }, [judgeMode, market.replayRevealAfter]);
 
   const monster = roster[room] ?? roster[0];
   const isBoss = room === TOTAL_ROOMS - 1;
@@ -339,6 +385,9 @@ export default function Home() {
   const combatPotionLimit = isBoss ? 3 : 2;
   const finalHealCost = Math.ceil((100 - hp) / 25) * 8;
   const marketReady = market.status !== 'CONNECTING' && market.marketId !== fallback.marketId && remaining > 0;
+  const displayedNotice = phase === 'ORACLE' && judgeMode && market.replayRevealAfter && !oracleBusy
+    ? replayRevealRemaining > 0 ? `REPLAY SEAL HOLDING · ${replayRevealRemaining}S` : 'REPLAY SEAL OPEN · READY TO VERIFY'
+    : notice;
   const expiryLabel = useMemo(() => replaySealed ? 'IDENTITY SEALED' : gateTime(market.expiryIso), [market.expiryIso, replaySealed]);
   const omenName = direction === 'UP' ? 'GOLD AWAKENS' : 'SHADOWS RISE';
   const omenIcon = direction === 'UP' ? <GoldIcon /> : '🌑';
@@ -403,6 +452,7 @@ export default function Home() {
     if (judgeLoading) return;
     setMarket(sealedReplay); setPhase('JUDGE_SETUP'); setJudgeMode(true); setDeathCause('COMBAT');
     setJudgeActionLog([]); setShareStatus('');
+    setReplayRevealRemaining(0);
     setMarketEntryRemaining(null);
     setCombatLog(['Choose BTC UP or DOWN first. The server will then draw a random finalized market and return only an encrypted seal plus commitment.']);
     setNotice('JUDGE DEMO · CHOOSE OMEN BEFORE MARKET SELECTION');
@@ -436,6 +486,7 @@ export default function Home() {
         replayRevealAfter: replay.revealAfter,
         replayExpiresAt: replay.expiresAt,
       });
+      setReplayRevealRemaining(secondsUntilReplayReveal(replay.revealAfter));
       setDirection(replay.lockedDirection);
       setRoster(nextRoster); setTier(TOTAL_TIERS); setRoom(guardRoom); setTurn(0); setPhase('COMBAT');
       setHp(JUDGE_COMBAT.player.hp); setMonsterHp(Math.min(JUDGE_COMBAT.guard.hp, nextRoster[guardRoom].hp));
@@ -608,7 +659,9 @@ export default function Home() {
       const data = await response.json();
       if (!response.ok) {
         if (response.status === 425) {
-          setNotice(`REPLAY SEAL HOLDING · ${Math.max(1, Number(data.retryAfter) || 1)}S`);
+          const retryAfter = Math.max(1, Number(data.retryAfter) || 1);
+          setReplayRevealRemaining(retryAfter);
+          setNotice(`REPLAY SEAL HOLDING · ${retryAfter}S`);
           addLog('The server is enforcing its short anti-peek hold. Your direction remains cryptographically locked.');
           return;
         }
@@ -712,7 +765,9 @@ export default function Home() {
     setOracleChecks(0); setOracleResult(null); setOracleBusy(false); oracleBusyRef.current = false;
     setJudgeMode(false); setJudgeLoading(false); setDeathCause('COMBAT');
     setJudgeActionLog([]); setShareStatus('');
+    setReplayRevealRemaining(0);
     setMarketEntryRemaining(null);
+    setMarketOdds(null);
     setNotice('LIVE DREAMDEX MARKET · READ ONLY');
   }
 
@@ -844,6 +899,7 @@ export default function Home() {
                   <div className="legacy-inventory"><div><span>PERSISTENT GOLD</span><strong><GoldIcon /> {gold}</strong></div><div><span>NEXT-RUN POTIONS</span><strong>🧪 {potions}/{MAX_POTIONS}</strong></div><small>Gold and potions above the starting amount survive a new run. Attack and defense reset.</small></div>
                   <div className="prediction-card">
                     <span>TIER 1 PREDICTION · MARKET #{marketCode || '—'}</span><strong>${market.strikeUsd}</strong><p>{market.question}</p>
+                    <LiveMarketOdds odds={marketOdds} direction={direction} />
                     <div className="prediction-buttons">
                       <button className={direction === 'UP' ? 'up selected' : 'up'} onClick={() => setDirection('UP')}><b><GoldIcon /> GOLD AWAKENS</b><small>BTC UP · finishes at or above the line</small></button>
                       <button className={direction === 'DOWN' ? 'down selected' : 'down'} onClick={() => setDirection('DOWN')}><b>🌑 SHADOWS RISE</b><small>BTC DOWN · finishes below the line</small></button>
@@ -878,6 +934,7 @@ export default function Home() {
                     ? `Current dreamDEX 15-minute opening line · ${liveBtcContextTime(liveBtcContext)} · context only`
                     : 'The live reference does not affect replay availability. The sealed historical line remains hidden.'}</small>
                 </div>
+                <LiveMarketOdds odds={marketOdds} direction={direction} />
                 <div className="prediction-buttons">
                   <button className={direction === 'UP' ? 'up selected' : 'up'} onClick={() => setDirection('UP')}><b><GoldIcon /> GOLD AWAKENS</b><small>BTC UP · finishes at or above the line</small></button>
                   <button className={direction === 'DOWN' ? 'down selected' : 'down'} onClick={() => setDirection('DOWN')}><b>🌑 SHADOWS RISE</b><small>BTC DOWN · finishes below the line</small></button>
@@ -895,6 +952,7 @@ export default function Home() {
               <div className="carry-forward"><div><span>GOLD</span><strong><GoldIcon /> {gold}</strong></div><div><span>POTIONS</span><strong>🧪 {potions}/{MAX_POTIONS}</strong></div><div><span>RUN LOADOUT</span><strong>⚔️ {weapon} · 🛡️ {armor}</strong></div></div>
               <div className="prediction-card">
                 <span>TIER {tier + 1} PREDICTION · NEW MARKET #{marketCode || '—'}</span><strong>${market.strikeUsd}</strong><p>{market.question}</p>
+                <LiveMarketOdds odds={marketOdds} direction={direction} />
                 <div className="prediction-buttons">
                   <button className={direction === 'UP' ? 'up selected' : 'up'} onClick={() => setDirection('UP')}><b><GoldIcon /> GOLD AWAKENS</b><small>BTC UP · finishes at or above the line</small></button>
                   <button className={direction === 'DOWN' ? 'down selected' : 'down'} onClick={() => setDirection('DOWN')}><b>🌑 SHADOWS RISE</b><small>BTC DOWN · finishes below the line</small></button>
@@ -964,7 +1022,7 @@ export default function Home() {
                 <div className="enemy-stats"><div><span>ENEMY DAMAGE</span><strong>💥 {monster.minDamage}–{monster.maxDamage}</strong></div><div><span>BASE REWARD</span><strong><GoldIcon /> {monster.reward}</strong></div></div>
                 {isBoss && <div className={`victory-conditions ${phase === 'ORACLE' ? 'pending' : ''}`}><div><span>{phase === 'ORACLE' ? '✓ CONDITION 1' : 'CONDITION 1'}</span><strong>{phase === 'ORACLE' ? 'Boss defeated in combat' : 'Reduce boss HP to zero'}</strong></div><div><span>CONDITION 2</span><strong>{phase === 'ORACLE' ? 'BTC prediction awaiting result' : `${omenName} must be correct`}</strong></div></div>}
                 {phase === 'ORACLE' && <div className="oracle-lock">
-                  <div className="oracle-status"><span>🔮 {judgeMode ? 'FINALIZED ONCHAIN REPLAY' : 'LIVE DREAMDEX SETTLEMENT'}</span><strong>{judgeMode ? 'READY TO REVEAL' : remaining > 0 ? formatTime(remaining) : oracleBusy ? 'READING…' : `${oracleChecks} CHECK${oracleChecks === 1 ? '' : 'S'}`}</strong><small>{judgeMode ? 'This fast demo uses a real finalized dreamDEX market and its recorded Somnia outcome.' : 'The boss is down, but not permanently defeated. A wrong BTC prediction triggers its fatal last strike.'}</small></div>
+                  <div className="oracle-status"><span>🔮 {judgeMode ? 'FINALIZED ONCHAIN REPLAY' : 'LIVE DREAMDEX SETTLEMENT'}</span><strong aria-live="polite">{judgeMode ? replayRevealRemaining > 0 ? `SEALED · REVEAL IN ${replayRevealRemaining}S` : 'READY TO REVEAL' : remaining > 0 ? formatTime(remaining) : oracleBusy ? 'READING…' : `${oracleChecks} CHECK${oracleChecks === 1 ? '' : 'S'}`}</strong><small>{judgeMode ? replayRevealRemaining > 0 ? 'The server is holding the encrypted identity and outcome until the anti-peek timer reaches zero.' : 'This fast demo uses a real finalized dreamDEX market and its recorded Somnia outcome.' : 'The boss is down, but not permanently defeated. A wrong BTC prediction triggers its fatal last strike.'}</small></div>
                   <div className="integration-proof"><span>SOMNIA CHAIN 5031</span><span>{judgeMode ? `COMMIT ${marketCode}` : `MARKET #${marketCode}`}</span><span>READ-ONLY CHAIN CALL</span><span>{judgeMode ? 'IDENTITY + OUTCOME SEALED' : 'SETTLEMENT PENDING'}</span></div>
                   {judgeMode && <MarketProof market={market} mode="sealed" />}
                 </div>}
@@ -1034,9 +1092,9 @@ export default function Home() {
             <div className="oracle-dock">
               <div className="between-actions">
                 <button className="heal-action" onClick={visitFinalMerchant}>🧰 VISIT TRAVELLING MERCHANT</button>
-                <button className="oracle-action" onClick={() => void checkSettlement(false)} disabled={oracleBusy}>🔮 {oracleBusy ? 'VERIFYING COMBAT + SETTLEMENT…' : 'REVEAL BOSS FATE'}</button>
+                <button className={`oracle-action ${judgeMode && replayRevealRemaining > 0 ? 'reveal-hold' : ''}`} onClick={() => void checkSettlement(false)} disabled={oracleBusy || (judgeMode && replayRevealRemaining > 0)}>🔮 {oracleBusy ? 'VERIFYING COMBAT + SETTLEMENT…' : judgeMode && replayRevealRemaining > 0 ? `REVEAL AVAILABLE IN ${replayRevealRemaining}S` : 'REVEAL BOSS FATE'}</button>
               </div>
-              <small>{judgeMode ? `Finalized replay · ${judgeActionLog.length} logged actions will be server-verified before reveal` : remaining > 0 ? `Automatic checks begin in ${formatTime(remaining)}` : 'Automatic settlement checks run every 5 seconds'}</small>
+              <small>{judgeMode ? replayRevealRemaining > 0 ? `Anti-peek seal holding · ${judgeActionLog.length} logged actions ready for verification` : `Finalized replay · ${judgeActionLog.length} logged actions will be server-verified before reveal` : remaining > 0 ? `Automatic checks begin in ${formatTime(remaining)}` : 'Automatic settlement checks run every 5 seconds'}</small>
             </div>
           ) : (
             <div className="new-run-action"><button className="primary-action" onClick={reset}>↻ BEGIN NEW EXPEDITION</button><small>Keep gold and up to 5 potions · reset attack and defense</small></div>
@@ -1044,7 +1102,7 @@ export default function Home() {
         </section>
 
         <section className={`dungeon-log ${mobileLogOpen ? 'mobile-open' : ''}`}>
-          <div><span>DUNGEON LOG</span><b>{notice}</b><button type="button" onClick={() => setMobileLogOpen((open) => !open)} aria-expanded={mobileLogOpen}>{mobileLogOpen ? 'HIDE' : 'SHOW'}</button></div>
+          <div><span>DUNGEON LOG</span><b>{displayedNotice}</b><button type="button" onClick={() => setMobileLogOpen((open) => !open)} aria-expanded={mobileLogOpen}>{mobileLogOpen ? 'HIDE' : 'SHOW'}</button></div>
           <div className="dungeon-log-entries">
             {combatLog.length ? combatLog.map((entry, index) => <p key={`${entry}-${index}`} className={index === 0 ? 'latest' : ''}>{entry}</p>) : <p>The dungeon is quiet. This is almost certainly temporary.</p>}
           </div>
