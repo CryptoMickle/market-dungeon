@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { formatClobPercent, type DreamDexClobOdds } from './clob-odds';
+import oddsStyles from './live-market-odds.module.css';
 import { canonicalJudgeActionLog, JUDGE_COMBAT, seededRoll, type JudgeCombatAction } from './judge-combat';
 import { DREAMDEX_BTC_15M_URL } from './dreamdex-link';
 import {
@@ -143,23 +144,23 @@ function LiveMarketOdds({ odds, direction }: { odds: DreamDexClobOdds | null; di
   const observedAt = odds?.observedAtIso ? `${odds.observedAtIso.slice(11, 19)} UTC` : 'REFRESHING';
 
   return (
-    <div className="clob-odds" aria-live="polite" aria-label="Live dreamDEX order book odds">
-      <div className="clob-odds-heading">
-        <span><i /> LIVE DREAMDEX CLOB ODDS</span>
-        <small>OFFICIAL MARKETS SDK · READ ONLY</small>
+    <div className={oddsStyles.odds} aria-live="polite" aria-label="Live dreamDEX order book odds">
+      <div className={oddsStyles.heading}>
+        <span className={oddsStyles.title}><i className={oddsStyles.liveDot} /> LIVE DREAMDEX CLOB ODDS</span>
+        <small className={oddsStyles.badge}> · OFFICIAL MARKETS SDK · READ ONLY</small>
       </div>
-      <div className="clob-odds-grid">
-        <div className={`clob-up ${direction === 'UP' ? 'selected' : ''}`}>
-          <span>BTC UP · YES</span>
-          <strong>{available ? formatClobPercent(odds.upProbability) : '—'}</strong>
+      <div className={oddsStyles.grid}>
+        <div className={`${oddsStyles.cell} ${oddsStyles.up} ${direction === 'UP' ? oddsStyles.selected : ''}`}>
+          <span className={oddsStyles.label}>BTC UP · YES: </span>
+          <strong className={oddsStyles.value}>{available ? formatClobPercent(odds.upProbability) : '—'}</strong>
         </div>
-        <div className={`clob-down ${direction === 'DOWN' ? 'selected' : ''}`}>
-          <span>BTC DOWN · NO</span>
-          <strong>{available ? formatClobPercent(odds.downProbability) : '—'}</strong>
+        <div className={`${oddsStyles.cell} ${oddsStyles.down} ${direction === 'DOWN' ? oddsStyles.selected : ''}`}>
+          <span className={oddsStyles.label}>BTC DOWN · NO: </span>
+          <strong className={oddsStyles.value}>{available ? formatClobPercent(odds.downProbability) : '—'}</strong>
         </div>
       </div>
-      <div className="clob-odds-meta"><span>{source}</span><time>{observedAt}</time></div>
-      <small className="clob-odds-note">Implied odds are a live order-book snapshot, not a guarantee or an order placed by this game.</small>
+      <div className={oddsStyles.meta}><span className={oddsStyles.source}>{source}</span><time className={oddsStyles.time}> · {observedAt}</time></div>
+      <small className={oddsStyles.note}>Implied odds are a live order-book snapshot, not a guarantee or an order placed by this game.</small>
     </div>
   );
 }
