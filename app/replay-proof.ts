@@ -31,6 +31,11 @@ export type ReplayCombatProof = {
 
 export const REPLAY_COMMITMENT_DOMAIN = 'market-dungeon/judge-replay/v1';
 
+export function secondsUntilReplayReveal(revealAfter: number | undefined, nowSeconds = Math.floor(Date.now() / 1000)) {
+  if (typeof revealAfter !== 'number' || !Number.isSafeInteger(revealAfter) || !Number.isFinite(nowSeconds)) return 0;
+  return Math.max(0, revealAfter - Math.floor(nowSeconds));
+}
+
 export function canonicalReplayProof(proof: ReplayCommitmentPayload) {
   return [
     REPLAY_COMMITMENT_DOMAIN,

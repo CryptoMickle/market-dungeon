@@ -87,7 +87,7 @@ The stateless combat check proves that the submitted action sequence is valid un
 - The SDK top-of-book read has an application-level four-second budget. If it fails, market loading and gameplay continue using the existing verified metadata path; the odds module falls back to a valid last trade or displays an unavailable state.
 - Judge start accepts one `UP`/`DOWN` field and at most 128 request bytes.
 - Judge reveal accepts only `seal` plus a structured action array, caps the body at 8 KiB, the seal at 4,096 characters, and the transcript at 64 steps, and rejects extra fields.
-- Replay seals have a 15-second minimum hold and a 30-minute lifetime. Environment-bound AES-GCM authentication, strict claim validation, balanced outcome pools, settlement re-validation, and deterministic combat replay all fail closed.
+- Replay seals have a 15-second minimum hold and a 30-minute lifetime. The browser mirrors the hold with a visible countdown and disabled reveal action, while the server remains authoritative. Environment-bound AES-GCM authentication, strict claim validation, balanced outcome pools, settlement re-validation, and deterministic combat replay all fail closed.
 - Broader retry, rate-limit handling, and circuit breaking are not yet explicit. Availability therefore depends directly on the public indexer, RPC, and hosting platform limits.
 
 ## Documentation gaps

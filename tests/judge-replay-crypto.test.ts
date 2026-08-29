@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { createHash, webcrypto } from 'node:crypto';
 import test from 'node:test';
 
-import { canonicalReplayProof } from '../app/replay-proof.ts';
+import { canonicalReplayProof, secondsUntilReplayReveal } from '../app/replay-proof.ts';
 import {
   canonicalReplay,
   newReplayClaims,
@@ -106,4 +106,12 @@ test('reveal time boundaries are explicit', () => {
   assert.equal(replayTimeStatus(replay, replay.revealAfter), 'revealable');
   assert.equal(replayTimeStatus(replay, replay.expiresAt - 1), 'revealable');
   assert.equal(replayTimeStatus(replay, replay.expiresAt), 'expired');
+});
+
+test('browser reveal countdown matches the server boundary and does not invent a hold', () => {
+  assert.equal(secondsUntilReplayReveal(1_015, 1_000), 15);
+  assert.equal(secondsUntilReplayReveal(1_015, 1_014.9), 1);
+  assert.equal(secondsUntilReplayReveal(1_015, 1_015), 0);
+  assert.equal(secondsUntilReplayReveal(1_015, 1_016), 0);
+  assert.equal(secondsUntilReplayReveal(undefined, 1_000), 0);
 });
