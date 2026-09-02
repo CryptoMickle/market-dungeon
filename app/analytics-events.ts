@@ -1,35 +1,28 @@
-import { track } from '@vercel/analytics';
+import { pageview } from '@vercel/analytics';
 
 export type JudgeDemoResult = 'blessed' | 'cursed' | 'void';
 export type MarketDungeonMode = 'judge_demo' | 'full_run';
 
-type AnalyticsEvent = {
-  name: 'judge_demo_started' | 'judge_demo_completed' | 'dreamdex_cta_clicked';
-  properties: Record<string, string | number | boolean>;
+type AnalyticsPageview = {
+  path: `/funnel/${string}`;
 };
 
-const BASE_PROPERTIES = {
-  experience: 'sealed_replay_v1',
-  network: 'somnia_mainnet',
-  chain_id: 5031,
-} as const;
+function segment(value: string) {
+  return value.toLowerCase().replaceAll('_', '-');
+}
 
-export function judgeDemoStartedEvent(): AnalyticsEvent {
+export function judgeDemoStartedEvent(): AnalyticsPageview {
   return {
-    name: 'judge_demo_started',
-    properties: { ...BASE_PROPERTIES },
+    path: '/funnel/judge-demo/started',
   };
 }
 
-export function judgeDemoCompletedEvent(direction: 'UP' | 'DOWN', result: JudgeDemoResult): AnalyticsEvent {
+export function judgeDemoCompletedEvent(
+  direction: 'UP' | 'DOWN',
+  result: JudgeDemoResult,
+): AnalyticsPageview {
   return {
-    name: 'judge_demo_completed',
-    properties: {
-      ...BASE_PROPERTIES,
-      direction,
-      result,
-      verified: true,
-    },
+    path: `/funnel/judge-demo/completed/${segment(result)}/${segment(direction)}`,
   };
 }
 
@@ -37,22 +30,18 @@ export function dreamDexCtaClickedEvent(
   mode: MarketDungeonMode,
   direction: 'UP' | 'DOWN',
   result: JudgeDemoResult,
-): AnalyticsEvent {
+): AnalyticsPageview {
   return {
-    name: 'dreamdex_cta_clicked',
-    properties: {
-      network: BASE_PROPERTIES.network,
-      chain_id: BASE_PROPERTIES.chain_id,
-      mode,
-      direction,
-      result,
-    },
+    path: `/funnel/dreamdex/continue/${segment(mode)}/${segment(result)}/${segment(direction)}`,
   };
 }
 
-export function emitAnalyticsEvent(event: AnalyticsEvent) {
+export function emitAnalyticsEvent(event: AnalyticsPageview) {
   try {
-    track(event.name, event.properties);
+    // Manual pageviews keep the funnel visible on Vercel Hobby, where custom
+    // events are unavailable. These paths are analytics labels only; gameplay
+    // stays on the current URL.
+    pageview({ route: event.path, path: event.path });
   } catch {
     // Analytics must never interrupt gameplay or verification.
   }
