@@ -1,13 +1,22 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { encodeFunctionResult } from 'viem';
 
 import { replayJudgeCombat, type JudgeCombatAction } from '../app/judge-combat.ts';
+import {
+  BINARY_SETTLEMENT_ABI,
+  DREAMDEX_MAINNET_CONTRACTS,
+  MODULE_MARKETS_ABI,
+} from '../app/api/dreamdex.ts';
 import { newReplayClaims, sealReplay } from '../app/api/judge-replay/crypto.ts';
 import { POST as revealReplay } from '../app/api/judge-replay/reveal/route.ts';
 import { POST as startReplay } from '../app/api/judge-replay/start/route.ts';
 
 const KEY = '33'.repeat(32);
 const MARKET_ID = `0x${'cd'.repeat(32)}`;
+const MARKET_ADDRESS = `0x${'34'.repeat(20)}` as `0x${string}`;
+const POOL_ADDRESS = `0x${'12'.repeat(20)}` as `0x${string}`;
+const COLLATERAL = `0x${'56'.repeat(20)}` as `0x${string}`;
 const NO_STORE = 'private, no-store, max-age=0';
 const originalFetch = globalThis.fetch;
 
@@ -165,20 +174,61 @@ test('reveal route verifies combat, commitment, and Somnia settlement together',
     expiresAt: now + 1_800,
   });
   const actions = completedCombat(claims.gameSeed);
-  const poolAddress = `0x${'12'.repeat(20)}`;
+  const yesId = (BigInt(POOL_ADDRESS) << 72n) | (46n << 8n);
+  const noId = yesId + 1n;
 
   globalThis.fetch = async (_input, init) => {
-    const body = JSON.parse(String(init?.body ?? '{}')) as { jsonrpc?: string; method?: string; query?: string };
+    const body = JSON.parse(String(init?.body ?? '{}')) as {
+      jsonrpc?: string;
+      method?: string;
+      params?: Array<{ to?: string; data?: string } | string | boolean>;
+      query?: string;
+    };
     if (body.jsonrpc) {
       if (body.method === 'eth_chainId') return Response.json({ jsonrpc: '2.0', id: 1, result: '0x13a7' });
+      if (body.method === 'eth_blockNumber') return Response.json({ jsonrpc: '2.0', id: 1, result: '0x10' });
+      if (body.method === 'eth_getBlockByNumber') return Response.json({
+        jsonrpc: '2.0', id: 1, result: { number: '0x10', hash: `0x${'78'.repeat(32)}` },
+      });
+      const call = body.params?.[0] as { to?: string; data?: string } | undefined;
+      if (call?.to?.toLowerCase() === DREAMDEX_MAINNET_CONTRACTS.binaryModule.toLowerCase()) {
+        return Response.json({ jsonrpc: '2.0', id: 1, result: encodeFunctionResult({
+          abi: MODULE_MARKETS_ABI,
+          functionName: 'markets',
+          result: [
+            1n, 2, 0, COLLATERAL, 0, `0x${'00'.repeat(32)}` as `0x${string}`, `0x${'67'.repeat(20)}` as `0x${string}`,
+            `0x${'89'.repeat(20)}` as `0x${string}`, MARKET_ADDRESS, POOL_ADDRESS, yesId, noId,
+            BigInt(now - 900), BigInt(now - 300),
+          ],
+        }) });
+      }
+      if (call?.to?.toLowerCase() === DREAMDEX_MAINNET_CONTRACTS.binarySettlement.toLowerCase()) {
+        return Response.json({ jsonrpc: '2.0', id: 1, result: encodeFunctionResult({
+          abi: BINARY_SETTLEMENT_ABI,
+          functionName: 'getSettlement',
+          // viem's type models the named tuple as an object, while its runtime
+          // result encoder expects the single unnamed output as the tuple value.
+          result: [
+            COLLATERAL,
+            1000n,
+            true,
+            false,
+            0n,
+            `0x${'ab'.repeat(20)}`,
+            POOL_ADDRESS,
+            46n,
+            [10_000_000n, 0n],
+          ] as never,
+        }) });
+      }
       const word = (value: number) => value.toString(16).padStart(64, '0');
       return Response.json({ jsonrpc: '2.0', id: 1, result: `0x${word(1)}${word(2)}${word(3)}` });
     }
     return Response.json({ data: { Market_by_pk: {
       marketId: MARKET_ID,
-      marketAddress: `0x${'34'.repeat(20)}`,
-      poolAddress,
-      collateral: `0x${'56'.repeat(20)}`,
+      marketAddress: MARKET_ADDRESS,
+      poolAddress: POOL_ADDRESS,
+      collateral: COLLATERAL,
       asset: 'BTC',
       question: 'BTC closes up',
       strike: '10000',
@@ -187,11 +237,11 @@ test('reveal route verifies combat, commitment, and Somnia settlement together',
       clobStatus: 'Settled',
       intervalSec: 900,
       quoteDecimals: 2,
-      yesTokenId: '1',
-      noTokenId: '2',
+      yesTokenId: yesId.toString(),
+      noTokenId: noId.toString(),
       winningOutcome: 0,
-      payoutNumerators: ['1', '0'],
-      payoutDenominator: '1',
+      payoutNumerators: ['10000000', '0'],
+      payoutDenominator: '10000000',
       voided: false,
       finalized: true,
       resolvedAtTimestamp: String(now - 200),
@@ -207,6 +257,10 @@ test('reveal route verifies combat, commitment, and Somnia settlement together',
     market: { marketId: string };
     replayProof: { verified: boolean; commitment: string };
     combatProof: { verified: boolean; steps: number; guardDefeated: boolean; bossDefeated: boolean; transcriptDigest: string };
+    onchainSettlement: {
+      verified: boolean; blockNumber: string; blockHash: string; winningOutcome: number | null;
+      payoutNumerators: string[]; settlementAddress: string; poolAddress: string;
+    };
     network: { chainId: number };
   };
   assert.equal(response.status, 200);
@@ -222,4 +276,20 @@ test('reveal route verifies combat, commitment, and Somnia settlement together',
     bossDefeated: payload.combatProof.bossDefeated,
   }, { verified: true, steps: actions.length, guardDefeated: true, bossDefeated: true });
   assert.match(payload.combatProof.transcriptDigest, /^0x[0-9a-f]{64}$/);
+  assert.deepEqual({
+    verified: payload.onchainSettlement.verified,
+    blockNumber: payload.onchainSettlement.blockNumber,
+    winningOutcome: payload.onchainSettlement.winningOutcome,
+    payoutNumerators: payload.onchainSettlement.payoutNumerators,
+    settlementAddress: payload.onchainSettlement.settlementAddress,
+    poolAddress: payload.onchainSettlement.poolAddress,
+  }, {
+    verified: true,
+    blockNumber: '16',
+    winningOutcome: 0,
+    payoutNumerators: ['10000000', '0'],
+    settlementAddress: DREAMDEX_MAINNET_CONTRACTS.binarySettlement,
+    poolAddress: POOL_ADDRESS,
+  });
+  assert.match(payload.onchainSettlement.blockHash, /^0x[0-9a-f]{64}$/);
 });

@@ -19,6 +19,10 @@ import {
   liveBtcContextTime,
   type LiveBtcContext,
 } from './live-btc-context';
+import {
+  directSettlementProofMatchesMarket,
+  type DirectOnchainSettlementProof,
+} from './onchain-settlement-proof';
 import { canonicalReplayProof, secondsUntilReplayReveal, type ReplayCombatProof, type ReplayProof } from './replay-proof';
 import { verifiedRunShareText } from './share-verified-run';
 
@@ -31,11 +35,13 @@ type Species = 'Zombie' | 'Goblin' | 'Orc' | 'Boss';
 
 type Market = {
   marketId: string; marketAddress: string; poolAddress: string; collateral: string;
+  yesTokenId?: string; noTokenId?: string;
   question: string; strikeUsd: string; tradingStart?: string; expiry: string; expiryIso: string; status: string;
   finalized: boolean; voided: boolean; winningOutcome: number | null; demoReplay?: boolean;
   replaySeal?: string; replayCommitment?: string; replayGameSeed?: string;
   replayLockedDirection?: Direction; replayRevealAfter?: number; replayExpiresAt?: number;
   replayProof?: ReplayProof; combatProof?: ReplayCombatProof;
+  onchainSettlement?: DirectOnchainSettlementProof;
 };
 
 type Persona = {
@@ -203,7 +209,7 @@ function MarketProof({
   }
 
   const hasMarket = /^0x[0-9a-f]{64}$/i.test(market.marketId);
-  const status = mode === 'revealed' ? 'COMBAT + COMMITMENT + SETTLEMENT VERIFIED' : 'LIVE READ-ONLY MARKET';
+  const status = mode === 'revealed' ? 'DIRECT RPC + COMMITMENT + COMBAT VERIFIED' : 'LIVE READ-ONLY MARKET';
 
   return (
     <details className={`onchain-proof proof-${mode}`} open={open || undefined}>
@@ -228,6 +234,42 @@ function MarketProof({
           <div><span>LOCKED DIRECTION</span><strong>BTC {market.replayProof.lockedDirection}</strong></div>
           <div><span>REVEALED SALT</span><code>{market.replayProof.salt}</code></div>
           <div className="proof-wide"><span>CANONICAL COMMITMENT INPUT</span><code>{market.replayProof.canonical}</code></div>
+        </>}
+        {mode === 'revealed' && market.onchainSettlement && <>
+          <div className="proof-wide">
+            <span>✓ SETTLEMENT READ DIRECTLY FROM SOMNIA RPC</span>
+            <a href={`${SOMNIA_EXPLORER}/block/${market.onchainSettlement.blockNumber}`} target="_blank" rel="noreferrer">
+              <strong>BLOCK #{market.onchainSettlement.blockNumber} · BTC {market.onchainSettlement.winningOutcome === 0 ? 'UP' : market.onchainSettlement.winningOutcome === 1 ? 'DOWN' : 'VOID'} ↗</strong>
+            </a>
+          </div>
+          <div>
+            <span>PAYOUT VECTOR</span>
+            <code>[{market.onchainSettlement.payoutNumerators.join(', ')}] / {market.onchainSettlement.payoutDenominator}</code>
+          </div>
+          <div>
+            <span>MARKET KEY</span>
+            <code>{market.onchainSettlement.marketKey}</code>
+          </div>
+          <div className="proof-wide">
+            <span>BLOCK HASH</span>
+            <code>{market.onchainSettlement.blockHash}</code>
+          </div>
+          <div className="proof-wide">
+            <span>BINARY MODULE · MARKET BINDING</span>
+            <a href={`${SOMNIA_EXPLORER}/address/${market.onchainSettlement.moduleAddress}`} target="_blank" rel="noreferrer"><code>{market.onchainSettlement.moduleAddress}</code><b>↗</b></a>
+          </div>
+          <div className="proof-wide">
+            <span>BINARYSETTLEMENT CONTRACT</span>
+            <a href={`${SOMNIA_EXPLORER}/address/${market.onchainSettlement.settlementAddress}`} target="_blank" rel="noreferrer"><code>{market.onchainSettlement.settlementAddress}</code><b>↗</b></a>
+          </div>
+          <div className="proof-wide">
+            <span>MARKETS(MARKET ID) ETH_CALL · TARGET · BLOCK TAG · CALLDATA</span>
+            <code>{market.onchainSettlement.calls.moduleMarket.to} · {market.onchainSettlement.blockTag} · {market.onchainSettlement.calls.moduleMarket.data}</code>
+          </div>
+          <div className="proof-wide">
+            <span>GETSETTLEMENT(MARKET KEY) ETH_CALL · TARGET · BLOCK TAG · CALLDATA</span>
+            <code>{market.onchainSettlement.calls.settlementRecord.to} · {market.onchainSettlement.blockTag} · {market.onchainSettlement.calls.settlementRecord.data}</code>
+          </div>
         </>}
         <div className="proof-wide">
           <span>FULL MARKET ID</span>
@@ -690,6 +732,7 @@ export default function Home() {
         throw new Error(data.error ?? 'Settlement unavailable');
       }
       const result = data.market as Market;
+      const onchainSettlement = data.onchainSettlement as DirectOnchainSettlementProof | undefined;
       let resolvedDirection = direction;
       if (judgeMode) {
         const replayProof = data.replayProof as ReplayProof | undefined;
@@ -711,16 +754,20 @@ export default function Home() {
           && replayProof.gameSeed === market.replayGameSeed
           && replayProof.lockedDirection === market.replayLockedDirection
           && replayProof.marketId.toLowerCase() === result.marketId.toLowerCase()
-          && replayProof.committedOutcome === Number(result.winningOutcome);
+          && replayProof.committedOutcome === Number(result.winningOutcome)
+          && directSettlementProofMatchesMarket(onchainSettlement, result);
         if (!proofMatches) {
           setMarket(sealedReplay); setPhase('JUDGE_SETUP'); setOracleResult(null);
           setNotice('REPLAY PROOF MISMATCH · LOCK A NEW OMEN');
-          setCombatLog(['The revealed market failed its browser-side SHA-256 commitment check. No outcome was applied; start a fresh sealed replay.']);
+          setCombatLog(['The direct settlement, combat, or commitment proof failed browser verification. No outcome was applied; start a fresh sealed replay.']);
           return;
         }
         resolvedDirection = replayProof.lockedDirection;
         setDirection(resolvedDirection);
-        setMarket((previous) => ({ ...previous, ...result, replayProof, combatProof }));
+        setMarket((previous) => ({ ...previous, ...result, replayProof, combatProof, onchainSettlement }));
+      } else if (onchainSettlement) {
+        if (!directSettlementProofMatchesMarket(onchainSettlement, result)) throw new Error('Direct settlement proof mismatch');
+        setMarket((previous) => ({ ...previous, ...result, onchainSettlement }));
       }
       if (!result?.finalized && !result?.voided) {
         setNotice(remaining > 0 ? 'BOSS DOWN · AUTO-CHECK STARTS AT EXPIRY' : 'SETTLEMENT PENDING · NEXT CHECK IN 5S');
@@ -807,7 +854,7 @@ export default function Home() {
       : 'The Event Contract was voided, so the defeated boss remained down without a prediction penalty.';
 
   async function shareVerifiedRun(preferShare: boolean) {
-    if (!market.replayProof || !market.combatProof || !oracleResult) return;
+    if (!market.replayProof || !market.combatProof || !market.onchainSettlement || !oracleResult) return;
     const text = verifiedRunShareText({
       lockedDirection: market.replayProof.lockedDirection,
       winningOutcome: market.replayProof.committedOutcome,
@@ -815,6 +862,9 @@ export default function Home() {
       marketId: market.replayProof.marketId,
       commitment: market.replayProof.commitment,
       combatSteps: market.combatProof.steps,
+      onchainBlockNumber: market.onchainSettlement.blockNumber,
+      settlementAddress: market.onchainSettlement.settlementAddress,
+      payoutNumerators: market.onchainSettlement.payoutNumerators,
     });
 
     try {
@@ -841,12 +891,12 @@ export default function Home() {
     ));
   }
 
-  const verifiedSharePanel = judgeMode && market.replayProof && market.combatProof && oracleResult ? (
+  const verifiedSharePanel = judgeMode && market.replayProof && market.combatProof && market.onchainSettlement && oracleResult ? (
     <div className="judge-verification verified-share">
       <div>
         <span>SHAREABLE VERIFIED RESULT</span>
         <strong>LOCKED BTC {market.replayProof.lockedDirection} · OUTCOME BTC {market.replayProof.committedOutcome === 0 ? 'UP' : 'DOWN'}</strong>
-        <small>Includes market ID, commitment, combat verification, Somnia proof and the Market Dungeon link.</small>
+        <small>Includes market ID, commitment, combat verification, direct settlement block, BinarySettlement proof and the Market Dungeon link.</small>
       </div>
       <div className="between-actions verified-share-actions">
         <button className="judge-action" type="button" onClick={() => void shareVerifiedRun(true)}>↗ SHARE VERIFIED RUN</button>
@@ -899,7 +949,7 @@ export default function Home() {
             <div className="judge-replay-heading">
               <span>⚡ 2-MIN JUDGE DEMO</span>
               <strong>{market.replayProof ? `VERIFIED MARKET REPLAY · #${marketCode}` : market.replayCommitment ? `SEALED REPLAY · COMMIT ${marketCode}` : 'CRYPTOGRAPHIC REPLAY SETUP'}</strong>
-              <small>{market.replayProof ? 'Combat transcript, commitment and Somnia settlement all verified.' : market.replayCommitment ? 'Your direction is locked. The exact market identity and outcome remain encrypted while you defeat the guard and boss.' : 'Choose UP or DOWN before the server randomly selects and seals a finalized market.'}</small>
+              <small>{market.replayProof ? 'Combat, commitment and direct Somnia RPC settlement all verified.' : market.replayCommitment ? 'Your direction is locked. The exact market identity and outcome remain encrypted while you defeat the guard and boss.' : 'Choose UP or DOWN before the server randomly selects and seals a finalized market.'}</small>
               {market.replayCommitment && !market.replayProof && <code className="judge-replay-commitment">{market.replayCommitment}</code>}
             </div>
             <div className="judge-replay-steps">
@@ -1021,7 +1071,7 @@ export default function Home() {
               <div className="result-icon">{oracleResult === 'BLESSED' ? '✨' : oracleResult === 'CURSED' ? '📉' : '👑'}</div>
               <p className="section-kicker">{judgeMode ? 'JUDGE DEMO COMPLETE · ONCHAIN RESULT VERIFIED' : `TIER ${tier}/${TOTAL_TIERS} · FULL RUN COMPLETE`} · {oracleResult ?? 'SETTLED'}</p>
               <h2>{resultHeading}</h2><p className="muted">{resultCopy}</p>
-              {judgeMode && <><div className="judge-verification"><span>✓ COMBAT + COMMITMENT + SETTLEMENT VERIFIED</span><strong>dreamDEX market #{marketCode}</strong><small>Server replayed {market.combatProof?.steps ?? 0} seeded combat actions; the browser then verified the transcript digest and salted commitment before applying the Somnia outcome.</small></div>{verifiedSharePanel}</>}
+              {judgeMode && <><div className="judge-verification"><span>✓ COMBAT + COMMITMENT + DIRECT RPC VERIFIED</span><strong>dreamDEX market #{marketCode}</strong><small>Server replayed {market.combatProof?.steps ?? 0} seeded actions and derived the winning payout directly from BinarySettlement at one Somnia block; the browser verified every proof binding before applying it.</small></div>{verifiedSharePanel}</>}
               {dreamDexContinuePanel}
               {judgeMode && <MarketProof market={market} mode="revealed" open />}
               <div className="victory-conditions resolved"><div><span>✓ CONDITION 1</span><strong>Boss defeated in combat</strong></div><div><span>{oracleResult === 'VOID' ? '○ VOID EXCEPTION' : '✓ CONDITION 2'}</span><strong>{oracleResult === 'VOID' ? 'Prediction voided · no loss' : 'BTC prediction correct'}</strong></div></div>
@@ -1032,7 +1082,7 @@ export default function Home() {
               <div className="result-icon">☠️</div><p className="section-kicker">{judgeMode ? 'JUDGE DEMO COMPLETE · ONCHAIN LOSS VERIFIED' : `TIER ${tier} · EXPEDITION ENDED`}</p>
               <h2>{deathCause === 'PREDICTION' ? 'The boss strikes back.' : 'You fell in combat.'}</h2><p className="muted">{deathCause === 'PREDICTION' ? resultCopy : 'The prediction cannot save a lost fight. Gold persists, potions return to at least the starting amount, and attack and defense reset for the next run.'}</p>
               {deathCause === 'PREDICTION' && <div className="victory-conditions failed"><div><span>✓ CONDITION 1</span><strong>Boss defeated in combat</strong></div><div><span>✕ CONDITION 2</span><strong>BTC prediction incorrect</strong></div></div>}
-              {judgeMode && deathCause === 'PREDICTION' && <><div className="judge-verification"><span>✓ COMBAT + COMMITMENT + SETTLEMENT VERIFIED</span><strong>dreamDEX market #{marketCode}</strong><small>Server-verified guard and boss combat preceded the reveal; the losing Somnia outcome matched the market hidden inside the pre-combat commitment.</small></div>{verifiedSharePanel}</>}
+              {judgeMode && deathCause === 'PREDICTION' && <><div className="judge-verification"><span>✓ COMBAT + COMMITMENT + DIRECT RPC VERIFIED</span><strong>dreamDEX market #{marketCode}</strong><small>Server-verified combat preceded the reveal; BinarySettlement&apos;s payout vector at the proved Somnia block matched the losing market hidden inside the commitment.</small></div>{verifiedSharePanel}</>}
               {deathCause === 'PREDICTION' && dreamDexContinuePanel}
               {judgeMode && deathCause === 'PREDICTION' && <MarketProof market={market} mode="revealed" open />}
               <div className="final-stats"><div><span>TIER / ROOMS</span><strong>{tier} · {roomsCleared}/{TOTAL_ROOMS}</strong></div><div><span>GOLD KEPT</span><strong><GoldIcon /> {gold}</strong></div></div>
