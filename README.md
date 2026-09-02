@@ -8,7 +8,7 @@ The current contest build is intentionally read-only. It reads live market metad
 
 **Play:** https://market-dungeon.vercel.app
 
-**Watch the 1:53 hackathon demo:** https://youtu.be/8RnC9Y2zhIU
+**Watch the 1:53 hackathon demo:** https://youtu.be/8RnC9Y2zhlU
 
 **DoraHacks submission:** https://dorahacks.io/buidl/48083
 

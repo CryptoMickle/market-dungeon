@@ -71,7 +71,7 @@ The browser presents **Reveal Boss Fate** only after boss defeat, and the API in
 ## Links
 
 - Live demo: https://market-dungeon.vercel.app
-- Demo video (1:53): https://youtu.be/8RnC9Y2zhIU
+- Demo video (1:53): https://youtu.be/8RnC9Y2zhlU
 - Source code: https://github.com/CryptoMickle/market-dungeon
 - Integration and SDK/docs feedback: https://github.com/CryptoMickle/market-dungeon/blob/main/docs/DREAMDEX_INTEGRATION_REPORT.md
 
