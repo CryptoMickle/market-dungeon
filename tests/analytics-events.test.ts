@@ -7,26 +7,13 @@ import {
   judgeDemoStartedEvent,
 } from '../app/analytics-events.ts';
 
-test('Judge Demo analytics uses stable anonymous event contracts', () => {
+test('Judge Demo analytics uses stable anonymous funnel paths', () => {
   assert.deepEqual(judgeDemoStartedEvent(), {
-    name: 'judge_demo_started',
-    properties: {
-      experience: 'sealed_replay_v1',
-      network: 'somnia_mainnet',
-      chain_id: 5031,
-    },
+    path: '/funnel/judge-demo/started',
   });
 
   assert.deepEqual(judgeDemoCompletedEvent('DOWN', 'blessed'), {
-    name: 'judge_demo_completed',
-    properties: {
-      experience: 'sealed_replay_v1',
-      network: 'somnia_mainnet',
-      chain_id: 5031,
-      direction: 'DOWN',
-      result: 'blessed',
-      verified: true,
-    },
+    path: '/funnel/judge-demo/completed/blessed/down',
   });
 });
 
@@ -34,16 +21,9 @@ test('dreamDEX CTA analytics distinguishes judge and full runs without identifie
   const event = dreamDexCtaClickedEvent('judge_demo', 'UP', 'cursed');
 
   assert.deepEqual(event, {
-    name: 'dreamdex_cta_clicked',
-    properties: {
-      network: 'somnia_mainnet',
-      chain_id: 5031,
-      mode: 'judge_demo',
-      direction: 'UP',
-      result: 'cursed',
-    },
+    path: '/funnel/dreamdex/continue/judge-demo/cursed/up',
   });
-  assert.equal('marketId' in event.properties, false);
-  assert.equal('commitment' in event.properties, false);
-  assert.equal('wallet' in event.properties, false);
+  assert.equal(event.path.includes('market'), false);
+  assert.equal(event.path.includes('commitment'), false);
+  assert.equal(event.path.includes('wallet'), false);
 });
