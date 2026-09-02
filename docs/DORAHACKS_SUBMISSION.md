@@ -10,6 +10,14 @@ Market Dungeon is a playable Delveworn spin-off built for the Somnia × dreamDEX
 
 Combat victory is necessary but not sufficient. After the boss reaches zero HP, the finalized dreamDEX outcome determines whether the boss stays down. A correct prediction awards the boss reward plus prediction gold and opens the next tier. An incorrect prediction triggers the defeated boss's fatal last strike. Four tiers, fresh markets, persistent gold, merchants, and deterministic combat make the market outcome part of a real game loop instead of a decorative price widget.
 
+## Judge scorecard
+
+- **Innovation & Originality — 20%:** Event Contract settlement is not a price widget or side bet; it is the second victory condition of a complete fantasy roguelite.
+- **Technical Implementation — 25%:** The build combines official Markets SDK CLOB data with fixed-block Somnia mainnet reads of `BinaryModule` and `BinarySettlement`, a salted commitment, an authenticated server seal, and deterministic server-side combat replay.
+- **User Experience & Design — 20%:** Judges can explore the full four-tier game or complete a focused five-step replay in under two minutes, with BTC 5m markets preferred so the market cadence fits a play session.
+- **Business & Ecosystem Impact — 20%:** Every tier introduces another dreamDEX Event Contract, turning market discovery into repeatable game content and creating a low-friction acquisition path toward a future opt-in trading mode.
+- **Presentation & Demo — 15%:** The 1:53 video, live production build, shareable verified result, and reproducible Somnia proof make the complete claim easy to understand and independently inspect.
+
 ## Why Event Contracts matter here
 
 Market Dungeon keeps two independent conditions legible:
