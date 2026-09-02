@@ -1,6 +1,6 @@
 # dreamDEX Integration Report
 
-Implementation snapshot: 29 August 2026. This report describes the code in this repository; it does not claim capabilities outside the deployed read-only build.
+Implementation snapshot: 2 September 2026. This report describes the code in this repository; it does not claim capabilities outside the deployed read-only build.
 
 This document also serves as the hackathon submission's optional SDK and documentation feedback report.
 
@@ -11,7 +11,8 @@ This document also serves as the hackathon submission's optional SDK and documen
 - The Judge Replay locks the player's direction before a balanced, cryptographically random finalized market is selected.
 - The selected market and direction are authenticated inside an AES-256-GCM seal; the browser receives no identifying market metadata before reveal.
 - The reveal route deterministically replays the bounded combat transcript and rejects the request unless both the guard and boss were defeated and the player survived.
-- Only after combat verification does the server re-fetch the exact committed settlement; the browser then recomputes both the combat digest and salted commitment.
+- Only after combat verification does the server re-fetch the exact committed market, then independently reads and decodes its finalized BinarySettlement record at a fixed Somnia block.
+- The server derives the winner from the direct payout vector and fails closed unless its market, pool, collateral, token, nonce, void, and outcome bindings agree; the browser then validates the exposed proof bindings and recomputes both cryptographic digests.
 - No wallet, approval, order or private key is required to reproduce the judge path.
 
 ## Integration surface
@@ -22,7 +23,7 @@ Market Dungeon uses the official dreamDEX Markets SDK plus two server-side data 
 | --- | --- | --- |
 | dreamDEX GraphQL indexer | `https://prd.smk.somnia.host/v1/graphql` | Active-market discovery, finalized replay discovery, market metadata, indexed settlement, opening reference lookup |
 | dreamDEX Markets SDK | `@somnia-chain/markets-sdk` `^0.25.0` | Recycle-safe top-of-book lookup keyed by the exact active `marketId` |
-| Somnia mainnet JSON-RPC | `https://api.infra.mainnet.somnia.network` | `eth_chainId` verification and read-only `eth_call` for pool parameters |
+| Somnia mainnet JSON-RPC | `https://api.infra.mainnet.somnia.network` | Chain verification, fixed block number/hash, pool parameters, `BinaryModule.markets`, and `BinarySettlement.getSettlement` |
 
 No browser code calls either upstream directly. No wallet, approval, order, redemption, signature, or other write is implemented.
 
@@ -60,15 +61,25 @@ The API returns the best bid, best ask, spread, source, observation time, and SD
 
 `SealedReplayCandidates` filters binary BTC 900-second markets by `finalized = true`, `voided = false`, and `winningOutcome in [0, 1]`. It requests `marketId` and `winningOutcome`, orders by descending expiry, and caps the candidate set at 64. The server requires at least one candidate for each outcome, chooses an outcome bucket with cryptographic randomness, then chooses a market within that bucket.
 
-At reveal, `ReplaySettlement` fetches the exact committed `Market_by_pk` and requests the full metadata set plus `resolvedAtTimestamp`. The server rejects the reveal if `finalized`, `voided`, or `winningOutcome` no longer matches the encrypted commitment.
+At reveal, `ReplaySettlement` fetches the exact committed `Market_by_pk` and requests the full metadata set plus `resolvedAtTimestamp`. This indexed record is a metadata and consistency input, not the sole source of truth for the applied winner. The server rejects the reveal if its preliminary `finalized`, `voided`, or `winningOutcome` fields no longer match the encrypted commitment, then requires the direct contract read below to agree.
 
 The lightweight live-settlement lookup requests only `marketId`, `clobStatus`, `finalized`, `voided`, `winningOutcome`, `payoutNumerators`, `payoutDenominator`, and `resolvedAtTimestamp`.
 
 ## Chain 5031 and RPC verification
 
-Every fully hydrated active or revealed market calls `eth_chainId` and rejects any result other than decimal `5031`. It then performs a read-only `eth_call` against the indexed `poolAddress` with selector `0x0765910c`. The return data is decoded as three 32-byte words: `tickSize`, `minQuantity`, and `lotSize`.
+Every fully hydrated active or revealed market calls `eth_chainId` and rejects any result other than decimal `5031`. It also performs a read-only `eth_call` against the indexed `poolAddress` with selector `0x0765910c`; the return data is decoded as `tickSize`, `minQuantity`, and `lotSize`.
 
-This is an important boundary: settlement fields currently come from the dreamDEX indexer. RPC verifies the Somnia network and reads pool parameters, but it does not independently reconstruct `winningOutcome` from a settlement transaction or contract event. Post-reveal explorer links expose the market ID, market address, and pool address for human inspection.
+For every finalized market, settlement verification additionally:
+
+1. snapshots `eth_blockNumber` and resolves the same block's 32-byte hash;
+2. calls `markets(bytes32 marketId)` on mainnet BinaryModule `0x3ecC694Cef705358864a646142ac17A90E29e388` at that block;
+3. binds the returned market, pool, collateral, YES ID, and NO ID to the indexed record and requires a binary consecutive token pair;
+4. derives `marketKey = yesId >> 8`, plus the pool and nonce encoded inside `yesId`;
+5. calls `getSettlement(uint256 marketKey)` on BinarySettlement `0xbF4a49e0Dfd092e5FBE8E5761064C49533e6Ed23` at the identical block;
+6. requires a finalized record with matching pool, collateral and nonce, then derives UP/DOWN from the unique maximum in `payoutNumerators`; and
+7. fails closed unless the direct void state, payout vector, denominator and derived winner agree with the indexer and encrypted replay commitment.
+
+The revealed proof includes the block number/hash, deployments, market key, IDs, payout vector, and the raw target/block-tag/calldata/result for both `eth_call`s. The UI exposes explorer links and the reproducible call inputs. This proves contract state at the recorded block; it does not claim the transaction hash that originally finalized that state.
 
 ## Metadata, settlement, and combat boundaries
 
@@ -76,7 +87,7 @@ This is an important boundary: settlement fields currently come from the dreamDE
 - Judge Replay returns no selected-market identifier, address, strike, expiry, or outcome before reveal. Those values are authenticated inside an AES-256-GCM seal under a server-only environment key.
 - The pre-reveal SHA-256 commitment binds market ID, recorded outcome, locked direction, independent `gameSeed`, timestamps, and a hidden random salt.
 - At reveal, the server replays the bounded `Attack`, `Storm`, and `Potion` transcript from the sealed `gameSeed`. The request is rejected unless both the guard and boss are defeated and the player survives.
-- Only after combat verification does the server re-fetch and hydrate the committed market. The browser recomputes both the combat transcript digest and the replay commitment before applying the indexed settlement.
+- Only after combat verification does the server re-fetch the committed metadata and execute the fixed-block module and settlement reads. The browser validates the direct proof bindings and recomputes both the combat transcript digest and replay commitment before applying the payout-derived result.
 
 The stateless combat check proves that the submitted action sequence is valid under the published deterministic rules. Because the seed is public, it is not proof of human input or elapsed play time.
 
@@ -87,7 +98,7 @@ The stateless combat check proves that the submitted action sequence is valid un
 - The SDK top-of-book read has an application-level four-second budget. If it fails, market loading and gameplay continue using the existing verified metadata path; the odds module falls back to a valid last trade or displays an unavailable state.
 - Judge start accepts one `UP`/`DOWN` field and at most 128 request bytes.
 - Judge reveal accepts only `seal` plus a structured action array, caps the body at 8 KiB, the seal at 4,096 characters, and the transcript at 64 steps, and rejects extra fields.
-- Replay seals have a 15-second minimum hold and a 30-minute lifetime. The browser mirrors the hold with a visible countdown and disabled reveal action, while the server remains authoritative. Environment-bound AES-GCM authentication, strict claim validation, balanced outcome pools, settlement re-validation, and deterministic combat replay all fail closed.
+- Replay seals have a 15-second minimum hold and a 30-minute lifetime. The browser mirrors the hold with a visible countdown and disabled reveal action, while the server remains authoritative. Environment-bound AES-GCM authentication, strict claim validation, balanced outcome pools, direct settlement re-validation, and deterministic combat replay all fail closed.
 - Vercel Web Analytics records three anonymous funnel checkpoints as manual pageviews: Judge Demo started, verified Judge Demo completed, and Continue on dreamDEX clicked. Stable `/funnel/...` paths encode only mode, direction, and result so the funnel remains visible on Vercel Hobby, where custom events are unavailable; wallet addresses, market IDs, commitments, and combat transcripts are excluded.
 - Broader retry, rate-limit handling, and circuit breaking are not yet explicit. Availability therefore depends directly on the public indexer, RPC, and hosting platform limits.
 
@@ -100,7 +111,7 @@ The implementation would be easier to audit against upstream contracts if offici
 3. units and decimal scaling for `strike`, `OracleAnswer.numericValue`, quantities, payouts, prices, and timestamps;
 4. the ABI source for selector `0x0765910c` and the guaranteed return order of pool parameters;
 5. stable contract addresses by deployment, indexer/RPC rate limits, expected error formats, and finality/reorg behavior; and
-6. a canonical explorer or contract-level path from `marketId` to the settlement event, transaction, and block.
+6. a canonical event/transaction path from `marketId` or `marketKey` to the transaction and block that originally finalized the settlement.
 
 ## Recommended improvements
 
@@ -108,6 +119,6 @@ The implementation would be easier to audit against upstream contracts if offici
 - Publish deployment manifests and verified ABIs for the market, settlement, and pool contracts.
 - Document outcome mapping, units, settlement lifecycle, and indexer consistency guarantees explicitly.
 - Add official timeout, retry, cache, and rate-limit guidance for judge-facing applications.
-- Expose transaction hash and block number with finalized settlement data, or document the exact RPC/event verification procedure, so clients can independently verify the indexed outcome onchain.
+- Expose the settlement transaction hash and finalized block in indexed data, and document the canonical event procedure, so clients can link the directly verified state to the transaction that created it.
 
 These recommendations do not require wallet or trading functionality and preserve Market Dungeon's current read-only safety boundary.

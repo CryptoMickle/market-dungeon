@@ -1,4 +1,4 @@
-import { graphql, hydrateMarket } from '../dreamdex';
+import { graphql, hydrateMarket, verifyDirectSettlement } from '../dreamdex';
 import { fetchDreamDexClobOdds } from '../dreamdex-odds';
 
 const IDEAL_ENTRY_SECONDS = 6 * 60;
@@ -9,9 +9,16 @@ export async function GET(request: Request) {
     const requestedId = searchParams.get('marketId');
     if (requestedId) {
       const data = await graphql(`query Settlement($id: String!) {
-        Market_by_pk(id: $id) { marketId status: clobStatus finalized voided winningOutcome payoutNumerators payoutDenominator resolvedAtTimestamp }
+        Market_by_pk(id: $id) {
+          marketId marketAddress poolAddress collateral yesTokenId noTokenId status: clobStatus finalized voided
+          winningOutcome payoutNumerators payoutDenominator resolvedAtTimestamp
+        }
       }`, { id: requestedId.toLowerCase() });
-      return Response.json({ market: data.Market_by_pk }, { headers: { 'cache-control': 'no-store' } });
+      const market = data.Market_by_pk as Record<string, unknown> | null;
+      const onchainSettlement = market?.finalized === true
+        ? await verifyDirectSettlement(market)
+        : undefined;
+      return Response.json({ market, ...(onchainSettlement ? { onchainSettlement } : {}) }, { headers: { 'cache-control': 'no-store' } });
     }
 
     if (searchParams.has('demo')) {
