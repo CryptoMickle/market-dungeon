@@ -11,12 +11,14 @@ test('Judge live context formats the current dreamDEX opening line and observati
   const context = liveBtcContextFromMarket({
     strikeUsd: '80187.64',
     tradingStart: '1787872500',
+    intervalSec: '300',
     lastPrice: '0.42',
   });
 
   assert.deepEqual(context, {
     priceUsd: '80187.64',
     observedAtIso: '2026-08-27T23:15:00.000Z',
+    intervalSec: 300,
   });
   assert.equal(liveBtcContextPrice(context!), '$80,187.64');
   assert.equal(liveBtcContextTime(context!), '23:15 UTC');

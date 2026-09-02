@@ -7,6 +7,7 @@ const MARKET_ID = `0x${'ab'.repeat(32)}`;
 const COMMITMENT = `0x${'cd'.repeat(32)}`;
 const SETTLEMENT = `0x${'ef'.repeat(20)}`;
 const DIRECT_PROOF = {
+  intervalSec: 300,
   onchainBlockNumber: '401957733',
   settlementAddress: SETTLEMENT,
   payoutNumerators: ['10000000', '0'] as [string, string],
@@ -24,6 +25,7 @@ test('share text includes the locked choice, actual outcome, proof, and app link
   });
 
   assert.match(text, /Locked choice: BTC DOWN/);
+  assert.match(text, /Market: BTC 5m/);
   assert.match(text, /Actual outcome: BTC UP/);
   assert.match(text, /BOSS LAST STAND — prediction incorrect/);
   assert.match(text, new RegExp(MARKET_ID));

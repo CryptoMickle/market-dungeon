@@ -6,7 +6,7 @@ Market Dungeon turns a live dreamDEX BTC Event Contract into the second victory 
 
 ## Project description
 
-Market Dungeon is a playable Delveworn spin-off built for the Somnia × dreamDEX Event Contracts Hackathon. Each dungeon tier locks a real BTC 15-minute Event Contract as an omen. Before choosing, the player can inspect live UP/DOWN implied odds derived from that market's dreamDEX CLOB through the official Markets SDK. The player then chooses **Gold Awakens (UP)** or **Shadows Rise (DOWN)**, clears ten combat rooms, manages health, potions, gold, attack, and defense, and defeats the boss.
+Market Dungeon is a playable Delveworn spin-off built for the Somnia × dreamDEX Event Contracts Hackathon. Each dungeon tier prefers a real BTC 5-minute Event Contract as an omen, with automatic 15-minute fallback. Before choosing, the player can inspect live UP/DOWN implied odds derived from that market's dreamDEX CLOB through the official Markets SDK. The player then chooses **Gold Awakens (UP)** or **Shadows Rise (DOWN)**, clears ten combat rooms, manages health, potions, gold, attack, and defense, and defeats the boss.
 
 Combat victory is necessary but not sufficient. After the boss reaches zero HP, the finalized dreamDEX outcome determines whether the boss stays down. A correct prediction awards the boss reward plus prediction gold and opens the next tier. An incorrect prediction triggers the defeated boss's fatal last strike. Four tiers, fresh markets, persistent gold, merchants, and deterministic combat make the market outcome part of a real game loop instead of a decorative price widget.
 
@@ -25,7 +25,7 @@ Market Dungeon is a consumer acquisition layer for Event Contracts. It gives pla
 
 The current read-only build removes wallet, funding and approval friction so any judge or first-time player can complete the full integration safely. A future opt-in trading mode can convert that engagement into DreamDEX activity by offering an exact-amount Event Contract order before dungeon entry, with transaction simulation, maximum-loss disclosure and a separate confirmation for every write.
 
-Every tier already introduces a fresh BTC Event Contract. The same structure can support additional assets, intervals and seasonal campaigns, turning new dreamDEX markets into reusable game content and giving the ecosystem a differentiated path to game-native users. The contest build does not claim current trading volume; it demonstrates the acquisition and retention loop that can precede it.
+Every tier already introduces a fresh BTC Event Contract. Preferring the new 5-minute window lets settlement occur within the play session, while the same structure can support additional assets, intervals and seasonal campaigns. This turns new dreamDEX markets into reusable game content and gives the ecosystem a differentiated path to game-native users. The contest build does not claim current trading volume; it demonstrates the acquisition and retention loop that can precede it.
 
 ## Two-minute judge path
 
@@ -42,7 +42,7 @@ The replay is fast, but the settlement is not mocked.
 
 ## Onchain proof and safety
 
-Before reveal, the interface exposes only generic BTC 15-minute / Somnia `5031` facts and a salted commitment. After reveal, it exposes the direct BinarySettlement payout, fixed block number and hash, market key, deployed contract links, and reproducible RPC call inputs through the [Somnia explorer](https://explorer.somnia.network), plus server-verified combat, the combat transcript digest, the revealed salt, and the browser-verified commitment.
+Before reveal, the interface exposes only the selected public interval, generic BTC / Somnia `5031` facts and a salted commitment. It prefers a traded 5-minute replay pool and uses 15 minutes only when the 5-minute outcomes are not balanced. After reveal, it exposes the direct BinarySettlement payout, fixed block number and hash, market key, deployed contract links, and reproducible RPC call inputs through the [Somnia explorer](https://explorer.somnia.network), plus server-verified combat, the combat transcript digest, the revealed salt, and the browser-verified commitment.
 
 The hackathon build is intentionally read-only:
 
@@ -60,6 +60,7 @@ The browser presents **Reveal Boss Fate** only after boss defeat, and the API in
 
 - Next.js application with a deterministic client-side dungeon state machine.
 - Server route for live dreamDEX market discovery.
+- Interval-aware selection that prefers BTC 5m and falls back to BTC 15m without changing settlement semantics.
 - Official `@somnia-chain/markets-sdk` integration for market-ID-keyed CLOB best bid/ask and live implied UP/DOWN odds.
 - Separate Judge Replay start and reveal routes with CSPRNG selection, AES-256-GCM sealing, salted SHA-256 commitments, and deterministic server-side combat replay.
 - dreamDEX GraphQL indexer for discovery, market metadata, reference question, and settlement consistency checks.
@@ -76,4 +77,4 @@ The browser presents **Reveal Boss Fate** only after boss defeat, and the API in
 
 ## Current scope
 
-The contest build includes the full four-tier roguelite, official-SDK CLOB odds, live active-market integration, fixed-block direct-RPC settlement verification, stateless server-verified Judge combat, shareable verified results, the two-minute judge path, clickable Somnia proof, and responsive presentation. Wallet writes are deliberately outside this submission's scope so judges can verify the complete integration without signing or risking assets. The repository also includes an implementation-specific [dreamDEX integration report](DREAMDEX_INTEGRATION_REPORT.md) covering fields, discovery, RPC verification, security boundaries, documentation gaps, and recommended improvements.
+The contest build includes the full four-tier roguelite, 5m-first active-market integration with 15m fallback, official-SDK CLOB odds, fixed-block direct-RPC settlement verification, stateless server-verified Judge combat, shareable verified results, the two-minute judge path, clickable Somnia proof, and responsive presentation. Wallet writes are deliberately outside this submission's scope so judges can verify the complete integration without signing or risking assets. The repository also includes an implementation-specific [dreamDEX integration report](DREAMDEX_INTEGRATION_REPORT.md) covering fields, discovery, RPC verification, security boundaries, documentation gaps, and recommended improvements.

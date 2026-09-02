@@ -1,6 +1,9 @@
+import { eventContractIntervalSeconds, type EventContractIntervalSeconds } from './event-contract-interval.ts';
+
 export type LiveBtcContext = {
   priceUsd: string;
   observedAtIso: string;
+  intervalSec: EventContractIntervalSeconds;
 };
 
 export function liveBtcContextFromMarket(value: unknown): LiveBtcContext | null {
@@ -12,7 +15,11 @@ export function liveBtcContextFromMarket(value: unknown): LiveBtcContext | null 
 
   const observedAt = new Date(observedAtSeconds * 1000);
   if (Number.isNaN(observedAt.getTime())) return null;
-  return { priceUsd: price.toFixed(2), observedAtIso: observedAt.toISOString() };
+  return {
+    priceUsd: price.toFixed(2),
+    observedAtIso: observedAt.toISOString(),
+    intervalSec: eventContractIntervalSeconds(market.intervalSec),
+  };
 }
 
 export function liveBtcContextPrice(context: LiveBtcContext) {

@@ -1,6 +1,7 @@
 import { randomInt } from 'node:crypto';
 
 import { graphql } from '../../dreamdex.ts';
+import { selectBalancedReplayPool } from '../../../event-contract-interval.ts';
 import { newReplayClaims, replayCommitment, sealReplay, type ReplayDirection } from '../crypto.ts';
 
 export const runtime = 'nodejs';
@@ -34,21 +35,25 @@ export async function POST(request: Request) {
 
   try {
     const data = await graphql(`query SealedReplayCandidates {
-      Market(where: {
+      fiveMinute: Market(where: {
+        marketType: {_eq: "BINARY"}, asset: {_eq: "BTC"}, intervalSec: {_eq: "300"},
+        finalized: {_eq: true}, voided: {_eq: false}, winningOutcome: {_in: [0, 1]}, tradeCount: {_gt: 0}
+      }, order_by: {expiry: desc}, limit: 64) {
+        marketId winningOutcome
+      }
+      fifteenMinute: Market(where: {
         marketType: {_eq: "BINARY"}, asset: {_eq: "BTC"}, intervalSec: {_eq: "900"},
         finalized: {_eq: true}, voided: {_eq: false}, winningOutcome: {_in: [0, 1]}
       }, order_by: {expiry: desc}, limit: 64) {
         marketId winningOutcome
       }
     }`);
-    const candidates = ((data.Market as Array<{ marketId?: unknown; winningOutcome?: unknown }>) ?? [])
-      .map((market) => ({ marketId: String(market.marketId ?? '').toLowerCase(), winningOutcome: Number(market.winningOutcome) }))
-      .filter((market) => /^0x[0-9a-f]{64}$/.test(market.marketId) && (market.winningOutcome === 0 || market.winningOutcome === 1));
-
-    const outcomePools = [0, 1]
-      .map((outcome) => candidates.filter((market) => market.winningOutcome === outcome));
-    if (outcomePools.some((pool) => pool.length === 0)) throw new Error('Balanced replay pool unavailable');
-    const outcomePool = outcomePools[randomInt(2)];
+    const replayPool = selectBalancedReplayPool(
+      (data.fiveMinute as Array<{ marketId?: unknown; winningOutcome?: unknown }>) ?? [],
+      (data.fifteenMinute as Array<{ marketId?: unknown; winningOutcome?: unknown }>) ?? [],
+    );
+    if (!replayPool) throw new Error('Balanced replay pool unavailable');
+    const outcomePool = replayPool.outcomePools[randomInt(2)];
     const selected = outcomePool[randomInt(outcomePool.length)];
     const now = Math.floor(Date.now() / 1000);
     const claims = newReplayClaims({
@@ -68,7 +73,7 @@ export async function POST(request: Request) {
         lockedDirection: claims.direction,
         revealAfter: claims.revealAfter,
         expiresAt: claims.expiresAt,
-        publicMarket: { asset: 'BTC', intervalSec: 900, network: 'Somnia mainnet', chainId: 5031 },
+        publicMarket: { asset: 'BTC', intervalSec: replayPool.intervalSec, network: 'Somnia mainnet', chainId: 5031 },
       },
     }, { headers: NO_STORE });
   } catch {

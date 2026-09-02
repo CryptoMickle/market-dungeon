@@ -49,10 +49,13 @@ test.afterEach(() => { globalThis.fetch = originalFetch; });
 
 test('start route uses a balanced outcome pool and leaks no selected-market metadata', async () => {
   globalThis.fetch = async () => Response.json({
-    data: { Market: [
-      { marketId: MARKET_ID, winningOutcome: 0 },
-      { marketId: `0x${'ef'.repeat(32)}`, winningOutcome: 1 },
-    ] },
+    data: {
+      fiveMinute: [
+        { marketId: MARKET_ID, winningOutcome: 0 },
+        { marketId: `0x${'ef'.repeat(32)}`, winningOutcome: 1 },
+      ],
+      fifteenMinute: [],
+    },
   });
 
   const response = await startReplay(post('http://local.test/api/judge-replay/start', { direction: 'UP' }));
@@ -62,6 +65,7 @@ test('start route uses a balanced outcome pool and leaks no selected-market meta
   assert.deepEqual(Object.keys(payload.replay).sort(), [
     'commitment', 'expiresAt', 'gameSeed', 'lockedDirection', 'publicMarket', 'revealAfter', 'seal',
   ]);
+  assert.deepEqual(payload.replay.publicMarket, { asset: 'BTC', intervalSec: 300, network: 'Somnia mainnet', chainId: 5031 });
   assert.doesNotMatch(JSON.stringify(payload.replay), /marketId|marketAddress|poolAddress|strikeUsd|winningOutcome|expiryIso|resolvedAt/i);
 });
 
@@ -70,18 +74,35 @@ test('start route rejects extra fields and fails closed for empty or one-sided r
   assert.equal(invalid.status, 400);
   assert.equal(invalid.headers.get('cache-control'), NO_STORE);
 
-  globalThis.fetch = async () => Response.json({ data: { Market: [] } });
+  globalThis.fetch = async () => Response.json({ data: { fiveMinute: [], fifteenMinute: [] } });
   const unavailable = await startReplay(post('http://local.test/api/judge-replay/start', { direction: 'UP' }));
   assert.equal(unavailable.status, 503);
   assert.equal(unavailable.headers.get('cache-control'), NO_STORE);
   assert.deepEqual(await unavailable.json(), { error: 'Sealed Judge Replay is unavailable. Please try again.' });
 
   globalThis.fetch = async () => Response.json({
-    data: { Market: [{ marketId: MARKET_ID, winningOutcome: 0 }] },
+    data: { fiveMinute: [{ marketId: MARKET_ID, winningOutcome: 0 }], fifteenMinute: [] },
   });
   const predictable = await startReplay(post('http://local.test/api/judge-replay/start', { direction: 'DOWN' }));
   assert.equal(predictable.status, 503);
   assert.equal(predictable.headers.get('cache-control'), NO_STORE);
+});
+
+test('start route falls back to a balanced fifteen-minute replay pool', async () => {
+  globalThis.fetch = async () => Response.json({
+    data: {
+      fiveMinute: [{ marketId: MARKET_ID, winningOutcome: 0 }],
+      fifteenMinute: [
+        { marketId: `0x${'ab'.repeat(32)}`, winningOutcome: 0 },
+        { marketId: `0x${'bc'.repeat(32)}`, winningOutcome: 1 },
+      ],
+    },
+  });
+
+  const response = await startReplay(post('http://local.test/api/judge-replay/start', { direction: 'DOWN' }));
+  const payload = await response.json() as { replay: { publicMarket: Record<string, unknown> } };
+  assert.equal(response.status, 200);
+  assert.equal(payload.replay.publicMarket.intervalSec, 900);
 });
 
 test('reveal route enforces malformed, sealed, expired, and unverifiable boundaries', async () => {
@@ -198,7 +219,7 @@ test('reveal route verifies combat, commitment, and Somnia settlement together',
           result: [
             1n, 2, 0, COLLATERAL, 0, `0x${'00'.repeat(32)}` as `0x${string}`, `0x${'67'.repeat(20)}` as `0x${string}`,
             `0x${'89'.repeat(20)}` as `0x${string}`, MARKET_ADDRESS, POOL_ADDRESS, yesId, noId,
-            BigInt(now - 900), BigInt(now - 300),
+            BigInt(now - 600), BigInt(now - 300),
           ],
         }) });
       }
@@ -232,10 +253,10 @@ test('reveal route verifies combat, commitment, and Somnia settlement together',
       asset: 'BTC',
       question: 'BTC closes up',
       strike: '10000',
-      tradingStart: String(now - 900),
+      tradingStart: String(now - 600),
       expiry: String(now - 300),
       clobStatus: 'Settled',
-      intervalSec: 900,
+      intervalSec: 300,
       quoteDecimals: 2,
       yesTokenId: yesId.toString(),
       noTokenId: noId.toString(),

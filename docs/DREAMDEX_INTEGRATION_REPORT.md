@@ -6,7 +6,7 @@ This document also serves as the hackathon submission's optional SDK and documen
 
 ## Judge summary
 
-- The production app reads active BTC 15-minute Event Contracts and finalized settlement data from dreamDEX on Somnia mainnet.
+- The production app prefers active BTC 5-minute Event Contracts, falls back to 15 minutes when required, and reads finalized settlement data from dreamDEX on Somnia mainnet.
 - The active prediction cards show live UP/DOWN implied odds from the market-ID-keyed dreamDEX CLOB through the official `@somnia-chain/markets-sdk` package.
 - The Judge Replay locks the player's direction before a balanced, cryptographically random finalized market is selected.
 - The selected market and direction are authenticated inside an AES-256-GCM seal; the browser receives no identifying market metadata before reveal.
@@ -29,18 +29,18 @@ No browser code calls either upstream directly. No wallet, approval, order, rede
 
 ## GraphQL queries and fields
 
-### Active BTC 15-minute discovery
+### Active BTC 5-minute discovery with 15-minute fallback
 
-`ActiveBtc15m` filters `Market` by:
+`ActiveBtcPreferred` filters `Market` by:
 
 - `marketType = BINARY`
 - `asset = BTC`
-- `intervalSec = 900`
+- `intervalSec in [300, 900]`
 - `tradingStart <= now`
 - `expiry > now`
 - `clobStatus in [Listed, Trading]`
 
-It requests up to eight markets ordered by ascending expiry, then selects the expiry closest to six minutes from entry. Requested fields are:
+It requests up to 16 markets ordered by ascending expiry. Any active 300-second candidate wins, with the freshest eligible window selected if more than one appears during a transition. If no 300-second market is active, the server selects the 900-second candidate closest to six minutes from entry. Requested fields are:
 
 `marketId`, `marketAddress`, `poolAddress`, `collateral`, `asset`, `question`, `strike`, `tradingStart`, `expiry`, `clobStatus` (aliased to `status`), `intervalSec`, `quoteDecimals`, `yesTokenId`, `noTokenId`, `winningOutcome`, `payoutNumerators`, `payoutDenominator`, `voided`, `finalized`, `lastPrice`, and `tradeCount`.
 
@@ -59,7 +59,7 @@ The API returns the best bid, best ask, spread, source, observation time, and SD
 
 ### Finalized Judge Replay discovery
 
-`SealedReplayCandidates` filters binary BTC 900-second markets by `finalized = true`, `voided = false`, and `winningOutcome in [0, 1]`. It requests `marketId` and `winningOutcome`, orders by descending expiry, and caps the candidate set at 64. The server requires at least one candidate for each outcome, chooses an outcome bucket with cryptographic randomness, then chooses a market within that bucket.
+`SealedReplayCandidates` requests two independent pools. The preferred pool filters binary BTC 300-second markets by `finalized = true`, `voided = false`, `tradeCount > 0`, and `winningOutcome in [0, 1]`. The fallback applies the original finalized/non-voided rules to 900-second markets. Each pool requests `marketId` and `winningOutcome`, orders by descending expiry, and caps the candidate set at 64. The server uses the 5-minute pool only when both outcomes are represented; otherwise it requires a balanced 15-minute pool. It then chooses an outcome bucket and market with cryptographic randomness.
 
 At reveal, `ReplaySettlement` fetches the exact committed `Market_by_pk` and requests the full metadata set plus `resolvedAtTimestamp`. This indexed record is a metadata and consistency input, not the sole source of truth for the applied winner. The server rejects the reveal if its preliminary `finalized`, `voided`, or `winningOutcome` fields no longer match the encrypted commitment, then requires the direct contract read below to agree.
 
@@ -99,7 +99,7 @@ The stateless combat check proves that the submitted action sequence is valid un
 - Judge start accepts one `UP`/`DOWN` field and at most 128 request bytes.
 - Judge reveal accepts only `seal` plus a structured action array, caps the body at 8 KiB, the seal at 4,096 characters, and the transcript at 64 steps, and rejects extra fields.
 - Replay seals have a 15-second minimum hold and a 30-minute lifetime. The browser mirrors the hold with a visible countdown and disabled reveal action, while the server remains authoritative. Environment-bound AES-GCM authentication, strict claim validation, balanced outcome pools, direct settlement re-validation, and deterministic combat replay all fail closed.
-- Vercel Web Analytics records three anonymous funnel checkpoints as manual pageviews: Judge Demo started, verified Judge Demo completed, and Continue on dreamDEX clicked. Stable `/funnel/...` paths encode only mode, direction, and result so the funnel remains visible on Vercel Hobby, where custom events are unavailable; wallet addresses, market IDs, commitments, and combat transcripts are excluded.
+- Vercel Web Analytics records three anonymous funnel checkpoints as manual pageviews: Judge Demo started, verified Judge Demo completed, and Continue on dreamDEX clicked. Stable `/funnel/...` paths encode only interval, mode, direction, and result so 5m adoption remains visible on Vercel Hobby, where custom events are unavailable; wallet addresses, market IDs, commitments, and combat transcripts are excluded.
 - Broader retry, rate-limit handling, and circuit breaking are not yet explicit. Availability therefore depends directly on the public indexer, RPC, and hosting platform limits.
 
 ## Documentation gaps
@@ -113,11 +113,14 @@ The implementation would be easier to audit against upstream contracts if offici
 5. stable contract addresses by deployment, indexer/RPC rate limits, expected error formats, and finality/reorg behavior; and
 6. a canonical event/transaction path from `marketId` or `marketKey` to the transaction and block that originally finalized the settlement.
 
+As of 2 September 2026, the live trading interface exposes a BTC 5-minute interval while the public trading overview still describes only 15-minute and 1-hour rolling windows. A versioned availability table would help integrators discover new intervals without relying on UI inspection.
+
 ## Recommended improvements
 
 - Publish a versioned GraphQL schema with active and finalized market examples.
 - Publish deployment manifests and verified ABIs for the market, settlement, and pool contracts.
 - Document outcome mapping, units, settlement lifecycle, and indexer consistency guarantees explicitly.
+- Keep the documented interval matrix synchronized with the live Event Contracts selector and announce newly available windows through a machine-readable source.
 - Add official timeout, retry, cache, and rate-limit guidance for judge-facing applications.
 - Expose the settlement transaction hash and finalized block in indexed data, and document the canonical event procedure, so clients can link the directly verified state to the transaction that created it.
 
