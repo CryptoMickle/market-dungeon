@@ -180,6 +180,7 @@ docs/
 - Gold and the next-run potion count are stored only on the player's device; active combat and loadout state reset on refresh.
 - Judge combat is rendered in the browser, but reveal is server-gated by a stateless deterministic replay of the submitted structured action log. This proves that the transcript is valid under the published seed and rules; because the seed is public, it is not proof of human input or elapsed play time.
 - Production and Preview require separate `JUDGE_REPLAY_SEAL_KEY` values, each encoded as exactly 64 hexadecimal characters (32 bytes). Rotating a key cleanly invalidates in-flight replay seals.
+- Vercel Web Analytics records page views plus three anonymous funnel events: Judge Demo started, verified Judge Demo completed, and Continue on dreamDEX clicked. Event properties are limited to mode, direction, result, network, chain ID, verification flag, and experience version; no wallet, market ID, commitment, or combat transcript is sent.
 - Availability depends on the public dreamDEX indexer and Somnia RPC.
 
 ## Contest status
