@@ -1,6 +1,6 @@
 # Market Dungeon
 
-Market Dungeon is a playable fantasy roguelite built for the **Somnia × dreamDEX Event Contracts Hackathon**. A live BTC 15-minute Event Contract becomes a dungeon omen: choose **Gold Awakens (UP)** or **Shadows Rise (DOWN)**, clear ten rooms, defeat the tier boss, and survive the finalized onchain outcome. Permanent victory requires both combat success and a correct prediction.
+Market Dungeon is a playable fantasy roguelite built for the **Somnia × dreamDEX Event Contracts Hackathon**. A live BTC 5-minute Event Contract becomes a dungeon omen: choose **Gold Awakens (UP)** or **Shadows Rise (DOWN)**, clear ten rooms, defeat the tier boss, and survive the finalized onchain outcome. Permanent victory requires both combat success and a correct prediction. If the 5-minute market is unavailable, discovery falls back safely to 15 minutes.
 
 The current contest build is intentionally read-only. It reads live market metadata, shows live UP/DOWN implied odds from the dreamDEX CLOB through the official Markets SDK, and independently derives finalized payouts through fixed-block Somnia RPC calls to the deployed BinaryModule and BinarySettlement contracts. It never requests a wallet signature, token approval, or trade.
 
@@ -31,7 +31,7 @@ Gold persists between runs. Potions have a hard maximum of five: a new run resto
 Select **2-MIN JUDGE DEMO · SEALED MARKET REPLAY** on the start screen. This mode:
 
 - asks the judge to choose and lock `UP` or `DOWN` before any historical market is selected;
-- uses server-side cryptographic randomness to choose a finalized, non-voided BTC 15-minute market from a recent settlement pool;
+- uses server-side cryptographic randomness to choose a finalized, non-voided, traded BTC 5-minute market from a balanced settlement pool, with a balanced 15-minute fallback;
 - encrypts the selected market and locked direction with AES-256-GCM under a server-only key;
 - returns only an opaque seal, a salted SHA-256 commitment and an independent public combat seed to the browser;
 - fast-forwards Tiers 1–3 and Rooms 1–8, then starts with one wounded Tier 4 guard before the wounded final boss;
@@ -65,7 +65,7 @@ A correct prediction cannot replace combat victory, while combat victory alone c
 Market Dungeon is designed as a consumer on-ramp to Event Contracts rather than another professional trading terminal:
 
 - **Today:** any judge or player can experience real live and finalized dreamDEX markets without a wallet, funds, approvals or jurisdiction-sensitive transaction flow.
-- **Engagement loop:** every dungeon tier introduces a fresh BTC Event Contract, and its settlement has a visible, memorable consequence inside the game.
+- **Engagement loop:** every dungeon tier prefers a fresh BTC 5-minute Event Contract, so the market can settle inside the play session and produce a visible, memorable consequence.
 - **Next step:** an optional wallet-enabled mode can let eligible players place an exact-amount Event Contract order before entering the dungeon, with simulation, maximum-loss disclosure and a separate confirmation for every write.
 - **Expansion:** additional assets, intervals and seasonal campaigns can turn new dreamDEX markets into new game content without replacing the underlying combat loop.
 
@@ -104,7 +104,7 @@ flowchart LR
 - The app sends no approval, order, redemption, or other transaction.
 - Replay responses use `cache-control: private, no-store, max-age=0`.
 - Live market hydration verifies Somnia chain ID `5031`; Judge Replay repeats that chain verification when the sealed settlement is revealed.
-- Judge Replay selection is randomized across recent finalized, non-voided BTC markets rather than exposing the latest settlement.
+- Judge Replay selection is randomized across finalized, non-voided, traded BTC 5-minute markets rather than exposing the latest settlement; a balanced 15-minute pool is the automatic fallback.
 - Replay start requires recent candidates for both possible outcomes and fails closed if the available pool is one-sided.
 - No selected-market identifier or identifying metadata is returned at lock time.
 - The selected market, recorded outcome and locked direction are authenticated inside an AES-256-GCM seal under `JUDGE_REPLAY_SEAL_KEY`.
@@ -130,12 +130,12 @@ Verified against Somnia mainnet on 2 September 2026:
 | BinaryModule | `0x3ecC694Cef705358864a646142ac17A90E29e388` |
 | BinarySettlement | `0xbF4a49e0Dfd092e5FBE8E5761064C49533e6Ed23` |
 | USDso collateral | `0x00000022dA000002656c64D9eA6011ea952D008A` |
-| Market filter | `BINARY` · `BTC` · `900` seconds |
+| Market filter | `BINARY` · `BTC` · `300` seconds preferred · `900` seconds fallback |
 | Live implied odds | CLOB best bid / best ask midpoint; one-sided quote or last trade fallback |
 | Direct settlement read | `BinaryModule.markets(bytes32)` → `BinarySettlement.getSettlement(uint256)` at one fixed block |
 | Verified settlement fields | `finalized`, `voided`, `pool`, `collateralToken`, `nonce`, `payoutNumerators` and payout-derived winner |
 
-Active-market discovery uses dreamDEX's indexer. The server uses the official Markets SDK to read the active market's recycle-safe, market-ID-keyed CLOB top of book. The UI derives UP from the best bid/ask midpoint and DOWN as its complement, labels one-sided or last-trade fallbacks, and refreshes the no-store snapshot every 15 seconds. Opening strike resolution follows `MarketReferenceLink.referenceQuestionId` to `OracleAnswer.numericValue`. Pool parameters and finalized settlement proofs are read directly through Somnia RPC.
+Active-market discovery uses dreamDEX's indexer and prefers the current BTC 5-minute window. If none is active, it selects the 15-minute candidate closest to six minutes remaining. The server uses the official Markets SDK to read the selected market's recycle-safe, market-ID-keyed CLOB top of book. The UI derives UP from the best bid/ask midpoint and DOWN as its complement, labels one-sided or last-trade fallbacks, and refreshes the no-store snapshot every 15 seconds. Opening strike resolution follows `MarketReferenceLink.referenceQuestionId` to `OracleAnswer.numericValue`. Pool parameters and finalized settlement proofs are read directly through Somnia RPC.
 
 See the concise [dreamDEX Integration Report](docs/DREAMDEX_INTEGRATION_REPORT.md) for the exact GraphQL fields, active/finalized discovery rules, RPC verification, metadata/settlement boundary, cache and security limits, documentation gaps, and recommended improvements.
 
@@ -163,6 +163,7 @@ npm run build
 ```text
 app/
   clob-odds.ts          Pure implied-odds derivation and formatting
+  event-contract-interval.ts 5m-first selection, labeling, and 15m fallback
   onchain-settlement-proof.ts Browser-side direct-proof binding validation
   api/dreamdex.ts       Shared server-only dreamDEX and Somnia reads
   api/dreamdex-odds.ts  Official Markets SDK top-of-book read with fallback
@@ -188,13 +189,14 @@ docs/
 - Gold and the next-run potion count are stored only on the player's device; active combat and loadout state reset on refresh.
 - Judge combat is rendered in the browser, but reveal is server-gated by a stateless deterministic replay of the submitted structured action log. This proves that the transcript is valid under the published seed and rules; because the seed is public, it is not proof of human input or elapsed play time.
 - Production and Preview require separate `JUDGE_REPLAY_SEAL_KEY` values, each encoded as exactly 64 hexadecimal characters (32 bytes). Rotating a key cleanly invalidates in-flight replay seals.
-- Vercel Web Analytics records normal page views plus three anonymous funnel checkpoints as manual pageviews: Judge Demo started, verified Judge Demo completed, and Continue on dreamDEX clicked. Stable `/funnel/...` paths encode only mode, direction, and result so the funnel remains visible on Vercel Hobby, where custom events are unavailable; no wallet, market ID, commitment, or combat transcript is sent.
+- Vercel Web Analytics records normal page views plus three anonymous funnel checkpoints as manual pageviews: Judge Demo started, verified Judge Demo completed, and Continue on dreamDEX clicked. Stable `/funnel/...` paths encode only interval, mode, direction, and result so 5m adoption remains measurable on Vercel Hobby, where custom events are unavailable; no wallet, market ID, commitment, or combat transcript is sent.
 - Availability depends on the public dreamDEX indexer and Somnia RPC.
 
 ## Contest status
 
 - Playable deployed experience: complete
 - Live active-market integration: complete
+- BTC 5m-first selection with automatic 15m fallback: complete
 - Official dreamDEX Markets SDK CLOB odds: complete
 - Fixed-block, direct-RPC BinarySettlement verification: complete
 - Two-minute judge path: complete

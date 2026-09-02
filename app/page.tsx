@@ -12,7 +12,12 @@ import {
 import { formatClobPercent, type DreamDexClobOdds } from './clob-odds';
 import oddsStyles from './live-market-odds.module.css';
 import { canonicalJudgeActionLog, JUDGE_COMBAT, seededRoll, type JudgeCombatAction } from './judge-combat';
-import { DREAMDEX_BTC_15M_URL } from './dreamdex-link';
+import { dreamDexBtcEventContractUrl } from './dreamdex-link';
+import {
+  eventContractIntervalLabel,
+  eventContractIntervalName,
+  eventContractIntervalSeconds,
+} from './event-contract-interval';
 import {
   liveBtcContextFromMarket,
   liveBtcContextPrice,
@@ -36,6 +41,7 @@ type Species = 'Zombie' | 'Goblin' | 'Orc' | 'Boss';
 type Market = {
   marketId: string; marketAddress: string; poolAddress: string; collateral: string;
   yesTokenId?: string; noTokenId?: string;
+  intervalSec?: string | number;
   question: string; strikeUsd: string; tradingStart?: string; expiry: string; expiryIso: string; status: string;
   finalized: boolean; voided: boolean; winningOutcome: number | null; demoReplay?: boolean;
   replaySeal?: string; replayCommitment?: string; replayGameSeed?: string;
@@ -62,6 +68,7 @@ const SOMNIA_EXPLORER = 'https://explorer.somnia.network';
 const fallback: Market = {
   marketId: '0x0000000000000000000000000000000000000000000000000000000000000000',
   marketAddress: '', poolAddress: '', collateral: '',
+  intervalSec: 300,
   question: 'BTC closes at or above its opening price', strikeUsd: '—',
   expiry: '0', expiryIso: '1970-01-01T00:00:00.000Z', status: 'CONNECTING',
   finalized: false, voided: false, winningOutcome: null,
@@ -69,7 +76,8 @@ const fallback: Market = {
 
 const sealedReplay: Market = {
   marketId: 'sealed', marketAddress: '', poolAddress: '', collateral: '',
-  question: 'A finalized BTC 15-minute market will be selected only after your omen is locked.',
+  intervalSec: 300,
+  question: 'A finalized traded BTC 5-minute market is preferred after your omen is locked.',
   strikeUsd: 'SEALED', expiry: '0', expiryIso: '1970-01-01T00:00:00.000Z', status: 'READY TO LOCK',
   finalized: true, voided: false, winningOutcome: null, demoReplay: true,
 };
@@ -428,6 +436,9 @@ export default function Home() {
   const marketCode = replaySealed
     ? market.replayCommitment?.slice(2, 10).toUpperCase() ?? 'SEALED'
     : market.marketId.slice(-4).toUpperCase();
+  const marketIntervalSeconds = eventContractIntervalSeconds(market.intervalSec);
+  const marketIntervalLabel = eventContractIntervalLabel(marketIntervalSeconds);
+  const marketIntervalName = eventContractIntervalName(marketIntervalSeconds);
   const combatSeed = judgeMode ? market.replayGameSeed ?? 'judge-replay-awaiting-lock' : market.marketId;
   const monsterPercent = Math.max(0, Math.min(100, (monsterHp / monster.hp) * 100));
   const playerPercent = Math.max(0, Math.min(100, hp));
@@ -528,6 +539,7 @@ export default function Home() {
       const replay = data.replay as {
         seal: string; commitment: string; gameSeed: string; lockedDirection: Direction;
         revealAfter: number; expiresAt: number;
+        publicMarket: { intervalSec: number };
       };
       const nextRoster = buildRoster((TOTAL_TIERS - 1) * TOTAL_ROOMS + 1);
       const guardRoom = TOTAL_ROOMS - 2;
@@ -535,6 +547,7 @@ export default function Home() {
         ...sealedReplay,
         marketId: `sealed:${replay.commitment}`,
         status: 'OMEN LOCKED',
+        intervalSec: eventContractIntervalSeconds(replay.publicMarket.intervalSec),
         replaySeal: replay.seal,
         replayCommitment: replay.commitment,
         replayGameSeed: replay.gameSeed,
@@ -777,7 +790,7 @@ export default function Home() {
       if (result.voided) {
         if (judgeMode && !judgeCompletionTrackedRef.current) {
           judgeCompletionTrackedRef.current = true;
-          emitAnalyticsEvent(judgeDemoCompletedEvent(resolvedDirection, 'void'));
+          emitAnalyticsEvent(judgeDemoCompletedEvent(resolvedDirection, 'void', result.intervalSec));
         }
         setOracleResult('VOID'); setGold((value) => value + monster.reward);
         setPhase(judgeMode || tier === TOTAL_TIERS ? 'VICTORY' : 'TIER_SETUP');
@@ -790,7 +803,7 @@ export default function Home() {
       if (won) {
         if (judgeMode && !judgeCompletionTrackedRef.current) {
           judgeCompletionTrackedRef.current = true;
-          emitAnalyticsEvent(judgeDemoCompletedEvent(resolvedDirection, 'blessed'));
+          emitAnalyticsEvent(judgeDemoCompletedEvent(resolvedDirection, 'blessed', result.intervalSec));
         }
         const reward = monster.reward + 50;
         setOracleResult('BLESSED'); setGold((value) => value + reward);
@@ -800,7 +813,7 @@ export default function Home() {
       } else {
         if (judgeMode && !judgeCompletionTrackedRef.current) {
           judgeCompletionTrackedRef.current = true;
-          emitAnalyticsEvent(judgeDemoCompletedEvent(resolvedDirection, 'cursed'));
+          emitAnalyticsEvent(judgeDemoCompletedEvent(resolvedDirection, 'cursed', result.intervalSec));
         }
         setOracleResult('CURSED'); setHp(0); setDeathCause('PREDICTION'); setPhase('DEAD'); setNotice('PREDICTION WRONG · BOSS LAST STAND · RUN ENDED');
         addLog(`${resolvedOmenName} was wrong. The fallen boss rises for one final strike. No boss reward is awarded.`);
@@ -865,6 +878,7 @@ export default function Home() {
       onchainBlockNumber: market.onchainSettlement.blockNumber,
       settlementAddress: market.onchainSettlement.settlementAddress,
       payoutNumerators: market.onchainSettlement.payoutNumerators,
+      intervalSec: market.intervalSec,
     });
 
     try {
@@ -888,6 +902,7 @@ export default function Home() {
       judgeMode ? 'judge_demo' : 'full_run',
       direction,
       oracleResult.toLowerCase() as JudgeDemoResult,
+      market.intervalSec,
     ));
   }
 
@@ -910,12 +925,12 @@ export default function Home() {
     <div className="judge-verification verified-share dreamdex-continue">
       <div>
         <span>NEXT STEP · LIVE DREAMDEX MARKET</span>
-        <strong>Explore the current BTC 15-minute Event Contract.</strong>
+        <strong>Explore the current BTC {marketIntervalName} Event Contract.</strong>
         <small>Opens dreamDEX in a new tab. Wallet connection and any transaction stay on dreamDEX, outside Market Dungeon.</small>
       </div>
       <a
         className="primary-action dreamdex-continue-action"
-        href={DREAMDEX_BTC_15M_URL}
+        href={dreamDexBtcEventContractUrl(marketIntervalSeconds)}
         target="_blank"
         rel="noopener noreferrer"
         onClick={trackDreamDexContinue}
@@ -938,7 +953,7 @@ export default function Home() {
         </header>
 
         <section className="market-ribbon" aria-label="Live dreamDEX Event Contract">
-          <div><span>BTC · 15 MIN</span><strong>{market.status}</strong><small>{judgeMode ? 'FINALIZED ONCHAIN REPLAY' : marketEntryRemaining !== null ? `LOCKED WITH ${formatTime(marketEntryRemaining)} LEFT` : 'STARTS IMMEDIATELY · LIVE MARKET'}</small></div>
+          <div><span>BTC · {marketIntervalLabel.toUpperCase()}</span><strong>{market.status}</strong><small>{judgeMode ? 'FINALIZED ONCHAIN REPLAY' : marketEntryRemaining !== null ? `LOCKED WITH ${formatTime(marketEntryRemaining)} LEFT` : 'STARTS IMMEDIATELY · LIVE MARKET'}</small></div>
           <div><span>LINE</span><strong>{replaySealed ? 'HIDDEN' : `$${market.strikeUsd}`}</strong></div>
           <div><span>EXPIRY</span><strong>{replaySealed ? 'FINALIZED' : formatTime(remaining)}</strong><small>{replaySealed ? expiryLabel : `${expiryLabel} UTC`}</small></div>
           <div><span>DUNGEON OMEN</span><strong className={direction === 'UP' ? 'text-up' : 'text-down'}>{omenIcon} {omenName}</strong><small>BTC {direction}</small></div>
@@ -1002,7 +1017,7 @@ export default function Home() {
                     <div><span>🧰</span><b>BUILD WITHIN THE RUN</b><small>Kevin&apos;s attack and defense upgrades last until defeat</small></div>
                     <div><span>🏰</span><b>CLIMB FOUR TIERS</b><small>Every tier brings a new roster, boss and prediction</small></div>
                   </div>
-                  <div className="competition-note"><b>LIVE CONTRACT INTEGRATION:</b> Each tier immediately locks the active BTC 15-minute dreamDEX market. Its real market ID, expiry and Somnia settlement are preserved.</div>
+                  <div className="competition-note"><b>LIVE CONTRACT INTEGRATION:</b> Each tier prefers the active BTC 5-minute dreamDEX market, with 15m fallback. Its real market ID, expiry and Somnia settlement are preserved.</div>
                   <MarketProof market={market} mode="live" />
                 </div>
               </div>
@@ -1011,16 +1026,16 @@ export default function Home() {
             <div className="judge-setup-view">
               <p className="section-kicker">STEP 1 · CHOOSE BEFORE MARKET SELECTION</p>
               <h2>Lock your omen before the replay is drawn.</h2>
-              <p className="muted">After you lock UP or DOWN, the server randomly selects a finalized BTC 15-minute market. Only an encrypted seal, a salted commitment and an unrelated combat seed reach this browser.</p>
+              <p className="muted">After you lock UP or DOWN, the server randomly selects a finalized, traded BTC 5-minute market. A balanced 15m pool remains the automatic fallback. Only an encrypted seal, a salted commitment and an unrelated combat seed reach this browser.</p>
               <div className="prediction-card judge-prediction-card">
-                <span>SEALED BTC 15-MIN REPLAY · SOMNIA MAINNET</span>
+                <span>SEALED BTC 5-MIN REPLAY · 15M FALLBACK · SOMNIA MAINNET</span>
                 <strong>UP OR DOWN</strong>
                 <p>The exact market ID, addresses, strike, expiry and outcome are not selected or sent before your choice locks.</p>
                 <div className="judge-live-context" aria-live="polite">
                   <span>BTC LIVE CONTEXT</span>
                   <strong>{liveBtcContext ? liveBtcContextPrice(liveBtcContext) : 'REFERENCE UNAVAILABLE'}</strong>
                   <small>{liveBtcContext
-                    ? `Current dreamDEX 15-minute opening line · ${liveBtcContextTime(liveBtcContext)} · context only`
+                    ? `Current dreamDEX ${eventContractIntervalName(liveBtcContext.intervalSec)} opening line · ${liveBtcContextTime(liveBtcContext)} · context only`
                     : 'The live reference does not affect replay availability. The sealed historical line remains hidden.'}</small>
                 </div>
                 <LiveMarketOdds odds={marketOdds} direction={direction} />

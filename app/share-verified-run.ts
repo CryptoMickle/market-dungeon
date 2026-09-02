@@ -1,4 +1,5 @@
 import type { ReplayDirection } from './replay-proof.ts';
+import { eventContractIntervalLabel } from './event-contract-interval.ts';
 
 export const MARKET_DUNGEON_URL = 'https://market-dungeon.vercel.app';
 export const SOMNIA_EXPLORER_URL = 'https://explorer.somnia.network';
@@ -13,6 +14,7 @@ export function verifiedRunShareText(input: {
   onchainBlockNumber: string;
   settlementAddress: string;
   payoutNumerators: [string, string];
+  intervalSec: unknown;
 }) {
   const actualOutcome = input.winningOutcome === 0 ? 'UP' : 'DOWN';
   const result = input.result === 'BLESSED'
@@ -26,6 +28,7 @@ export function verifiedRunShareText(input: {
 
   return [
     '⚔️ Market Dungeon — verified Judge run',
+    `Market: BTC ${eventContractIntervalLabel(input.intervalSec)}`,
     `Locked choice: BTC ${input.lockedDirection}`,
     `Actual outcome: BTC ${actualOutcome}`,
     `Result: ${result}`,

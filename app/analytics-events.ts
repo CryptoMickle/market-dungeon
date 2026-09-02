@@ -1,5 +1,7 @@
 import { pageview } from '@vercel/analytics';
 
+import { eventContractIntervalLabel } from './event-contract-interval.ts';
+
 export type JudgeDemoResult = 'blessed' | 'cursed' | 'void';
 export type MarketDungeonMode = 'judge_demo' | 'full_run';
 
@@ -20,9 +22,10 @@ export function judgeDemoStartedEvent(): AnalyticsPageview {
 export function judgeDemoCompletedEvent(
   direction: 'UP' | 'DOWN',
   result: JudgeDemoResult,
+  intervalSec: unknown,
 ): AnalyticsPageview {
   return {
-    path: `/funnel/judge-demo/completed/${segment(result)}/${segment(direction)}`,
+    path: `/funnel/judge-demo/completed/${eventContractIntervalLabel(intervalSec)}/${segment(result)}/${segment(direction)}`,
   };
 }
 
@@ -30,9 +33,10 @@ export function dreamDexCtaClickedEvent(
   mode: MarketDungeonMode,
   direction: 'UP' | 'DOWN',
   result: JudgeDemoResult,
+  intervalSec: unknown,
 ): AnalyticsPageview {
   return {
-    path: `/funnel/dreamdex/continue/${segment(mode)}/${segment(result)}/${segment(direction)}`,
+    path: `/funnel/dreamdex/continue/${eventContractIntervalLabel(intervalSec)}/${segment(mode)}/${segment(result)}/${segment(direction)}`,
   };
 }
 
