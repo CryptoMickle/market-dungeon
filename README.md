@@ -8,7 +8,7 @@ The current contest build is intentionally read-only. It reads live market metad
 
 **Play:** https://market-dungeon.vercel.app
 
-**Watch the 2:34 hackathon demo:** https://youtu.be/7J07NkSf1qM
+**Watch the 1:53 hackathon demo:** https://youtu.be/8RnC9Y2zhIU
 
 **DoraHacks submission:** https://dorahacks.io/buidl/48083
 
@@ -206,7 +206,7 @@ docs/
 - Implementation-specific dreamDEX integration report: complete
 - Desktop and 390 px mobile judge-flow QA: complete
 - Four-tier dual-condition progression: complete
-- 2:34 hackathon demo video: complete
+- 1:53 hackathon demo video: complete
 - Wallet writes: intentionally disabled
 
 ## License
