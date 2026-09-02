@@ -2,6 +2,13 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 
+import {
+  dreamDexCtaClickedEvent,
+  emitAnalyticsEvent,
+  judgeDemoCompletedEvent,
+  judgeDemoStartedEvent,
+  type JudgeDemoResult,
+} from './analytics-events';
 import { formatClobPercent, type DreamDexClobOdds } from './clob-odds';
 import oddsStyles from './live-market-odds.module.css';
 import { canonicalJudgeActionLog, JUDGE_COMBAT, seededRoll, type JudgeCombatAction } from './judge-combat';
@@ -307,6 +314,8 @@ export default function Home() {
   const [shareStatus, setShareStatus] = useState('');
   const [replayRevealRemaining, setReplayRevealRemaining] = useState(0);
   const oracleBusyRef = useRef(false);
+  const judgeCompletionTrackedRef = useRef(false);
+  const dreamDexCtaTrackedRef = useRef(false);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -437,6 +446,7 @@ export default function Home() {
 
   function startRun() {
     if (!marketReady) return;
+    dreamDexCtaTrackedRef.current = false;
     const nextRoster = buildRoster();
     setRoster(nextRoster); setTier(1); setRoom(0); setTurn(0); setPhase('COMBAT');
     setHp(100); setMonsterHp(nextRoster[0].hp); setPotions((value) => Math.min(MAX_POTIONS, Math.max(START_POTIONS, value))); setWeapon(1); setArmor(0);
@@ -451,6 +461,9 @@ export default function Home() {
 
   function startJudgeDemo() {
     if (judgeLoading) return;
+    judgeCompletionTrackedRef.current = false;
+    dreamDexCtaTrackedRef.current = false;
+    emitAnalyticsEvent(judgeDemoStartedEvent());
     setMarket(sealedReplay); setPhase('JUDGE_SETUP'); setJudgeMode(true); setDeathCause('COMBAT');
     setJudgeActionLog([]); setShareStatus('');
     setReplayRevealRemaining(0);
@@ -715,6 +728,10 @@ export default function Home() {
         return;
       }
       if (result.voided) {
+        if (judgeMode && !judgeCompletionTrackedRef.current) {
+          judgeCompletionTrackedRef.current = true;
+          emitAnalyticsEvent(judgeDemoCompletedEvent(resolvedDirection, 'void'));
+        }
         setOracleResult('VOID'); setGold((value) => value + monster.reward);
         setPhase(judgeMode || tier === TOTAL_TIERS ? 'VICTORY' : 'TIER_SETUP');
         setNotice('MARKET VOIDED · NO PREDICTION LOSS · BOSS REWARD PRESERVED');
@@ -724,12 +741,20 @@ export default function Home() {
       const resolvedOmenName = resolvedDirection === 'UP' ? 'GOLD AWAKENS' : 'SHADOWS RISE';
       const won = Number(result.winningOutcome) === (resolvedDirection === 'UP' ? 0 : 1);
       if (won) {
+        if (judgeMode && !judgeCompletionTrackedRef.current) {
+          judgeCompletionTrackedRef.current = true;
+          emitAnalyticsEvent(judgeDemoCompletedEvent(resolvedDirection, 'blessed'));
+        }
         const reward = monster.reward + 50;
         setOracleResult('BLESSED'); setGold((value) => value + reward);
         setPhase(judgeMode || tier === TOTAL_TIERS ? 'VICTORY' : 'TIER_SETUP');
         setNotice(judgeMode || tier === TOTAL_TIERS ? `FINAL BOSS DEFEATED · +${reward} GOLD` : `TIER ${tier} CLEARED · NEW BTC PREDICTION REQUIRED`);
         addLog(`${resolvedOmenName} was correct. The boss stays down: ${monster.reward} boss gold + 50 prediction gold.`);
       } else {
+        if (judgeMode && !judgeCompletionTrackedRef.current) {
+          judgeCompletionTrackedRef.current = true;
+          emitAnalyticsEvent(judgeDemoCompletedEvent(resolvedDirection, 'cursed'));
+        }
         setOracleResult('CURSED'); setHp(0); setDeathCause('PREDICTION'); setPhase('DEAD'); setNotice('PREDICTION WRONG · BOSS LAST STAND · RUN ENDED');
         addLog(`${resolvedOmenName} was wrong. The fallen boss rises for one final strike. No boss reward is awarded.`);
       }
@@ -769,6 +794,8 @@ export default function Home() {
     setReplayRevealRemaining(0);
     setMarketEntryRemaining(null);
     setMarketOdds(null);
+    judgeCompletionTrackedRef.current = false;
+    dreamDexCtaTrackedRef.current = false;
     setNotice('LIVE DREAMDEX MARKET · READ ONLY');
   }
 
@@ -804,6 +831,16 @@ export default function Home() {
     }
   }
 
+  function trackDreamDexContinue() {
+    if (!oracleResult || dreamDexCtaTrackedRef.current) return;
+    dreamDexCtaTrackedRef.current = true;
+    emitAnalyticsEvent(dreamDexCtaClickedEvent(
+      judgeMode ? 'judge_demo' : 'full_run',
+      direction,
+      oracleResult.toLowerCase() as JudgeDemoResult,
+    ));
+  }
+
   const verifiedSharePanel = judgeMode && market.replayProof && market.combatProof && oracleResult ? (
     <div className="judge-verification verified-share">
       <div>
@@ -831,6 +868,7 @@ export default function Home() {
         href={DREAMDEX_BTC_15M_URL}
         target="_blank"
         rel="noopener noreferrer"
+        onClick={trackDreamDexContinue}
         aria-label="Continue on dreamDEX — opens in a new tab"
         style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', textDecoration: 'none' }}
       >
