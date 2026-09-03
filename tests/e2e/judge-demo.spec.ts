@@ -44,6 +44,41 @@ async function installDeterministicUpstreams(page: Page) {
   });
 }
 
+test('full-run setup fetches the next market at the exact five-minute rollover', async ({ page }) => {
+  const rolloverSeconds = Math.floor(Date.now() / 1_000) + 3;
+  const expiringMarket = {
+    ...market,
+    marketId: `0x${'aa'.repeat(32)}`,
+    expiry: String(rolloverSeconds),
+    expiryIso: new Date(rolloverSeconds * 1_000).toISOString(),
+    status: 'Active',
+    finalized: false,
+    winningOutcome: undefined,
+  };
+  const freshMarket = {
+    ...expiringMarket,
+    marketId: `0x${'bb'.repeat(32)}`,
+    expiry: String(rolloverSeconds + 300),
+    expiryIso: new Date((rolloverSeconds + 300) * 1_000).toISOString(),
+  };
+  const marketRequestTimes: number[] = [];
+  await page.route('**/api/market**', async (route) => {
+    const requestTime = Date.now();
+    marketRequestTimes.push(requestTime);
+    await route.fulfill({
+      json: { market: requestTime < rolloverSeconds * 1_000 ? expiringMarket : freshMarket, odds: null },
+    });
+  });
+
+  await page.goto('/');
+  await expect(page.getByText('TIER 1 PREDICTION · MARKET #AAAA')).toBeVisible();
+  await expect(page.getByText('TIER 1 PREDICTION · MARKET #BBBB')).toBeVisible({ timeout: 6_000 });
+  expect(marketRequestTimes.some((time) => (
+    time >= rolloverSeconds * 1_000 && time < rolloverSeconds * 1_000 + 1_000
+  ))).toBe(true);
+  await expect(page.getByRole('button', { name: /BEGIN TIER 1/ })).toBeEnabled();
+});
+
 test('Judge Demo completes in Chromium and renders independently verified proof links', async ({ page }) => {
   const runtimeErrors: string[] = [];
   page.on('pageerror', (error) => runtimeErrors.push(error.message));

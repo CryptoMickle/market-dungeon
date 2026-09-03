@@ -14,6 +14,7 @@ import oddsStyles from './live-market-odds.module.css';
 import { canonicalJudgeActionLog, JUDGE_COMBAT, seededRoll, type JudgeCombatAction } from './judge-combat';
 import { dreamDexBtcEventContractUrl } from './dreamdex-link';
 import {
+  activeMarketRefreshDelayMs,
   eventContractIntervalLabel,
   eventContractIntervalName,
   eventContractIntervalSeconds,
@@ -419,17 +420,34 @@ export default function Home() {
   useEffect(() => {
     if (!['SETUP', 'TIER_SETUP'].includes(phase)) return;
     let cancelled = false;
-    const load = () => fetch('/api/market').then((response) => response.json()).then((data) => {
-      if (!cancelled && data.market) {
-        setMarket(data.market);
-        setMarketOdds(data.odds?.marketId?.toLowerCase() === data.market.marketId?.toLowerCase() ? data.odds : null);
-        setLiveBtcContext(liveBtcContextFromMarket(data.market));
+    let refresh: number | undefined;
+    let latestExpiry: unknown;
+    const load = async () => {
+      let nextExpiry: unknown;
+      try {
+        const response = await fetch('/api/market');
+        const data = await response.json();
+        nextExpiry = data.market?.expiry;
+        if (nextExpiry !== undefined && nextExpiry !== null) latestExpiry = nextExpiry;
+        if (!cancelled && data.market) {
+          setMarket(data.market);
+          setMarketOdds(data.odds?.marketId?.toLowerCase() === data.market.marketId?.toLowerCase() ? data.odds : null);
+          setLiveBtcContext(liveBtcContextFromMarket(data.market));
+        }
+        else if (!cancelled) setNotice('DREAMDEX FEED RETRYING · NO ACTION REQUIRED');
+      } catch {
+        if (!cancelled) setNotice('DREAMDEX FEED RETRYING · NO ACTION REQUIRED');
+      } finally {
+        if (!cancelled) {
+          refresh = window.setTimeout(
+            () => { void load(); },
+            activeMarketRefreshDelayMs(nextExpiry ?? latestExpiry, Date.now()),
+          );
+        }
       }
-      else if (!cancelled) setNotice('DREAMDEX FEED RETRYING · NO ACTION REQUIRED');
-    }).catch(() => { if (!cancelled) setNotice('DREAMDEX FEED RETRYING · NO ACTION REQUIRED'); });
+    };
     void load();
-    const refresh = window.setInterval(() => { void load(); }, 15000);
-    return () => { cancelled = true; window.clearInterval(refresh); };
+    return () => { cancelled = true; if (refresh !== undefined) window.clearTimeout(refresh); };
   }, [phase]);
 
   useEffect(() => {
