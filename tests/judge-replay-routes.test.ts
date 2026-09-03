@@ -284,6 +284,86 @@ test('reveal route enforces malformed, sealed, expired, and unverifiable boundar
   assert.deepEqual(await unverifiable.json(), { error: 'Committed Somnia settlement could not be verified.' });
 });
 
+test('reveal route measures its 8 KiB limit in UTF-8 bytes, not JavaScript characters', async () => {
+  const exactLimit = JSON.stringify({ seal: 'invalid', actions: [] }).padEnd(8_192, ' ');
+  assert.equal(Buffer.byteLength(exactLimit, 'utf8'), 8_192);
+  const acceptedAtLimit = await revealReplay(new Request('http://local.test/api/judge-replay/reveal', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', 'x-forwarded-for': '203.0.113.19' },
+    body: exactLimit,
+  }));
+  assert.equal(acceptedAtLimit.status, 400);
+  assert.deepEqual(await acceptedAtLimit.json(), {
+    error: 'Invalid or expired replay seal. Start a new Judge Replay.',
+  });
+
+  const raw = JSON.stringify({
+    seal: '🧙'.repeat(2_047),
+    actions: [{ room: 8, action: 'attack' }],
+  });
+  assert.ok(raw.length < 8_192);
+  assert.ok(Buffer.byteLength(raw, 'utf8') > 8_192);
+
+  const response = await revealReplay(new Request('http://local.test/api/judge-replay/reveal', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', 'x-forwarded-for': '203.0.113.20' },
+    body: raw,
+  }));
+  assert.equal(response.status, 413);
+  assert.equal(response.headers.get('cache-control'), NO_STORE);
+  assert.deepEqual(await response.json(), { error: 'Judge Replay request body exceeds the 8 KiB limit.' });
+});
+
+test('reveal route rejects a declared oversize body before reading its stream', async () => {
+  let pulls = 0;
+  const stream = new ReadableStream<Uint8Array>({
+    pull(controller) {
+      pulls += 1;
+      controller.enqueue(new TextEncoder().encode('{}'));
+      controller.close();
+    },
+  }, { highWaterMark: 0 });
+  const request = new Request('http://local.test/api/judge-replay/reveal', {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      'content-length': '8193',
+      'x-forwarded-for': '203.0.113.21',
+    },
+    body: stream,
+    duplex: 'half',
+  } as RequestInit & { duplex: 'half' });
+
+  const response = await revealReplay(request);
+  assert.equal(response.status, 413);
+  assert.equal(pulls, 0);
+});
+
+test('reveal route cancels an unbounded stream as soon as it crosses 8 KiB', async () => {
+  let pulls = 0;
+  let cancelled = false;
+  const stream = new ReadableStream<Uint8Array>({
+    pull(controller) {
+      pulls += 1;
+      controller.enqueue(new Uint8Array(pulls === 1 ? 4_096 : 4_097));
+    },
+    cancel() {
+      cancelled = true;
+    },
+  }, { highWaterMark: 0 });
+  const request = new Request('http://local.test/api/judge-replay/reveal', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', 'x-forwarded-for': '203.0.113.22' },
+    body: stream,
+    duplex: 'half',
+  } as RequestInit & { duplex: 'half' });
+
+  const response = await revealReplay(request);
+  assert.equal(response.status, 413);
+  assert.equal(pulls, 2);
+  assert.equal(cancelled, true);
+});
+
 test('reveal route rejects incomplete combat before reading settlement data', async () => {
   const now = Math.floor(Date.now() / 1000);
   const claims = newReplayClaims({

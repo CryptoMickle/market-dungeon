@@ -11,6 +11,13 @@ const NO_STORE = { 'cache-control': 'private, no-store, max-age=0' };
 const MAX_REVEAL_BYTES = 8_192;
 const REVEAL_RATE_LIMIT = { namespace: 'judge-replay-reveal', limit: 12, windowMs: 60_000 };
 
+class RevealBodyTooLargeError extends Error {
+  constructor() {
+    super('Judge Replay request body exceeds 8 KiB');
+    this.name = 'RevealBodyTooLargeError';
+  }
+}
+
 function responseHeaders(rate: RateLimitResult, extra: Record<string, string> = {}) {
   return { ...NO_STORE, ...rateLimitHeaders(rate), ...extra };
 }
@@ -21,14 +28,46 @@ function revealResponse(result: RevealResult, rate: RateLimitResult, dedupe: 'mi
   return Response.json(result.body, { status: result.status, headers: responseHeaders(rate, extra) });
 }
 
+async function readRevealBody(request: Request) {
+  const contentLength = Number(request.headers.get('content-length'));
+  if (Number.isFinite(contentLength) && contentLength > MAX_REVEAL_BYTES) {
+    throw new RevealBodyTooLargeError();
+  }
+
+  if (!request.body) return '';
+  const reader = request.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let totalBytes = 0;
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      totalBytes += value.byteLength;
+      if (totalBytes > MAX_REVEAL_BYTES) {
+        await reader.cancel().catch(() => undefined);
+        throw new RevealBodyTooLargeError();
+      }
+      chunks.push(value);
+    }
+  } finally {
+    reader.releaseLock();
+  }
+
+  const bytes = new Uint8Array(totalBytes);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+}
+
 async function replayRequestFrom(request: Request) {
   if (!request.headers.get('content-type')?.toLowerCase().startsWith('application/json')) {
     throw new Error('Invalid request');
   }
-  const contentLength = Number(request.headers.get('content-length'));
-  if (Number.isFinite(contentLength) && contentLength > MAX_REVEAL_BYTES) throw new Error('Invalid request');
-  const raw = await request.text();
-  if (raw.length > MAX_REVEAL_BYTES) throw new Error('Invalid request');
+  const raw = await readRevealBody(request);
   const body = JSON.parse(raw) as unknown;
   if (!body || typeof body !== 'object' || Array.isArray(body)) throw new Error('Invalid request');
   const keys = Object.keys(body).sort();
@@ -63,7 +102,13 @@ export async function POST(request: Request) {
     const replayRequest = await replayRequestFrom(request);
     claims = openReplay(replayRequest.seal);
     actions = replayRequest.actions;
-  } catch {
+  } catch (error) {
+    if (error instanceof RevealBodyTooLargeError) {
+      return Response.json(
+        { error: 'Judge Replay request body exceeds the 8 KiB limit.' },
+        { status: 413, headers: responseHeaders(rate) },
+      );
+    }
     return Response.json({ error: 'Invalid or expired replay seal. Start a new Judge Replay.' }, { status: 400, headers: responseHeaders(rate) });
   }
 
