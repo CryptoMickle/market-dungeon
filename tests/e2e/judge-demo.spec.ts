@@ -88,6 +88,23 @@ test('full-run setup fetches the next market at the exact five-minute rollover',
   await expect(page.getByRole('button', { name: /BEGIN TIER 1/ })).toBeEnabled();
 });
 
+test('privacy, asset provenance, AI disclosure, and music credits are reachable from the game', async ({ page }) => {
+  await page.route('**/api/market**', async (route) => {
+    await route.fulfill({ json: { market, odds: null } });
+  });
+
+  await page.goto('/');
+  await page.getByRole('link', { name: 'PRIVACY · CREDITS · AI DISCLOSURE' }).click();
+  await expect(page).toHaveURL('/credits');
+  await expect(page.getByRole('heading', { name: 'Privacy, credits & AI disclosure' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Analytics and local data' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Artwork and asset provenance' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'AI assistance' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Demo-video music' })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'VERCEL WEB ANALYTICS PRIVACY ↗' })).toHaveAttribute('target', '_blank');
+  await expect(page.getByRole('link', { name: 'PIXABAY LICENSE ↗' })).toHaveAttribute('target', '_blank');
+});
+
 test('Judge Demo completes in Chromium and renders independently verified proof links', async ({ page }) => {
   const runtimeErrors: string[] = [];
   page.on('pageerror', (error) => runtimeErrors.push(error.message));
