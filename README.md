@@ -159,8 +159,12 @@ Then open the local URL printed by the development server.
 ```bash
 npm run lint
 npm test
+npx playwright install chromium
+npm run test:e2e
 npm run build
 ```
+
+`npm run test:e2e` runs the complete Judge Demo client state machine in Chromium against deterministic, cryptographically consistent upstream fixtures. The separate read-only production smoke is available as `npm run test:smoke:live`; GitHub Actions also runs it every Monday and Thursday at 06:17 UTC and on manual dispatch. It verifies replay start, the `425` anti-peek boundary, rejection of incomplete combat, a valid reveal, browser-rendered proof, and external link targets.
 
 ## Project structure
 
@@ -178,6 +182,9 @@ app/
   page.tsx              Complete ten-room game and Judge Demo state machine
 public/
   assets/                Canonical gold coin and Market Dungeon homepage hero
+tests/
+  e2e/                   Deterministic Chromium Judge Demo regression test
+  live/                  Scheduled read-only production smoke test
   characters/            Travelling merchant artwork
   monsters/              Four progression tiers for each enemy class
 docs/

@@ -1,0 +1,25 @@
+name: Live Judge Smoke
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '17 6 * * 1,4'
+
+permissions:
+  contents: read
+
+jobs:
+  judge-demo-production:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      LIVE_SMOKE_BASE_URL: https://market-dungeon.vercel.app
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.13.0
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:smoke:live
