@@ -12,7 +12,7 @@ The current contest build is intentionally read-only. It reads live market metad
 
 **DoraHacks submission:** https://dorahacks.io/buidl/48083
 
-**Immutable submission release:** https://github.com/CryptoMickle/market-dungeon/releases/tag/hackathon-submission-2026-v2
+**Immutable submission release:** https://github.com/CryptoMickle/market-dungeon/releases/tag/hackathon-submission-2026-v3
 
 **Integration and SDK/docs feedback:** [docs/DREAMDEX_INTEGRATION_REPORT.md](docs/DREAMDEX_INTEGRATION_REPORT.md)
 
