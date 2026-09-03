@@ -2,15 +2,17 @@
 
 Market Dungeon is a playable fantasy roguelite built for the **Somnia × dreamDEX Event Contracts Hackathon**. A live BTC 5-minute Event Contract becomes a dungeon omen: choose **Gold Awakens (UP)** or **Shadows Rise (DOWN)**, clear ten rooms, defeat the tier boss, and survive the finalized onchain outcome. Permanent victory requires both combat success and a correct prediction. If the 5-minute market is unavailable, discovery falls back safely to 15 minutes.
 
-The current contest build is intentionally read-only. It reads live market metadata, shows live UP/DOWN implied odds from the dreamDEX CLOB through the official Markets SDK, and independently derives finalized payouts through fixed-block Somnia RPC calls to the deployed BinaryModule and BinarySettlement contracts. It never requests a wallet signature, token approval, or trade.
+The current contest build is intentionally read-only. It reads live market metadata, shows live UP/DOWN implied odds from the dreamDEX CLOB through the official Markets SDK, and independently derives finalized payouts through hash-pinned Somnia RPC calls to the deployed BinaryModule and BinarySettlement contracts at one RPC verification snapshot block. It never requests a wallet signature, token approval, or trade.
 
 ## Live demo
 
 **Play:** https://market-dungeon.vercel.app
 
-**Watch the 1:53 hackathon demo:** https://youtu.be/8RnC9Y2zhlU
+**Watch the 1:52 hackathon demo:** https://youtu.be/mZb3t6-mydo
 
 **DoraHacks submission:** https://dorahacks.io/buidl/48083
+
+**Immutable submission release:** https://github.com/CryptoMickle/market-dungeon/releases/tag/hackathon-submission-2026-v2
 
 **Integration and SDK/docs feedback:** [docs/DREAMDEX_INTEGRATION_REPORT.md](docs/DREAMDEX_INTEGRATION_REPORT.md)
 
@@ -31,24 +33,24 @@ Gold persists between runs. Potions have a hard maximum of five: a new run resto
 Select **2-MIN JUDGE DEMO · SEALED MARKET REPLAY** on the start screen. This mode:
 
 - asks the judge to choose and lock `UP` or `DOWN` before any historical market is selected;
-- uses server-side cryptographic randomness to choose a finalized, non-voided, traded BTC 5-minute market from a balanced settlement pool, with a balanced 15-minute fallback;
+- uses server-side cryptographic randomness to choose a finalized, non-voided, traded BTC 5-minute market no more than seven days old from a balanced settlement pool, with the same requirements for the balanced 15-minute fallback;
 - encrypts the selected market and locked direction with AES-256-GCM under a server-only key;
 - returns only an opaque seal, a salted SHA-256 commitment and an independent public combat seed to the browser;
 - fast-forwards Tiers 1–3 and Rooms 1–8, then starts with one wounded Tier 4 guard before the wounded final boss;
 - records a bounded structured log of `Attack`, `Storm`, and `Potion` actions while the player defeats both the guard and boss;
 - replays that log stateless on the server from the sealed `gameSeed` and refuses reveal unless both enemies were legitimately defeated; and
-- reveals the full market proof, direct-RPC block and payout, combat transcript digest, salt and canonical commitment input after **Reveal Boss Fate**, then verifies the settlement bindings and both digests in the browser before applying the real recorded outcome.
+- reveals the full market proof, RPC verification snapshot block and payout, combat transcript digest, salt and canonical commitment input after **Reveal Boss Fate**. Before applying the recorded outcome, the browser independently re-fetches the block and both raw calls from Somnia RPC, requires exact byte matches, ABI-decodes the results, verifies every exposed settlement binding, and recomputes both digests. The snapshot proves contract state at reveal time; it is not claimed to be the block containing the original finalization transaction.
 
 It is a fast replay, not a mocked settlement.
 
 #### Judge verification checklist
 
-1. Enter Judge Demo and confirm that no market ID, address, strike, expiry or outcome is present before the choice.
+1. Enter Judge Demo and confirm that no selected replay market ID, address, strike, expiry or outcome is present before the choice. The visible opening line belongs to a separate live market, is labeled as context only, and does not identify the replay.
 2. Choose `UP` or `DOWN`, then press **Lock Omen & Seal Replay**.
 3. Note the full SHA-256 commitment shown during combat, then defeat the wounded guard and boss.
-4. Press **Reveal Boss Fate**. The server first replays the combat transcript, then reads the BinaryModule market binding and BinarySettlement payout at one fixed Somnia block.
-5. Confirm that the proof panel exposes the block hash, payout vector, market key, deployed contracts, and reproducible `eth_call` inputs.
-6. Use **Share verified run** or **Copy result** to export the locked choice, actual outcome, market ID, commitment and direct settlement proof.
+4. Press **Reveal Boss Fate**. The server first replays the combat transcript, then reads the BinaryModule market binding and BinarySettlement payout with both calls pinned to one canonical Somnia block hash.
+5. Confirm that the proof panel reports an EIP-1898 hash-pinned browser RPC re-fetch and exposes the block hash, payout vector, market key, deployed contracts, and reproducible `eth_call` inputs/results.
+6. Use **Share run + proof**, **Copy proof JSON**, or **Download proof JSON**. The portable artifact contains the canonical commitment input, complete combat transcript, digest, block hash, contracts, and both raw RPC calls/results.
 7. Open the block and contract links in the Somnia explorer. No wallet, approval, order or other transaction is requested.
 
 ## Why Event Contracts fit the game
@@ -88,9 +90,10 @@ flowchart LR
     SETTLE --> COMBAT[Server replays guard + boss combat]
     COMBAT -->|Both defeated| IDX[Re-fetch committed market metadata]
     IDX --> RPC[Snapshot one Somnia block]
-    RPC --> MODULE[BinaryModule markets marketId]
+    RPC --> MODULE[BinaryModule markets marketId · EIP-1898 blockHash]
     MODULE --> BINARY[BinarySettlement getSettlement marketKey]
-    BINARY -->|Payout-derived outcome + raw calls| VERIFY[Browser verifies settlement bindings + digests]
+    BINARY -->|Payout-derived outcome + raw calls| VERIFY[Browser ABI-decodes settlement + verifies digests]
+    VERIFY -->|Independently re-fetch block + both calls| RPC
     SETTLE -->|Salt + canonical commitment| VERIFY
     VERIFY --> GATE[Boss fate gate]
     LOOP -->|Boss HP reaches zero| GATE
@@ -105,16 +108,17 @@ flowchart LR
 - Replay responses use `cache-control: private, no-store, max-age=0`.
 - Live market hydration verifies Somnia chain ID `5031`; Judge Replay repeats that chain verification when the sealed settlement is revealed.
 - Judge Replay selection is randomized across finalized, non-voided, traded BTC 5-minute markets rather than exposing the latest settlement; a balanced 15-minute pool is the automatic fallback.
-- Replay start requires recent candidates for both possible outcomes and fails closed if the available pool is one-sided.
-- No selected-market identifier or identifying metadata is returned at lock time.
-- The selected market, recorded outcome and locked direction are authenticated inside an AES-256-GCM seal under `JUDGE_REPLAY_SEAL_KEY`.
+- Replay start requires recent, positively traded candidates for both possible outcomes and applies the same seven-day age and provenance rules to the 5- and 15-minute pools. It fails closed if either selected pool is one-sided.
+- No selected replay market identifier or identifying metadata is returned at lock time.
+- The selected market's ID, BTC/binary template, interval, question, trading window, finalized/traded state, operator/venue/oracle/creator origin, creation transaction, recorded outcome and locked direction are authenticated inside an AES-256-GCM seal under `JUDGE_REPLAY_SEAL_KEY` and a version-2 SHA-256 commitment.
 - The public commitment is salted, combat randomness is independent of the hidden market, and the salt is withheld until reveal.
 - The reveal payload is limited to 8 KiB and 64 structured combat steps. Extra fields, invalid room transitions, impossible potion use, player death, incomplete combat, and post-terminal actions fail closed.
 - The reveal server deterministically replays every Judge `Attack`, `Storm`, and `Potion` action and requires both the guard and boss to be defeated before it reads or returns settlement data.
-- After combat passes, the reveal route re-fetches the exact indexed market, snapshots one Somnia block number and hash, and performs both settlement calls against that same block tag.
-- `BinaryModule.markets(marketId)` binds the committed market to its market, pool, collateral, and YES/NO IDs. The YES ID deterministically yields the settlement `marketKey`, encoded pool, and nonce.
+- After combat passes, the reveal route re-fetches the exact indexed market, snapshots one Somnia block number and hash, and performs both settlement calls with the EIP-1898 reference `{ blockHash, requireCanonical: true }`. A reorg that makes the hash non-canonical causes the RPC read to fail closed.
+- `BinaryModule.markets(marketId)` binds the committed market to its oracle question ID, origin operator and venue, creator, trading window, market, pool, collateral, and YES/NO IDs. The YES ID deterministically yields the settlement `marketKey`, encoded pool, and nonce.
 - `BinarySettlement.getSettlement(marketKey)` must be finalized and match those bindings. The server derives UP/DOWN from its payout vector and fails closed on any indexer, contract, block, payout, void, or committed-outcome mismatch.
-- The browser independently validates the expected deployments, market ID and market-key calldata, token/pool/nonce encoding, block binding, payout vector, outcome, combat digest, and salted commitment before applying the result.
+- Every terminal live result—either `finalized` or `voided`—must return that matching direct settlement proof. The browser repeats and validates the proof before applying gold, victory, death, or tier progression; an unavailable or mismatched proof leaves the boss fate pending.
+- The browser independently re-fetches Somnia chain ID, the exact block by hash, and both raw `eth_call` results from the hardcoded public RPC using the same canonical EIP-1898 block reference. It requires byte-for-byte equality with the server proof, ABI-decodes both results, and validates the expected deployments, market ID and market-key calldata, token/pool/nonce encoding, block hash, payout vector, outcome, combat digest, and salted commitment before applying the result.
 
 ## Verified integration surface
 
@@ -132,7 +136,7 @@ Verified against Somnia mainnet on 2 September 2026:
 | USDso collateral | `0x00000022dA000002656c64D9eA6011ea952D008A` |
 | Market filter | `BINARY` · `BTC` · `300` seconds preferred · `900` seconds fallback |
 | Live implied odds | CLOB best bid / best ask midpoint; one-sided quote or last trade fallback |
-| Direct settlement read | `BinaryModule.markets(bytes32)` → `BinarySettlement.getSettlement(uint256)` at one fixed block |
+| Direct settlement read | `BinaryModule.markets(bytes32)` → `BinarySettlement.getSettlement(uint256)` at one RPC verification snapshot block |
 | Verified settlement fields | `finalized`, `voided`, `pool`, `collateralToken`, `nonce`, `payoutNumerators` and payout-derived winner |
 
 Active-market discovery uses dreamDEX's indexer and prefers the current BTC 5-minute window. If none is active, it selects the 15-minute candidate closest to six minutes remaining. The server uses the official Markets SDK to read the selected market's recycle-safe, market-ID-keyed CLOB top of book. The UI derives UP from the best bid/ask midpoint and DOWN as its complement, labels one-sided or last-trade fallbacks, and refreshes the no-store snapshot every 15 seconds. Opening strike resolution follows `MarketReferenceLink.referenceQuestionId` to `OracleAnswer.numericValue`. Pool parameters and finalized settlement proofs are read directly through Somnia RPC.
@@ -198,15 +202,15 @@ docs/
 - Live active-market integration: complete
 - BTC 5m-first selection with automatic 15m fallback: complete
 - Official dreamDEX Markets SDK CLOB odds: complete
-- Fixed-block, direct-RPC BinarySettlement verification: complete
+- Hash-pinned, direct-RPC BinarySettlement verification at an RPC verification snapshot block: complete
 - Two-minute judge path: complete
-- Salted pre-reveal commitment and clickable post-reveal onchain proof: complete
+- Salted pre-reveal commitment, working block/contract links, copyable market ID, and portable post-reveal proof JSON: complete
 - Stateless server-verified Judge combat transcript: complete
-- Share/copy verified post-reveal result: complete
+- Share/copy/download verified post-reveal proof artifact: complete
 - Implementation-specific dreamDEX integration report: complete
 - Desktop and 390 px mobile judge-flow QA: complete
 - Four-tier dual-condition progression: complete
-- 1:53 hackathon demo video: complete
+- 1:52 hackathon demo video: complete
 - Wallet writes: intentionally disabled
 
 ## License

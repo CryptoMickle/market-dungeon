@@ -1,6 +1,12 @@
+import { decodeFunctionResult, parseAbi } from 'viem';
+
 export type DirectSettlementCall = {
   to: string;
   blockTag: string;
+  blockReference: {
+    blockHash: string;
+    requireCanonical: true;
+  };
   data: string;
   result: string;
 };
@@ -10,6 +16,16 @@ export const DREAMDEX_SETTLEMENT_CONTRACTS = {
   binaryModule: '0x3ecC694Cef705358864a646142ac17A90E29e388',
   binarySettlement: '0xbF4a49e0Dfd092e5FBE8E5761064C49533e6Ed23',
 } as const;
+
+export const SOMNIA_MAINNET_RPC = 'https://api.infra.mainnet.somnia.network';
+
+export const MODULE_MARKETS_ABI = parseAbi([
+  'function markets(bytes32 marketId) view returns (uint256 oracleQuestionId, uint8 outcomeSlotCount, uint8 voidPolicy, address collateral, uint32 originOperatorId, bytes32 originVenueId, address oracleAdapter, address creator, address market, address pool, uint256 yesId, uint256 noId, uint64 tradingStart, uint64 expiry)',
+]);
+
+export const BINARY_SETTLEMENT_ABI = parseAbi([
+  'function getSettlement(uint256 marketKey) view returns ((address collateralToken, uint128 backing, bool finalized, bool voided, uint256 settlementFeeBpsTimes1k, address feeRecipient, address pool, uint64 nonce, uint256[] payoutNumerators))',
+]);
 
 const MODULE_MARKETS_SELECTOR = '0x7564912b';
 const GET_SETTLEMENT_SELECTOR = '0x4c582380';
@@ -27,6 +43,12 @@ export type DirectOnchainSettlementProof = {
   moduleAddress: string;
   settlementAddress: string;
   collateralToken: string;
+  oracleQuestionId: string;
+  originOperatorId: string;
+  originVenueId: string;
+  creator: string;
+  tradingStart: string;
+  expiry: string;
   yesId: string;
   noId: string;
   marketKey: string;
@@ -49,6 +71,12 @@ type SettlementMarket = {
   marketAddress?: string;
   poolAddress?: string;
   collateral?: string;
+  oracleQuestionId?: string;
+  operatorId?: string | number;
+  venueId?: string;
+  creator?: string;
+  tradingStart?: string | number;
+  expiry?: string | number;
   yesTokenId?: string;
   noTokenId?: string;
   finalized: boolean;
@@ -63,6 +91,12 @@ const BYTES32 = /^0x[0-9a-f]{64}$/i;
 const HEX = /^0x[0-9a-f]+$/i;
 const ABI_WORDS = /^0x(?:[0-9a-f]{64})+$/i;
 
+export function isTerminalSettlementMarket<T extends { finalized?: unknown; voided?: unknown }>(
+  market: T | null | undefined,
+): market is T {
+  return market?.finalized === true || market?.voided === true;
+}
+
 function sameHex(left: string | undefined, right: string) {
   return !left || left.toLowerCase() === right.toLowerCase();
 }
@@ -73,6 +107,61 @@ function decimal(value: string) {
     return BigInt(value);
   } catch {
     return null;
+  }
+}
+
+function sameRawHex(left: unknown, right: string) {
+  return typeof left === 'string' && ABI_WORDS.test(left) && left.toLowerCase() === right.toLowerCase();
+}
+
+function validBlockReference(value: unknown, expectedHash: string) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+  const reference = value as { blockHash?: unknown; requireCanonical?: unknown };
+  const keys = Object.keys(reference).sort();
+  return keys.length === 2 && keys[0] === 'blockHash' && keys[1] === 'requireCanonical'
+    && typeof reference.blockHash === 'string' && BYTES32.test(reference.blockHash)
+    && reference.blockHash.toLowerCase() === expectedHash.toLowerCase()
+    && reference.requireCanonical === true;
+}
+
+function rawCallResultsMatchProof(proof: DirectOnchainSettlementProof) {
+  try {
+    const moduleRecord = decodeFunctionResult({
+      abi: MODULE_MARKETS_ABI,
+      functionName: 'markets',
+      data: proof.calls.moduleMarket.result as `0x${string}`,
+    });
+    const settlement = decodeFunctionResult({
+      abi: BINARY_SETTLEMENT_ABI,
+      functionName: 'getSettlement',
+      data: proof.calls.settlementRecord.result as `0x${string}`,
+    });
+    const rawPayouts = [...settlement.payoutNumerators];
+
+    return moduleRecord[1] === 2
+      && moduleRecord[0].toString() === proof.oracleQuestionId
+      && moduleRecord[3].toLowerCase() === proof.collateralToken.toLowerCase()
+      && moduleRecord[4].toString() === proof.originOperatorId
+      && moduleRecord[5].toLowerCase() === proof.originVenueId.toLowerCase()
+      && moduleRecord[7].toLowerCase() === proof.creator.toLowerCase()
+      && moduleRecord[8].toLowerCase() === proof.marketAddress.toLowerCase()
+      && moduleRecord[9].toLowerCase() === proof.poolAddress.toLowerCase()
+      && moduleRecord[10].toString() === proof.yesId
+      && moduleRecord[11].toString() === proof.noId
+      && moduleRecord[12].toString() === proof.tradingStart
+      && moduleRecord[13].toString() === proof.expiry
+      && settlement.collateralToken.toLowerCase() === proof.collateralToken.toLowerCase()
+      && settlement.backing.toString() === proof.backing
+      && settlement.finalized === proof.finalized
+      && settlement.voided === proof.voided
+      && settlement.settlementFeeBpsTimes1k.toString() === proof.settlementFeeBpsTimes1k
+      && settlement.pool.toLowerCase() === proof.poolAddress.toLowerCase()
+      && settlement.nonce.toString() === proof.nonce
+      && rawPayouts.length === 2
+      && rawPayouts[0]?.toString() === proof.payoutNumerators[0]
+      && rawPayouts[1]?.toString() === proof.payoutNumerators[1];
+  } catch {
+    return false;
   }
 }
 
@@ -94,13 +183,20 @@ export function directSettlementProofMatchesMarket(
 ) {
   if (!proof || proof.verified !== true || proof.source !== 'SOMNIA_RPC_ETH_CALL' || proof.chainId !== 5031) return false;
   if (!BYTES32.test(proof.marketId) || proof.marketId.toLowerCase() !== market.marketId.toLowerCase()) return false;
-  if (![proof.marketAddress, proof.poolAddress, proof.moduleAddress, proof.settlementAddress, proof.collateralToken].every((value) => ADDRESS.test(value))) return false;
+  if (![proof.marketAddress, proof.poolAddress, proof.moduleAddress, proof.settlementAddress, proof.collateralToken, proof.creator].every((value) => ADDRESS.test(value))) return false;
+  if (!BYTES32.test(proof.originVenueId)) return false;
   if (proof.moduleAddress.toLowerCase() !== DREAMDEX_SETTLEMENT_CONTRACTS.binaryModule.toLowerCase()
     || proof.settlementAddress.toLowerCase() !== DREAMDEX_SETTLEMENT_CONTRACTS.binarySettlement.toLowerCase()) return false;
   if (!sameHex(market.marketAddress, proof.marketAddress) || !sameHex(market.poolAddress, proof.poolAddress) || !sameHex(market.collateral, proof.collateralToken)) return false;
+  if ((market.oracleQuestionId != null && String(market.oracleQuestionId) !== proof.oracleQuestionId)
+    || (market.operatorId != null && String(market.operatorId) !== proof.originOperatorId)
+    || (market.venueId != null && !sameHex(market.venueId, proof.originVenueId))
+    || (market.creator != null && !sameHex(market.creator, proof.creator))
+    || (market.tradingStart != null && String(market.tradingStart) !== proof.tradingStart)
+    || (market.expiry != null && String(market.expiry) !== proof.expiry)) return false;
   if (!BYTES32.test(proof.blockHash) || !HEX.test(proof.blockTag) || decimal(proof.blockNumber) === null) return false;
   if (BigInt(proof.blockTag) !== BigInt(proof.blockNumber)) return false;
-  if (!proof.finalized || !market.finalized || proof.voided !== market.voided) return false;
+  if (!proof.finalized || !isTerminalSettlementMarket(market) || proof.voided !== market.voided) return false;
 
   const payouts = proof.payoutNumerators.map(decimal);
   const yesId = decimal(proof.yesId);
@@ -109,10 +205,16 @@ export function directSettlementProofMatchesMarket(
   const nonce = decimal(proof.nonce);
   const backing = decimal(proof.backing);
   const fee = decimal(proof.settlementFeeBpsTimes1k);
+  const oracleQuestionId = decimal(proof.oracleQuestionId);
+  const operatorId = decimal(proof.originOperatorId);
+  const tradingStart = decimal(proof.tradingStart);
+  const expiry = decimal(proof.expiry);
   const indexedYesId = decimal(String(market.yesTokenId ?? ''));
   const indexedNoId = decimal(String(market.noTokenId ?? ''));
   if (payouts.some((value) => value === null) || yesId === null || noId === null || marketKey === null
-    || nonce === null || backing === null || fee === null || indexedYesId !== yesId || indexedNoId !== noId
+    || nonce === null || backing === null || fee === null || oracleQuestionId === null || operatorId === null
+    || tradingStart === null || expiry === null || expiry <= tradingStart
+    || indexedYesId !== yesId || indexedNoId !== noId
     || noId !== yesId + 1n || marketKey !== yesId >> 8n) return false;
   const encodedPool = `0x${(yesId >> 72n).toString(16).padStart(40, '0')}`;
   const encodedNonce = (yesId >> 8n) & ((1n << 64n) - 1n);
@@ -134,9 +236,57 @@ export function directSettlementProofMatchesMarket(
 
   const calls = [proof.calls.moduleMarket, proof.calls.settlementRecord];
   if (calls.some((call) => call.blockTag !== proof.blockTag || !ADDRESS.test(call.to) || !HEX.test(call.data) || !ABI_WORDS.test(call.result))) return false;
+  if (calls.some((call) => !validBlockReference(call.blockReference, proof.blockHash))) return false;
   if (proof.calls.moduleMarket.to.toLowerCase() !== proof.moduleAddress.toLowerCase()) return false;
   if (proof.calls.settlementRecord.to.toLowerCase() !== proof.settlementAddress.toLowerCase()) return false;
   if (proof.calls.moduleMarket.data.toLowerCase() !== `${MODULE_MARKETS_SELECTOR}${proof.marketId.slice(2)}`.toLowerCase()) return false;
   if (proof.calls.settlementRecord.data.toLowerCase() !== `${GET_SETTLEMENT_SELECTOR}${marketKey.toString(16).padStart(64, '0')}`.toLowerCase()) return false;
-  return true;
+  return rawCallResultsMatchProof(proof);
+}
+
+export type SettlementProofRpc = (method: string, params: readonly unknown[]) => Promise<unknown>;
+
+async function somniaMainnetRpc(method: string, params: readonly unknown[]) {
+  const response = await fetch(SOMNIA_MAINNET_RPC, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params }),
+    cache: 'no-store',
+    signal: AbortSignal.timeout(8_000),
+  });
+  const payload = await response.json() as { result?: unknown; error?: unknown };
+  if (!response.ok || payload.error || payload.result == null) throw new Error('Somnia RPC verification failed');
+  return payload.result;
+}
+
+export async function directSettlementProofMatchesSomniaRpc(
+  proof: DirectOnchainSettlementProof | undefined,
+  market: SettlementMarket,
+  rpc: SettlementProofRpc = somniaMainnetRpc,
+) {
+  if (!proof || !directSettlementProofMatchesMarket(proof, market)) return false;
+
+  try {
+    const [chainId, block, moduleResult, settlementResult] = await Promise.all([
+      rpc('eth_chainId', []),
+      rpc('eth_getBlockByHash', [proof.blockHash, false]),
+      rpc('eth_call', [{ to: proof.calls.moduleMarket.to, data: proof.calls.moduleMarket.data }, proof.calls.moduleMarket.blockReference]),
+      rpc('eth_call', [{ to: proof.calls.settlementRecord.to, data: proof.calls.settlementRecord.data }, proof.calls.settlementRecord.blockReference]),
+    ]);
+    const rpcBlock = block as { number?: unknown; hash?: unknown } | null;
+
+    return typeof chainId === 'string'
+      && HEX.test(chainId)
+      && Number(BigInt(chainId)) === proof.chainId
+      && typeof rpcBlock?.number === 'string'
+      && HEX.test(rpcBlock.number)
+      && BigInt(rpcBlock.number) === BigInt(proof.blockTag)
+      && typeof rpcBlock.hash === 'string'
+      && BYTES32.test(rpcBlock.hash)
+      && rpcBlock.hash.toLowerCase() === proof.blockHash.toLowerCase()
+      && sameRawHex(moduleResult, proof.calls.moduleMarket.result)
+      && sameRawHex(settlementResult, proof.calls.settlementRecord.result);
+  } catch {
+    return false;
+  }
 }

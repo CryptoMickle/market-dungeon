@@ -52,9 +52,10 @@ export function selectPreferredActiveMarket<T extends ActiveMarketCandidate>(
     ))[0];
 }
 
-function validReplayCandidates(candidates: readonly ReplayCandidate[]) {
+function validReplayCandidates<T extends ReplayCandidate>(candidates: readonly T[]) {
   return candidates
     .map((market) => ({
+      ...market,
       marketId: String(market.marketId ?? '').toLowerCase(),
       winningOutcome: Number(market.winningOutcome),
     }))

@@ -3,22 +3,14 @@ import { getBookTops } from '@somnia-chain/markets-sdk';
 import { deriveDreamDexClobOdds, type DreamDexClobOdds } from '../clob-odds';
 
 const INDEXER = 'https://prd.smk.somnia.host/v1/graphql';
-const SDK_READ_TIMEOUT_MS = 4_000;
 
 type OddsMarket = Record<string, unknown>;
 
 async function sdkBookTop(marketId: string) {
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  try {
-    return await Promise.race([
-      getBookTops([marketId], INDEXER),
-      new Promise<never>((_, reject) => {
-        timer = setTimeout(() => reject(new Error('dreamDEX SDK order-book read timed out')), SDK_READ_TIMEOUT_MS);
-      }),
-    ]);
-  } finally {
-    if (timer) clearTimeout(timer);
-  }
+  // SDK 0.25 routes typed reads through its GraphQL boundary, which uses
+  // AbortSignal.timeout. Avoid an outer Promise.race that returns early while
+  // leaving the SDK's underlying request running in the background.
+  return getBookTops([marketId], INDEXER);
 }
 
 export async function fetchDreamDexClobOdds(market: OddsMarket): Promise<DreamDexClobOdds> {

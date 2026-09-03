@@ -1,6 +1,6 @@
-import { graphql, hydrateMarket, verifyDirectSettlement } from '../dreamdex';
-import { fetchDreamDexClobOdds } from '../dreamdex-odds';
-import { selectPreferredActiveMarket } from '../../event-contract-interval';
+import { graphql, hydrateMarket, verifyDirectSettlement } from '../dreamdex.ts';
+import { selectPreferredActiveMarket } from '../../event-contract-interval.ts';
+import { isTerminalSettlementMarket } from '../../onchain-settlement-proof.ts';
 
 export async function GET(request: Request) {
   try {
@@ -14,7 +14,7 @@ export async function GET(request: Request) {
         }
       }`, { id: requestedId.toLowerCase() });
       const market = data.Market_by_pk as Record<string, unknown> | null;
-      const onchainSettlement = market?.finalized === true
+      const onchainSettlement = isTerminalSettlementMarket(market)
         ? await verifyDirectSettlement(market)
         : undefined;
       return Response.json({ market, ...(onchainSettlement ? { onchainSettlement } : {}) }, { headers: { 'cache-control': 'no-store' } });
@@ -42,6 +42,7 @@ export async function GET(request: Request) {
     const market = selectPreferredActiveMarket(candidates, nowSeconds);
     if (!market) return Response.json({ error: 'No active BTC 5m or 15m market' }, { status: 404 });
 
+    const { fetchDreamDexClobOdds } = await import('../dreamdex-odds.ts');
     const [hydrated, odds] = await Promise.all([
       hydrateMarket(market),
       fetchDreamDexClobOdds(market),
