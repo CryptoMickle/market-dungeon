@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Locator, type Page } from '@playwright/test';
 
 import type { JudgeCombatAction } from '../../app/judge-combat';
 import { SOMNIA_MAINNET_RPC } from '../../app/onchain-settlement-proof';
@@ -44,6 +44,14 @@ async function installDeterministicUpstreams(page: Page) {
   });
 }
 
+async function expectOptimizedImageLoaded(image: Locator) {
+  await expect(image).toBeVisible();
+  await expect(image).toHaveAttribute('src', /\/_next\/image\?url=%2F/);
+  await expect.poll(() => image.evaluate((element: HTMLImageElement) => (
+    element.complete && element.naturalWidth > 0
+  ))).toBe(true);
+}
+
 test('full-run setup fetches the next market at the exact five-minute rollover', async ({ page }) => {
   const rolloverSeconds = Math.floor(Date.now() / 1_000) + 3;
   const expiringMarket = {
@@ -71,6 +79,7 @@ test('full-run setup fetches the next market at the exact five-minute rollover',
   });
 
   await page.goto('/');
+  await expectOptimizedImageLoaded(page.getByAltText('Miss Morgue, Kevin the Unqualified and Brutus assembled in the dungeon'));
   await expect(page.getByText('TIER 1 PREDICTION · MARKET #AAAA')).toBeVisible();
   await expect(page.getByText('TIER 1 PREDICTION · MARKET #BBBB')).toBeVisible({ timeout: 6_000 });
   expect(marketRequestTimes.some((time) => (
@@ -94,12 +103,14 @@ test('Judge Demo completes in Chromium and renders independently verified proof 
   await expect(page.getByRole('heading', { name: 'Lock your omen before the replay is drawn.' })).toBeVisible();
   await page.getByRole('button', { name: /GOLD AWAKENS/ }).click();
   await page.getByRole('button', { name: 'LOCK OMEN & SEAL REPLAY' }).click();
+  await expectOptimizedImageLoaded(page.locator('.monster-stage img'));
 
   const guardStep = page.getByLabel('Judge Demo progress').locator('span').filter({ hasText: 'DEFEAT GUARD' });
   await expect(guardStep).toHaveClass(/active/);
   await page.getByRole('button', { name: /ATTACK/ }).click();
   await expect(page.getByRole('heading', { name: 'The final boss gate is open.' })).toBeVisible();
   await page.getByRole('button', { name: '👑 ENTER FINAL BOSS' }).click();
+  await expectOptimizedImageLoaded(page.locator('.monster-stage img'));
   await page.getByRole('button', { name: /ATTACK/ }).click();
   await page.getByRole('button', { name: /ATTACK/ }).click();
 
