@@ -5,6 +5,7 @@ import {
   dreamDexCtaClickedEvent,
   judgeDemoCompletedEvent,
   judgeDemoStartedEvent,
+  shouldEmitAnalyticsEvent,
 } from '../app/analytics-events.ts';
 
 test('Judge Demo analytics uses stable anonymous funnel paths', () => {
@@ -26,4 +27,9 @@ test('dreamDEX CTA analytics distinguishes judge and full runs without identifie
   assert.equal(event.path.includes('market'), false);
   assert.equal(event.path.includes('commitment'), false);
   assert.equal(event.path.includes('wallet'), false);
+});
+
+test('manual funnel analytics excludes automated browser sessions', () => {
+  assert.equal(shouldEmitAnalyticsEvent(false), true);
+  assert.equal(shouldEmitAnalyticsEvent(true), false);
 });

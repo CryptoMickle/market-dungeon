@@ -35,6 +35,14 @@ The current read-only build removes wallet, funding and approval friction so any
 
 Every tier already introduces a fresh BTC Event Contract. Preferring the new 5-minute window lets settlement occur within the play session, while the same structure can support additional assets, intervals and seasonal campaigns. This turns new dreamDEX markets into reusable game content and gives the ecosystem a differentiated path to game-native users. The contest build does not claim current trading volume; it demonstrates the acquisition and retention loop that can precede it.
 
+### Measured baseline and success targets
+
+Vercel Web Analytics recorded **65 visitors and 187 page views from 27 August to 3 September 2026**, with **28 visitors referred by DoraHacks**. The anonymous Judge funnel recorded 17 start pageviews, 14 verified-completion pageviews and 2 Continue-on-dreamDEX pageviews. All 10 completions recorded after interval segmentation used the preferred 5-minute path; four earlier completions are not interval-classified.
+
+This first window is a directional baseline: route totals are event volumes rather than deduplicated users, the schema changed during the window, and automated production smoke runs are included. It implies an 82% completion/start ratio, 14% Continue/completion ratio and 2.8 starts per start-route visitor, but those figures are not presented as clean human conversion or retention. Automated browsers are excluded from manual funnel events from this release onward.
+
+After at least 30 human Judge starts, the next rolling seven-day window will be evaluated against four targets: **at least 70% verified completion**, **at least 25% Continue-on-dreamDEX intent**, **at least 1.5 starts per start-route visitor**, and **at least 80% 5-minute exposure among interval-classified completions**. Continue is still an external discovery action. Wallet connection, eligible opt-in orders and trading conversion are future scope and will be measured separately; Market Dungeon makes no current trading-volume claim.
+
 ## Two-minute judge path
 
 1. Open the live demo and select **2-MIN JUDGE DEMO · SEALED MARKET REPLAY**.
