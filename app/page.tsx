@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
 import {
@@ -81,6 +82,7 @@ const MAX_POTIONS = 5;
 const PROFILE_KEY = 'market-dungeon-profile-v1';
 const MERCHANT_IMAGE = '/characters/merchant-quartermaster-kevin.webp';
 const SOMNIA_EXPLORER = 'https://explorer.somnia.network';
+const STAGE_IMAGE_SIZES = '(min-width: 1216px) 691px, (min-width: 1024px) calc((100vw - 64px) * 0.6), (min-width: 552px) 520px, calc(100vw - 20px)';
 
 const fallback: Market = {
   marketId: '0x0000000000000000000000000000000000000000000000000000000000000000',
@@ -1112,7 +1114,13 @@ export default function Home() {
           {phase === 'SETUP' ? (
             <div className="setup-view">
               <div className="setup-hero">
-                <img src="/assets/delveworn-tier2-party-hero.webp" alt="Miss Morgue, Kevin the Unqualified and Brutus assembled in the dungeon" />
+                <Image
+                  src="/assets/delveworn-tier2-party-hero.webp"
+                  alt="Miss Morgue, Kevin the Unqualified and Brutus assembled in the dungeon"
+                  fill
+                  preload
+                  sizes={STAGE_IMAGE_SIZES}
+                />
               </div>
               <div className="setup-content">
                 <div className="setup-intro">
@@ -1184,7 +1192,7 @@ export default function Home() {
             </div>
           ) : phase === 'MERCHANT' || phase === 'FINAL_MERCHANT' ? (
             <div className="merchant-view">
-              <div className="merchant-stage"><img src={MERCHANT_IMAGE} alt="Quartermaster Kevin, Travelling Merchant" /><div className="stage-fade" /></div>
+              <div className="merchant-stage"><Image src={MERCHANT_IMAGE} alt="Quartermaster Kevin, Travelling Merchant" fill sizes={STAGE_IMAGE_SIZES} /><div className="stage-fade" /></div>
               <div className="merchant-copy">
                 <p className="section-kicker">🧰 {phase === 'FINAL_MERCHANT' ? 'POST-BOSS' : 'ROOM 5'} · TRAVELLING MERCHANT</p>
                 <h2>Quartermaster Kevin</h2>
@@ -1232,7 +1240,7 @@ export default function Home() {
                 </div>
               </div>
               <div className="monster-stage">
-                <img src={monster.image} alt={monster.name} />
+                <Image src={monster.image} alt={monster.name} fill sizes={STAGE_IMAGE_SIZES} />
                 {judgeMode && <div className="judge-stage-label">{room === TOTAL_ROOMS - 2 ? '⚡ FINAL TIER REPLAY · ONE WOUNDED GUARD REMAINS BEFORE THE BOSS' : '⚡ FINAL BOSS · WOUNDED FOR THE FAST DEMO'}</div>}
                 <div className="stage-fade" />
               </div>
