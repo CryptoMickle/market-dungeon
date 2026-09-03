@@ -40,8 +40,18 @@ export function dreamDexCtaClickedEvent(
   };
 }
 
+export function shouldEmitAnalyticsEvent(automatedBrowser: boolean) {
+  return !automatedBrowser;
+}
+
 export function emitAnalyticsEvent(event: AnalyticsPageview) {
   try {
+    // Playwright sets navigator.webdriver. Excluding those sessions keeps the
+    // scheduled production smoke from inflating the human Judge funnel.
+    if (!shouldEmitAnalyticsEvent(typeof navigator !== 'undefined' && navigator.webdriver)) {
+      return;
+    }
+
     // Manual pageviews keep the funnel visible on Vercel Hobby, where custom
     // events are unavailable. These paths are analytics labels only; gameplay
     // stays on the current URL.

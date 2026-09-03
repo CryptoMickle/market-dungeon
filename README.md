@@ -73,6 +73,23 @@ Market Dungeon is designed as a consumer on-ramp to Event Contracts rather than 
 
 The contest build does not claim to generate trading volume. It demonstrates the acquisition and engagement layer that can bring game-native users to Event Contracts before an explicitly consented trading mode is added.
 
+### Measured baseline and targets
+
+Vercel Web Analytics provides an early production baseline for **27 August–3 September 2026**. The site recorded **65 visitors and 187 page views**, including **28 visitors referred by DoraHacks**. The anonymous Judge funnel recorded 17 start pageviews, 14 verified-completion pageviews and 2 Continue-on-dreamDEX pageviews. Of the 10 completions recorded after interval segmentation was introduced, all 10 used the preferred 5-minute market path; four earlier completions are not interval-classified.
+
+These are event volumes, not deduplicated unique-user conversions. The observation window spans an analytics schema change, variant routes can share visitors, and the initial sample includes automated production smoke runs. The resulting 82% completion/start ratio, 14% Continue/completion ratio and 2.8 starts per start-route visitor are therefore directional baselines, not decision-grade claims. Automated browsers are excluded from manual funnel events from this release onward, and the schema is frozen for the next measurement window.
+
+The next rolling seven-day evaluation begins after at least 30 human Judge starts and uses these explicit targets:
+
+| Funnel metric | Target |
+| --- | --- |
+| Verified Judge completion | At least 70% of start-event volume |
+| Continue-on-dreamDEX intent | At least 25% of verified-completion volume |
+| Repeat-play intensity | At least 1.5 start pageviews per start-route visitor |
+| Preferred 5-minute exposure | At least 80% of interval-classified verified completions |
+
+The Continue action remains an external discovery link, not a trade. Future opt-in wallet and trading conversion is roadmap-only and will require its own consent, eligibility and transaction metrics; no current number is presented as trading volume.
+
 ## Architecture
 
 ```mermaid
@@ -200,7 +217,7 @@ docs/
 - Gold and the next-run potion count are stored only on the player's device; active combat and loadout state reset on refresh.
 - Judge combat is rendered in the browser, but reveal is server-gated by a stateless deterministic replay of the submitted structured action log. This proves that the transcript is valid under the published seed and rules; because the seed is public, it is not proof of human input or elapsed play time.
 - Production and Preview require separate `JUDGE_REPLAY_SEAL_KEY` values, each encoded as exactly 64 hexadecimal characters (32 bytes). Rotating a key cleanly invalidates in-flight replay seals.
-- Vercel Web Analytics records normal page views plus three anonymous funnel checkpoints as manual pageviews: Judge Demo started, verified Judge Demo completed, and Continue on dreamDEX clicked. Stable `/funnel/...` paths encode only interval, mode, direction, and result so 5m adoption remains measurable on Vercel Hobby, where custom events are unavailable; no wallet, market ID, commitment, or combat transcript is sent.
+- Vercel Web Analytics records normal page views plus three anonymous funnel checkpoints as manual pageviews: Judge Demo started, verified Judge Demo completed, and Continue on dreamDEX clicked. Stable `/funnel/...` paths encode only interval, mode, direction, and result so 5m adoption remains measurable on Vercel Hobby, where custom events are unavailable; no wallet, market ID, commitment, or combat transcript is sent. Automated browsers are excluded from the manual funnel events so scheduled smoke runs do not inflate the human baseline.
 - Availability depends on the public dreamDEX indexer and Somnia RPC.
 
 ## Contest status
