@@ -221,6 +221,7 @@ docs/
 - Judge reveal requests are capped at 8 KiB of UTF-8 input. A declared oversize request is rejected before its body is read; requests without a trustworthy length are read incrementally and their stream is cancelled immediately after crossing the limit.
 - GitHub workflows grant their token read-only repository access and pin every external action to a full, reviewed commit SHA; version comments preserve update visibility without trusting mutable tags.
 - Vercel Web Analytics records normal page views plus three anonymous funnel checkpoints as manual pageviews: Judge Demo started, verified Judge Demo completed, and Continue on dreamDEX clicked. Stable `/funnel/...` paths encode only interval, mode, direction, and result so 5m adoption remains measurable on Vercel Hobby, where custom events are unavailable; no wallet, market ID, commitment, or combat transcript is sent. Automated browsers are excluded from the manual funnel events so scheduled smoke runs do not inflate the human baseline.
+- The live footer links to a dedicated **Privacy · Credits · AI Disclosure** page. The versioned [provenance and privacy disclosure](docs/PROVENANCE_AND_PRIVACY.md) documents analytics, browser-local state, direct Somnia RPC verification, the complete visual-asset groups, generative-AI assistance, and the demo video's credited Pixabay music.
 - Availability depends on the public dreamDEX indexer and Somnia RPC.
 
 ## Contest status
@@ -242,4 +243,4 @@ docs/
 
 ## License
 
-MIT
+Source code is available under the [MIT License](LICENSE). Original visual assets are separate project assets and are not offered for reuse under the MIT grant unless explicitly marked otherwise. See [provenance, privacy, and AI disclosure](docs/PROVENANCE_AND_PRIVACY.md).

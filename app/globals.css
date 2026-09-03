@@ -389,6 +389,10 @@ span.gold-icon { display: inline-block !important; }
 footer { padding: 24px 8px 0; text-align: center; }
 footer p { margin: 0; color: #3f3f46; font-size: 8px; font-weight: 900; letter-spacing: .08em; }
 footer span { display: block; margin-top: 6px; color: #303035; font-size: 8px; line-height: 1.5; }
+footer nav { margin-top: 9px; }
+footer a { color: #5b5269; font-size: 8px; font-weight: 900; letter-spacing: .06em; text-decoration: none; }
+footer a:hover { color: #c4b5fd; }
+footer a:focus-visible { outline: 2px solid #c4b5fd; outline-offset: 3px; }
 
 @media (min-width: 1024px) {
   .game-shell { padding: 32px 32px 96px; }

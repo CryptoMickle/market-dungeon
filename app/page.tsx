@@ -1,6 +1,7 @@
 'use client';
 
 import Image from 'next/image';
+import Link from 'next/link';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
 import {
@@ -1339,7 +1340,12 @@ export default function Home() {
           </div>
         </section>
 
-        <footer><p>DELVEWORN × DREAMDEX EVENT CONTRACTS · SOMNIA</p><span>Competition prototype · no wallet · no approval · no order submission · {replaySealed ? `sealed commitment ${marketCode}` : `market #${marketCode || '—'}`}</span></footer>
+        <footer>
+          <p>DELVEWORN × DREAMDEX EVENT CONTRACTS · SOMNIA</p>
+          <span>Competition prototype · no wallet · no approval · no order submission · {replaySealed ? `sealed commitment ${marketCode}` : `market #${marketCode || '—'}`}</span>
+          <span>Anonymous Vercel Analytics measures page views and three funnel checkpoints; no wallet address, market ID, proof, or combat transcript is sent.</span>
+          <nav aria-label="Project transparency"><Link href="/credits">PRIVACY · CREDITS · AI DISCLOSURE</Link></nav>
+        </footer>
       </div>
     </main>
   );
