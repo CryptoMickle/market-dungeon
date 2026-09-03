@@ -4,7 +4,9 @@ import test from 'node:test';
 import {
   JUDGE_COMBAT,
   canonicalJudgeActionLog,
+  hashSeed,
   replayJudgeCombat,
+  seededRoll,
   type JudgeCombatAction,
 } from '../app/judge-combat.ts';
 
@@ -41,6 +43,16 @@ test('server replay validates Attack, Storm, and Potion through both Judge fight
   assert.ok(actions.some((entry) => entry.action === 'attack'));
   assert.ok(actions.some((entry) => entry.action === 'storm'));
   assert.ok(actions.some((entry) => entry.action === 'potion'));
+});
+
+test('seeded rolls remain in the half-open range even for the maximum uint32 hash', () => {
+  const maximumHashSeed = String.fromCharCode(2, 41, 247, 223, 7);
+  assert.equal(hashSeed(maximumHashSeed), 0xffff_ffff);
+
+  const roll = seededRoll(maximumHashSeed);
+  assert.equal(roll, 0xffff_ffff / 0x1_0000_0000);
+  assert.ok(roll >= 0 && roll < 1);
+  assert.equal(Math.floor(roll * 18), 17);
 });
 
 test('incomplete, out-of-order, and post-terminal transcripts fail closed', () => {

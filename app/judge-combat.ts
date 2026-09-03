@@ -35,7 +35,7 @@ export function hashSeed(value: string) {
 }
 
 export function seededRoll(seed: string) {
-  return hashSeed(seed) / 4294967295;
+  return hashSeed(seed) / 0x1_0000_0000;
 }
 
 export function canonicalJudgeActionLog(gameSeed: string, actions: JudgeCombatAction[]) {
