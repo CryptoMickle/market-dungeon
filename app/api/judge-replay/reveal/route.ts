@@ -1,11 +1,25 @@
-import { fetchFullMarket, hydrateMarket } from '../../dreamdex.ts';
+import { fetchFullMarket, hydrateMarket, isRetryableUpstreamError } from '../../dreamdex.ts';
+import { checkRateLimit, rateLimitHeaders, type RateLimitResult } from '../../request-control.ts';
 import { JUDGE_COMBAT, replayJudgeCombat, type JudgeCombatAction } from '../../../judge-combat.ts';
+import { replayMarketProvenanceMatches } from '../../../replay-proof.ts';
 import { canonicalReplay, combatTranscriptDigest, openReplay, replayCommitment, replayTimeStatus } from '../crypto.ts';
+import { dedupeReveal, type RevealResult } from './state.ts';
 
 export const runtime = 'nodejs';
 
 const NO_STORE = { 'cache-control': 'private, no-store, max-age=0' };
 const MAX_REVEAL_BYTES = 8_192;
+const REVEAL_RATE_LIMIT = { namespace: 'judge-replay-reveal', limit: 12, windowMs: 60_000 };
+
+function responseHeaders(rate: RateLimitResult, extra: Record<string, string> = {}) {
+  return { ...NO_STORE, ...rateLimitHeaders(rate), ...extra };
+}
+
+function revealResponse(result: RevealResult, rate: RateLimitResult, dedupe: 'miss' | 'shared' | 'hit') {
+  const extra: Record<string, string> = { 'x-replay-dedupe': dedupe };
+  if (result.retryAfter) extra['retry-after'] = String(result.retryAfter);
+  return Response.json(result.body, { status: result.status, headers: responseHeaders(rate, extra) });
+}
 
 async function replayRequestFrom(request: Request) {
   if (!request.headers.get('content-type')?.toLowerCase().startsWith('application/json')) {
@@ -35,6 +49,14 @@ async function replayRequestFrom(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const rate = checkRateLimit(request, REVEAL_RATE_LIMIT);
+  if (!rate.allowed) {
+    return Response.json(
+      { error: 'Too many replay reveals. Please wait before retrying.', retryState: 'rate_limited', retryAfter: rate.retryAfter },
+      { status: 429, headers: responseHeaders(rate, { 'retry-after': String(rate.retryAfter) }) },
+    );
+  }
+
   let claims;
   let actions: JudgeCombatAction[];
   try {
@@ -42,18 +64,18 @@ export async function POST(request: Request) {
     claims = openReplay(replayRequest.seal);
     actions = replayRequest.actions;
   } catch {
-    return Response.json({ error: 'Invalid or expired replay seal. Start a new Judge Replay.' }, { status: 400, headers: NO_STORE });
+    return Response.json({ error: 'Invalid or expired replay seal. Start a new Judge Replay.' }, { status: 400, headers: responseHeaders(rate) });
   }
 
   const now = Math.floor(Date.now() / 1000);
   const timeStatus = replayTimeStatus(claims, now);
   if (timeStatus === 'expired') {
-    return Response.json({ error: 'Replay seal expired. Start a new Judge Replay.' }, { status: 410, headers: NO_STORE });
+    return Response.json({ error: 'Replay seal expired. Start a new Judge Replay.' }, { status: 410, headers: responseHeaders(rate) });
   }
   if (timeStatus === 'sealed') {
     return Response.json(
       { error: 'Replay remains sealed during the minimum anti-peek hold.', retryAfter: claims.revealAfter - now },
-      { status: 425, headers: { ...NO_STORE, 'retry-after': String(claims.revealAfter - now) } },
+      { status: 425, headers: responseHeaders(rate, { 'retry-after': String(claims.revealAfter - now) }) },
     );
   }
 
@@ -61,47 +83,93 @@ export async function POST(request: Request) {
   if (!combat.verified) {
     return Response.json(
       { error: 'Combat transcript did not verify. Defeat both the guard and boss before revealing fate.' },
-      { status: 422, headers: NO_STORE },
+      { status: 422, headers: responseHeaders(rate) },
     );
   }
 
-  try {
-    const rawMarket = await fetchFullMarket(claims.marketId);
-    const currentOutcome = Number(rawMarket?.winningOutcome);
-    if (!rawMarket || rawMarket.finalized !== true || rawMarket.voided === true || currentOutcome !== claims.winningOutcome) {
-      throw new Error('Committed settlement no longer verifies');
-    }
-    const hydrated = await hydrateMarket(rawMarket, true);
-    const commitment = replayCommitment(claims);
+  const commitment = replayCommitment(claims);
+  const digest = combatTranscriptDigest(claims.gameSeed, actions);
+  const deduped = await dedupeReveal({
+    commitment,
+    digest,
+    expiresAt: claims.expiresAt * 1_000,
+    verify: async (): Promise<RevealResult> => {
+      try {
+        const rawMarket = await fetchFullMarket(claims.marketId);
+        const currentOutcome = Number(rawMarket?.winningOutcome);
+        if (!rawMarket || rawMarket.finalized !== true || rawMarket.voided === true
+          || currentOutcome !== claims.winningOutcome
+          || !replayMarketProvenanceMatches(claims, rawMarket)) {
+          throw new Error('Committed settlement no longer verifies');
+        }
+        const hydrated = await hydrateMarket(rawMarket, true);
 
-    return Response.json({
-      ...hydrated,
-      replayProof: {
-        verified: true,
-        algorithm: 'SHA-256',
-        commitment,
-        canonical: canonicalReplay(claims),
-        marketId: claims.marketId,
-        salt: claims.salt,
-        gameSeed: claims.gameSeed,
-        lockedDirection: claims.direction,
-        committedOutcome: claims.winningOutcome,
-        issuedAt: claims.issuedAt,
-        revealAfter: claims.revealAfter,
-        expiresAt: claims.expiresAt,
-      },
-      combatProof: {
-        verified: true,
-        ruleset: 'market-dungeon/judge-combat/v1',
-        transcriptDigest: combatTranscriptDigest(claims.gameSeed, actions),
-        steps: combat.steps,
-        guardDefeated: true,
-        bossDefeated: true,
-        playerSurvived: true,
-        finalHp: combat.finalHp,
-      },
-    }, { headers: NO_STORE });
-  } catch {
-    return Response.json({ error: 'Committed Somnia settlement could not be verified.' }, { status: 409, headers: NO_STORE });
+        return {
+          status: 200,
+          body: {
+            ...hydrated,
+            replayProof: {
+              verified: true,
+              algorithm: 'SHA-256',
+              commitment,
+              canonical: canonicalReplay(claims),
+              marketId: claims.marketId,
+              marketType: claims.marketType,
+              asset: claims.asset,
+              intervalSec: claims.intervalSec,
+              question: claims.question,
+              tradingStart: claims.tradingStart,
+              marketExpiry: claims.marketExpiry,
+              marketStatus: claims.marketStatus,
+              tradeCount: claims.tradeCount,
+              lastTradeAt: claims.lastTradeAt,
+              operatorId: claims.operatorId,
+              venueId: claims.venueId,
+              marketContext: claims.marketContext,
+              oracleQuestionId: claims.oracleQuestionId,
+              creator: claims.creator,
+              createdByTx: claims.createdByTx,
+              salt: claims.salt,
+              gameSeed: claims.gameSeed,
+              lockedDirection: claims.direction,
+              committedOutcome: claims.winningOutcome,
+              issuedAt: claims.issuedAt,
+              revealAfter: claims.revealAfter,
+              expiresAt: claims.expiresAt,
+            },
+            combatProof: {
+              verified: true,
+              ruleset: 'market-dungeon/judge-combat/v1',
+              transcriptDigest: digest,
+              steps: combat.steps,
+              guardDefeated: true,
+              bossDefeated: true,
+              playerSurvived: true,
+              finalHp: combat.finalHp,
+            },
+          },
+        };
+      } catch (error) {
+        if (isRetryableUpstreamError(error)) {
+          return {
+            status: 503,
+            retryAfter: error.retryAfter,
+            body: {
+              error: 'Somnia settlement services are temporarily unavailable. Retry this reveal.',
+              retryState: 'upstream_retry',
+              retryAfter: error.retryAfter,
+            },
+          };
+        }
+        return { status: 409, body: { error: 'Committed Somnia settlement could not be verified.' } };
+      }
+    },
+  });
+  if (deduped.state === 'conflict') {
+    return Response.json(
+      { error: 'This replay commitment was already revealed with a different combat transcript.' },
+      { status: 409, headers: responseHeaders(rate, { 'x-replay-dedupe': 'conflict' }) },
+    );
   }
+  return revealResponse(deduped.result, rate, deduped.state);
 }

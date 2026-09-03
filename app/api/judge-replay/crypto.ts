@@ -1,12 +1,19 @@
 import { createCipheriv, createDecipheriv, createHash, randomBytes } from 'node:crypto';
 
 import { canonicalJudgeActionLog, type JudgeCombatAction } from '../../judge-combat.ts';
-import { canonicalReplayProof, type ReplayDirection } from '../../replay-proof.ts';
+import {
+  MAX_REPLAY_MARKET_AGE_SECONDS,
+  REPLAY_COMMITMENT_DOMAIN,
+  canonicalReplayProof,
+  replayMarketProvenanceFromMarket,
+  type ReplayDirection,
+  type ReplayMarketProvenance,
+} from '../../replay-proof.ts';
 
 export type { ReplayDirection } from '../../replay-proof.ts';
 
 export type ReplayClaims = {
-  version: 1;
+  version: 2;
   purpose: 'judge-replay';
   environment: string;
   marketId: string;
@@ -17,10 +24,10 @@ export type ReplayClaims = {
   issuedAt: number;
   revealAfter: number;
   expiresAt: number;
-};
+} & ReplayMarketProvenance;
 
-const DOMAIN = 'market-dungeon/judge-replay/v1';
-const TOKEN_VERSION = 'v1';
+const DOMAIN = REPLAY_COMMITMENT_DOMAIN;
+const TOKEN_VERSION = 'v2';
 const MARKET_ID = /^0x[0-9a-f]{64}$/;
 const BASE64URL_32_BYTES = /^[A-Za-z0-9_-]{43}$/;
 
@@ -50,6 +57,21 @@ export function canonicalReplay(claims: ReplayClaims) {
     revealAfter: claims.revealAfter,
     expiresAt: claims.expiresAt,
     salt: claims.salt,
+    marketType: claims.marketType,
+    asset: claims.asset,
+    intervalSec: claims.intervalSec,
+    question: claims.question,
+    tradingStart: claims.tradingStart,
+    marketExpiry: claims.marketExpiry,
+    marketStatus: claims.marketStatus,
+    tradeCount: claims.tradeCount,
+    lastTradeAt: claims.lastTradeAt,
+    operatorId: claims.operatorId,
+    venueId: claims.venueId,
+    marketContext: claims.marketContext,
+    oracleQuestionId: claims.oracleQuestionId,
+    creator: claims.creator,
+    createdByTx: claims.createdByTx,
   });
 }
 
@@ -68,9 +90,15 @@ export function newReplayClaims(input: {
   issuedAt: number;
   revealAfter: number;
   expiresAt: number;
-}): ReplayClaims {
+} & ReplayMarketProvenance): ReplayClaims {
+  const provenance = replayMarketProvenanceFromMarket(input as unknown as Record<string, unknown>);
+  if (!provenance
+    || provenance.marketExpiry > input.issuedAt
+    || input.issuedAt - provenance.marketExpiry > MAX_REPLAY_MARKET_AGE_SECONDS) {
+    throw new Error('Replay market provenance is invalid or stale');
+  }
   return {
-    version: 1,
+    version: 2,
     purpose: 'judge-replay',
     environment: replayEnvironment(),
     marketId: input.marketId.toLowerCase(),
@@ -81,6 +109,7 @@ export function newReplayClaims(input: {
     issuedAt: input.issuedAt,
     revealAfter: input.revealAfter,
     expiresAt: input.expiresAt,
+    ...provenance,
   };
 }
 
@@ -96,7 +125,8 @@ export function sealReplay(claims: ReplayClaims) {
 function validClaims(value: unknown): value is ReplayClaims {
   if (!value || typeof value !== 'object') return false;
   const claims = value as Partial<ReplayClaims>;
-  return claims.version === 1
+  const provenance = replayMarketProvenanceFromMarket(value as Record<string, unknown>);
+  return claims.version === 2
     && claims.purpose === 'judge-replay'
     && claims.environment === replayEnvironment()
     && typeof claims.marketId === 'string' && MARKET_ID.test(claims.marketId)
@@ -108,7 +138,10 @@ function validClaims(value: unknown): value is ReplayClaims {
     && Number.isSafeInteger(claims.revealAfter)
     && Number.isSafeInteger(claims.expiresAt)
     && claims.issuedAt! <= claims.revealAfter!
-    && claims.revealAfter! < claims.expiresAt!;
+    && claims.revealAfter! < claims.expiresAt!
+    && provenance !== null
+    && provenance.marketExpiry <= claims.issuedAt!
+    && claims.issuedAt! - provenance.marketExpiry <= MAX_REPLAY_MARKET_AGE_SECONDS;
 }
 
 function decodeBase64url(value: string) {

@@ -1,43 +1,109 @@
-import { decodeFunctionResult, encodeFunctionData, parseAbi } from 'viem';
+import { decodeFunctionResult, encodeFunctionData } from 'viem';
 
 import {
+  BINARY_SETTLEMENT_ABI,
   DREAMDEX_SETTLEMENT_CONTRACTS,
+  MODULE_MARKETS_ABI,
+  isTerminalSettlementMarket,
   type DirectOnchainSettlementProof,
 } from '../onchain-settlement-proof.ts';
 
 const INDEXER = 'https://prd.smk.somnia.host/v1/graphql';
 const RPC = 'https://api.infra.mainnet.somnia.network';
+const INDEXER_TIMEOUT_MS = 5_000;
+const RPC_TIMEOUT_MS = 5_000;
+const MAX_READ_ATTEMPTS = 2;
 
 // Sourced from @somnia-chain/markets-sdk 0.25.0 mainnet-production manifests.
 export const DREAMDEX_MAINNET_CONTRACTS = DREAMDEX_SETTLEMENT_CONTRACTS;
 
-export const MODULE_MARKETS_ABI = parseAbi([
-  'function markets(bytes32 marketId) view returns (uint256 oracleQuestionId, uint8 outcomeSlotCount, uint8 voidPolicy, address collateral, uint32 originOperatorId, bytes32 originVenueId, address oracleAdapter, address creator, address market, address pool, uint256 yesId, uint256 noId, uint64 tradingStart, uint64 expiry)',
-]);
+export class UpstreamReadError extends Error {
+  readonly retryable: boolean;
+  readonly retryAfter: number;
 
-export const BINARY_SETTLEMENT_ABI = parseAbi([
-  'function getSettlement(uint256 marketKey) view returns ((address collateralToken, uint128 backing, bool finalized, bool voided, uint256 settlementFeeBpsTimes1k, address feeRecipient, address pool, uint64 nonce, uint256[] payoutNumerators))',
-]);
+  constructor(message: string, options: { retryable: boolean; retryAfter?: number; cause?: unknown }) {
+    super(message, options.cause === undefined ? undefined : { cause: options.cause });
+    this.name = 'UpstreamReadError';
+    this.retryable = options.retryable;
+    this.retryAfter = options.retryAfter ?? 2;
+  }
+}
+
+export function isRetryableUpstreamError(error: unknown): error is UpstreamReadError {
+  return error instanceof UpstreamReadError && error.retryable;
+}
+
+function retryableStatus(status: number) {
+  return status === 408 || status === 425 || status === 429 || status >= 500;
+}
+
+function responseRetryAfter(response: Response) {
+  const seconds = Number(response.headers.get('retry-after'));
+  return Number.isFinite(seconds) && seconds > 0 ? Math.min(30, Math.ceil(seconds)) : 2;
+}
+
+async function postJsonRead<T>(
+  source: 'dreamDEX indexer' | 'Somnia RPC',
+  url: string,
+  body: unknown,
+  timeoutMs: number,
+): Promise<T> {
+  let lastError: UpstreamReadError | undefined;
+
+  for (let attempt = 1; attempt <= MAX_READ_ATTEMPTS; attempt += 1) {
+    try {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(body),
+        cache: 'no-store',
+        signal: AbortSignal.timeout(timeoutMs),
+      });
+      if (!response.ok) {
+        throw new UpstreamReadError(`${source} returned HTTP ${response.status}`, {
+          retryable: retryableStatus(response.status),
+          retryAfter: responseRetryAfter(response),
+        });
+      }
+      try {
+        return await response.json() as T;
+      } catch (cause) {
+        throw new UpstreamReadError(`${source} returned invalid JSON`, { retryable: false, cause });
+      }
+    } catch (cause) {
+      lastError = cause instanceof UpstreamReadError
+        ? cause
+        : new UpstreamReadError(`${source} read timed out or failed`, { retryable: true, cause });
+      if (!lastError.retryable || attempt === MAX_READ_ATTEMPTS) throw lastError;
+    }
+  }
+
+  throw lastError ?? new UpstreamReadError(`${source} read failed`, { retryable: true });
+}
 
 export async function graphql(query: string, variables: Record<string, unknown> = {}) {
-  const response = await fetch(INDEXER, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ query, variables }),
-  });
-  const payload = await response.json() as { data?: Record<string, unknown>; errors?: unknown };
-  if (!response.ok || payload.errors) throw new Error('dreamDEX indexer request failed');
+  const payload = await postJsonRead<{ data?: Record<string, unknown>; errors?: unknown }>(
+    'dreamDEX indexer',
+    INDEXER,
+    { query, variables },
+    INDEXER_TIMEOUT_MS,
+  );
+  if (payload.errors || !payload.data) {
+    throw new UpstreamReadError('dreamDEX indexer rejected the query', { retryable: false });
+  }
   return payload.data as Record<string, unknown>;
 }
 
 async function rpc<T>(method: string, params: unknown[]) {
-  const response = await fetch(RPC, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params }),
-  });
-  const payload = await response.json() as { result?: T; error?: unknown };
-  if (!response.ok || payload.error || payload.result == null) throw new Error('Somnia RPC request failed');
+  const payload = await postJsonRead<{ result?: T; error?: unknown }>(
+    'Somnia RPC',
+    RPC,
+    { jsonrpc: '2.0', id: 1, method, params },
+    RPC_TIMEOUT_MS,
+  );
+  if (payload.error || payload.result == null) {
+    throw new UpstreamReadError('Somnia RPC rejected the read', { retryable: false });
+  }
   return payload.result;
 }
 
@@ -65,7 +131,7 @@ export async function hydrateMarket(market: Record<string, unknown>, demoReplay 
   if (chainId !== 5031) throw new Error('Unexpected Somnia chain');
   const rawParams = await rpc<string>('eth_call', [{ to: market.poolAddress, data: '0x0765910c' }, 'latest']);
   const [tickSize, minQuantity, lotSize] = words(rawParams);
-  const onchainSettlement = market.finalized === true
+  const onchainSettlement = isTerminalSettlementMarket(market)
     ? await verifyDirectSettlement(market, chainId)
     : undefined;
 
@@ -103,7 +169,7 @@ export async function verifyDirectSettlement(
   verifiedChainId?: number,
 ): Promise<DirectOnchainSettlementProof> {
   const marketId = String(market.marketId ?? '').toLowerCase();
-  if (!/^0x[0-9a-f]{64}$/.test(marketId) || market.finalized !== true) throw new Error('Finalized market required');
+  if (!/^0x[0-9a-f]{64}$/.test(marketId) || !isTerminalSettlementMarket(market)) throw new Error('Terminal market required');
   const chainId = verifiedChainId ?? Number(BigInt(await rpc<string>('eth_chainId', [])));
   if (chainId !== 5031) throw new Error('Unexpected Somnia chain');
 
@@ -113,6 +179,8 @@ export async function verifyDirectSettlement(
   if (!/^0x[0-9a-f]{64}$/i.test(String(block.hash)) || String(block.number).toLowerCase() !== blockTag.toLowerCase()) {
     throw new Error('Invalid Somnia block proof');
   }
+  const blockHash = String(block.hash).toLowerCase();
+  const blockReference = { blockHash, requireCanonical: true } as const;
 
   const moduleData = encodeFunctionData({
     abi: MODULE_MARKETS_ABI,
@@ -122,7 +190,7 @@ export async function verifyDirectSettlement(
   const moduleResult = await rpc<`0x${string}`>('eth_call', [{
     to: DREAMDEX_MAINNET_CONTRACTS.binaryModule,
     data: moduleData,
-  }, blockTag]);
+  }, blockReference]);
   const moduleRecord = decodeFunctionResult({
     abi: MODULE_MARKETS_ABI,
     functionName: 'markets',
@@ -136,7 +204,13 @@ export async function verifyDirectSettlement(
   if (moduleRecord[1] !== 2 || yesId === 0n || noId !== yesId + 1n
     || !sameAddress(market.marketAddress, marketAddress) || !sameAddress(market.poolAddress, poolAddress)
     || !sameAddress(market.collateral, moduleCollateral)
-    || String(market.yesTokenId) !== yesId.toString() || String(market.noTokenId) !== noId.toString()) {
+    || String(market.yesTokenId) !== yesId.toString() || String(market.noTokenId) !== noId.toString()
+    || (market.oracleQuestionId != null && String(market.oracleQuestionId) !== moduleRecord[0].toString())
+    || (market.operatorId != null && String(market.operatorId) !== moduleRecord[4].toString())
+    || (market.venueId != null && String(market.venueId).toLowerCase() !== moduleRecord[5].toLowerCase())
+    || (market.creator != null && String(market.creator).toLowerCase() !== moduleRecord[7].toLowerCase())
+    || (market.tradingStart != null && String(market.tradingStart) !== moduleRecord[12].toString())
+    || (market.expiry != null && String(market.expiry) !== moduleRecord[13].toString())) {
     throw new Error('Module market binding mismatch');
   }
 
@@ -149,7 +223,7 @@ export async function verifyDirectSettlement(
   const settlementResult = await rpc<`0x${string}`>('eth_call', [{
     to: DREAMDEX_MAINNET_CONTRACTS.binarySettlement,
     data: settlementData,
-  }, blockTag]);
+  }, blockReference]);
   const settlement = decodeFunctionResult({
     abi: BINARY_SETTLEMENT_ABI,
     functionName: 'getSettlement',
@@ -184,7 +258,7 @@ export async function verifyDirectSettlement(
     source: 'SOMNIA_RPC_ETH_CALL',
     chainId: 5031,
     blockNumber: BigInt(blockTag).toString(),
-    blockHash: String(block.hash),
+    blockHash,
     blockTag,
     marketId,
     marketAddress,
@@ -192,6 +266,12 @@ export async function verifyDirectSettlement(
     moduleAddress: DREAMDEX_MAINNET_CONTRACTS.binaryModule,
     settlementAddress: DREAMDEX_MAINNET_CONTRACTS.binarySettlement,
     collateralToken: settlement.collateralToken,
+    oracleQuestionId: moduleRecord[0].toString(),
+    originOperatorId: moduleRecord[4].toString(),
+    originVenueId: moduleRecord[5],
+    creator: moduleRecord[7],
+    tradingStart: moduleRecord[12].toString(),
+    expiry: moduleRecord[13].toString(),
     yesId: yesId.toString(),
     noId: noId.toString(),
     marketKey: marketKey.toString(),
@@ -207,12 +287,14 @@ export async function verifyDirectSettlement(
       moduleMarket: {
         to: DREAMDEX_MAINNET_CONTRACTS.binaryModule,
         blockTag,
+        blockReference,
         data: moduleData,
         result: moduleResult,
       },
       settlementRecord: {
         to: DREAMDEX_MAINNET_CONTRACTS.binarySettlement,
         blockTag,
+        blockReference,
         data: settlementData,
         result: settlementResult,
       },
@@ -223,8 +305,9 @@ export async function verifyDirectSettlement(
 export async function fetchFullMarket(marketId: string) {
   const data = await graphql(`query ReplaySettlement($id: String!) {
     Market_by_pk(id: $id) {
-      marketId marketAddress poolAddress collateral asset question strike tradingStart expiry
-      status: clobStatus intervalSec quoteDecimals yesTokenId noTokenId
+      marketId marketAddress poolAddress collateral marketType asset question strike tradingStart expiry
+      status: clobStatus intervalSec tradeCount lastTradeAt operatorId venueId context oracleQuestionId creator createdByTx
+      quoteDecimals yesTokenId noTokenId
       winningOutcome payoutNumerators payoutDenominator voided finalized resolvedAtTimestamp lastPrice
     }
   }`, { id: marketId.toLowerCase() });
