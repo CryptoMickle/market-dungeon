@@ -2,6 +2,9 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
+  ACTIVE_MARKET_POLL_INTERVAL_MS,
+  activeMarketRefreshDelayMs,
+  EXPIRED_MARKET_RETRY_MS,
   eventContractIntervalLabel,
   eventContractIntervalName,
   selectBalancedReplayPool,
@@ -37,6 +40,15 @@ test('active discovery falls back to the fifteen-minute market closest to six mi
   ], 1000);
 
   assert.equal(selected?.id, '15m-six');
+});
+
+test('active market polling wakes at rollover instead of waiting for the fixed interval', () => {
+  const nowMilliseconds = 1_000_000;
+
+  assert.equal(activeMarketRefreshDelayMs('1002', nowMilliseconds), 2_000);
+  assert.equal(activeMarketRefreshDelayMs('1100', nowMilliseconds), ACTIVE_MARKET_POLL_INTERVAL_MS);
+  assert.equal(activeMarketRefreshDelayMs('999', nowMilliseconds), EXPIRED_MARKET_RETRY_MS);
+  assert.equal(activeMarketRefreshDelayMs(undefined, nowMilliseconds), ACTIVE_MARKET_POLL_INTERVAL_MS);
 });
 
 test('Judge Replay uses a balanced five-minute pool and only then falls back', () => {

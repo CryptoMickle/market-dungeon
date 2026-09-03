@@ -1,5 +1,7 @@
 export const PREFERRED_EVENT_INTERVAL_SECONDS = 5 * 60;
 export const FALLBACK_EVENT_INTERVAL_SECONDS = 15 * 60;
+export const ACTIVE_MARKET_POLL_INTERVAL_MS = 15_000;
+export const EXPIRED_MARKET_RETRY_MS = 1_000;
 
 export type EventContractIntervalSeconds =
   | typeof PREFERRED_EVENT_INTERVAL_SECONDS
@@ -27,6 +29,17 @@ export function eventContractIntervalLabel(value: unknown) {
 
 export function eventContractIntervalName(value: unknown) {
   return `${eventContractIntervalSeconds(value) / 60}-minute`;
+}
+
+export function activeMarketRefreshDelayMs(expiry: unknown, nowMilliseconds: number) {
+  const expiryMilliseconds = Number(expiry) * 1_000;
+  if (!Number.isFinite(expiryMilliseconds) || expiryMilliseconds <= 0) {
+    return ACTIVE_MARKET_POLL_INTERVAL_MS;
+  }
+
+  const untilExpiry = expiryMilliseconds - nowMilliseconds;
+  if (untilExpiry <= 0) return EXPIRED_MARKET_RETRY_MS;
+  return Math.min(ACTIVE_MARKET_POLL_INTERVAL_MS, Math.ceil(untilExpiry));
 }
 
 export function selectPreferredActiveMarket<T extends ActiveMarketCandidate>(
