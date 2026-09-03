@@ -87,7 +87,9 @@ test('Judge Demo completes in Chromium and renders independently verified proof 
   });
   await installDeterministicUpstreams(page);
 
-  await page.goto('/');
+  const documentResponse = await page.goto('/');
+  expect(documentResponse?.headers()['content-security-policy']).toContain("frame-ancestors 'none'");
+  expect(documentResponse?.headers()['x-content-type-options']).toBe('nosniff');
   await page.getByRole('button', { name: /2-MIN JUDGE DEMO/ }).click();
   await expect(page.getByRole('heading', { name: 'Lock your omen before the replay is drawn.' })).toBeVisible();
   await page.getByRole('button', { name: /GOLD AWAKENS/ }).click();
