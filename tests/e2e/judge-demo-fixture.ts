@@ -1,6 +1,11 @@
 import { createHash } from 'node:crypto';
 import { encodeFunctionResult } from 'viem';
 
+import {
+  replayLockAttestation,
+  replayLockAttestationPublicKey,
+  type ReplayClaims,
+} from '../../app/api/judge-replay/crypto';
 import { canonicalJudgeActionLog, replayJudgeCombat, type JudgeCombatAction } from '../../app/judge-combat';
 import {
   BINARY_SETTLEMENT_ABI,
@@ -24,7 +29,7 @@ export const CREATOR = `0x${'89'.repeat(20)}`;
 export const VENUE_ID = `0x${'45'.repeat(32)}`;
 export const CREATED_BY_TX = `0x${'67'.repeat(32)}`;
 export const GAME_SEED = 'g'.repeat(43);
-export const SEAL = 'deterministic-e2e-seal';
+export const SEAL = `v2.${'i'.repeat(16)}.${'c'.repeat(64)}.${'t'.repeat(22)}`;
 export const VALID_ACTIONS: JudgeCombatAction[] = [
   { room: 8, action: 'attack' },
   { room: 9, action: 'attack' },
@@ -64,6 +69,19 @@ const commitmentPayload: ReplayCommitmentPayload = {
 
 const canonical = canonicalReplayProof(commitmentPayload);
 export const COMMITMENT = `0x${createHash('sha256').update(canonical, 'utf8').digest('hex')}`;
+const { committedOutcome, lockedDirection, ...attestedClaims } = commitmentPayload;
+const replayClaims: ReplayClaims = {
+  version: 2,
+  purpose: 'judge-replay',
+  environment: 'development',
+  winningOutcome: committedOutcome,
+  direction: lockedDirection,
+  ...attestedClaims,
+};
+process.env.JUDGE_REPLAY_SEAL_KEY = '44'.repeat(32);
+process.env.VERCEL_ENV = 'development';
+export const LOCK_ATTESTATION = replayLockAttestation(replayClaims);
+export const LOCK_PUBLIC_KEY = replayLockAttestationPublicKey();
 
 const moduleResult = encodeFunctionResult({
   abi: MODULE_MARKETS_ABI,
@@ -188,8 +206,10 @@ export const startPayload = {
     commitment: COMMITMENT,
     gameSeed: GAME_SEED,
     lockedDirection: 'UP',
+    issuedAt: commitmentPayload.issuedAt,
     revealAfter: commitmentPayload.revealAfter,
     expiresAt: commitmentPayload.expiresAt,
+    lockAttestation: LOCK_ATTESTATION,
     publicMarket: { asset: 'BTC', intervalSec: 300, network: 'Somnia mainnet', chainId: 5031 },
   },
 };
@@ -200,6 +220,7 @@ export function revealPayload(actions: JudgeCombatAction[]) {
   return {
     market,
     onchainSettlement,
+    lockAttestation: LOCK_ATTESTATION,
     replayProof: {
       verified: true,
       algorithm: 'SHA-256',

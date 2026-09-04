@@ -8,7 +8,9 @@ The current contest build is intentionally read-only. It reads live market metad
 
 **Play:** https://market-dungeon.vercel.app
 
-**Watch the 1:52 hackathon demo:** https://youtu.be/6IviQrMweZ4
+**V9 candidate proof verifier:** `/verify` (publish at the production URL only with the atomic v9 release)
+
+**Current public v8 demo (1:52):** https://youtu.be/6IviQrMweZ4
 
 **DoraHacks submission:** https://dorahacks.io/buidl/48083
 
@@ -30,12 +32,13 @@ Gold persists between runs. Potions have a hard maximum of five: a new run resto
 
 ### Two-minute Judge Demo
 
-Select **2-MIN JUDGE DEMO · SEALED MARKET REPLAY** on the start screen. This mode:
+Select **START 2-MIN JUDGE DEMO · VERIFIED RUN** on the start screen. This mode:
 
 - asks the judge to choose and lock `UP` or `DOWN` before any historical market is selected;
 - uses server-side cryptographic randomness to choose a finalized, non-voided, traded BTC 5-minute market no more than seven days old from a balanced settlement pool, with the same requirements for the balanced 15-minute fallback;
 - encrypts the selected market and locked direction with AES-256-GCM under a server-only key;
-- returns only an opaque seal, a salted SHA-256 commitment and an independent public combat seed to the browser;
+- returns an opaque seal, a salted SHA-256 commitment, an independent public combat seed, the public interval and lock-window timestamps, plus a server-authenticated Ed25519 lock receipt;
+- publishes the environment's verification key through a fixed read-only endpoint so the browser and exported-proof verifier can reject a changed or fabricated receipt before trusting the replay;
 - fast-forwards Tiers 1–3 and Rooms 1–8, then starts with one wounded Tier 4 guard before the wounded final boss;
 - records a bounded structured log of `Attack`, `Storm`, and `Potion` actions while the player defeats both the guard and boss;
 - replays that log stateless on the server from the sealed `gameSeed` and refuses reveal unless both enemies were legitimately defeated; and
@@ -47,11 +50,12 @@ It is a fast replay, not a mocked settlement.
 
 1. Enter Judge Demo and confirm that no selected replay market ID, address, strike, expiry or outcome is present before the choice. The visible opening line belongs to a separate live market, is labeled as context only, and does not identify the replay.
 2. Choose `UP` or `DOWN`, then press **Lock Omen & Seal Replay**.
-3. Note the full SHA-256 commitment shown during combat, then defeat the wounded guard and boss.
+3. Note the full SHA-256 commitment shown during combat. The same start response also carries a Market Dungeon server-authenticated lock receipt; it is not an external timestamp or third-party attestation. Then defeat the wounded guard and boss.
 4. Press **Reveal Boss Fate**. The server first replays the combat transcript, then reads the BinaryModule market binding and BinarySettlement payout with both calls pinned to one canonical Somnia block hash.
-5. Confirm that the proof panel reports an EIP-1898 hash-pinned browser RPC re-fetch and exposes the block hash, payout vector, market key, deployed contracts, and reproducible `eth_call` inputs/results.
-6. Inspect the generated 1200×675 run card, which summarizes dungeon depth, enemies defeated, gold, prediction and verified status. **Share result** sends the PNG through supported native share targets; **Share on X** downloads the card and opens a pre-filled post; **Download card** saves it directly. The separate **Copy proof JSON** and **Download proof JSON** actions preserve the complete technical artifact.
-7. Open the block and contract links in the Somnia explorer. No wallet, approval, order or other transaction is requested.
+5. Confirm that the result first states the combat and prediction conditions, then reports that the choice lock, combat replay, and two block-pinned Somnia contract reads were verified. The raw ABI and calldata details remain collapsed unless requested.
+6. Choose **Download proof JSON** or **Copy proof JSON**, then open the independent `/verify` route in its new tab and load the artifact. The verifier first checks the server-authenticated lock receipt against the fixed public-key endpoint, then recomputes the commitment and combat locally, decodes the settlement, and re-fetches the recorded Somnia block and both contract results without a wallet or upload.
+7. Continue to the current dreamDEX market or inspect the generated 1200×675 run card. **Challenge a player** sends the PNG and a direct link to `/judge?challenge=1` through supported native share targets; **Share on X** downloads the card and opens a pre-filled challenge post; **Download card** saves it directly. The challenge recipient always receives a fresh, separately sealed replay rather than the sender's market or outcome.
+8. Expand the raw technical proof only when needed and inspect its block and contract links in the Somnia explorer. No wallet, approval, order or other transaction is requested.
 
 ## Why Event Contracts fit the game
 
@@ -67,26 +71,30 @@ A correct prediction cannot replace combat victory, while combat victory alone c
 Market Dungeon is designed as a consumer on-ramp to Event Contracts rather than another professional trading terminal:
 
 - **Today:** any judge or player can experience real live and finalized dreamDEX markets without a wallet, funds, approvals or jurisdiction-sensitive transaction flow.
-- **Engagement loop:** every dungeon tier prefers a fresh BTC 5-minute Event Contract, so the market can settle inside the play session and produce a visible, memorable consequence.
+- **Engagement loop:** every dungeon tier prefers a fresh BTC 5-minute Event Contract, so the market can settle inside the play session and produce a visible, memorable consequence. A result card can invite another player directly into a fresh two-minute Judge replay without carrying any player, wallet, market, or proof identifier in the link.
 - **Next step:** an optional wallet-enabled mode can let eligible players place an exact-amount Event Contract order before entering the dungeon, with simulation, maximum-loss disclosure and a separate confirmation for every write.
 - **Expansion:** additional assets, intervals and seasonal campaigns can turn new dreamDEX markets into new game content without replacing the underlying combat loop.
 
 The contest build does not claim to generate trading volume. It demonstrates the acquisition and engagement layer that can bring game-native users to Event Contracts before an explicitly consented trading mode is added.
 
-### Measured baseline and targets
+### Legacy baseline and clean-v2 targets
 
-Vercel Web Analytics provides an early production baseline for **27 August–3 September 2026**. The site recorded **65 visitors and 187 page views**, including **28 visitors referred by DoraHacks**. The anonymous Judge funnel recorded 17 start pageviews, 14 verified-completion pageviews and 2 Continue-on-dreamDEX pageviews. Of the 10 completions recorded after interval segmentation was introduced, all 10 used the preferred 5-minute market path; four earlier completions are not interval-classified.
+Vercel Web Analytics provides a **legacy v1** production baseline for **27 August–3 September 2026**. The site recorded **65 visitors and 187 page views**, including **28 visitors referred by DoraHacks**. The old anonymous Judge funnel recorded 17 start pageviews, 14 verified-completion pageviews and 2 Continue-on-dreamDEX pageviews. Of the 10 completions recorded after interval segmentation was introduced, all 10 used the preferred 5-minute market path; four earlier completions are not interval-classified.
 
-These are event volumes, not deduplicated unique-user conversions. The observation window spans an analytics schema change, variant routes can share visitors, and the initial sample includes automated production smoke runs. The resulting 82% completion/start ratio, 14% Continue/completion ratio and 2.8 starts per start-route visitor are therefore directional baselines, not decision-grade claims. Automated browsers are excluded from manual funnel events from this release onward, and the schema is frozen for the next measurement window.
+These are event volumes, not deduplicated unique-user conversions. The observation window spans an analytics schema change, variant routes can share visitors, and the initial sample includes automated production smoke runs. The resulting 82% completion/start ratio, 14% Continue/completion ratio and 2.8 starts per start-route visitor are therefore directional legacy baselines, not decision-grade claims. They must never be combined with v2 counts.
 
-The next rolling seven-day evaluation begins after at least 30 human Judge starts and uses these explicit targets:
+The clean v2 window uses accepted sealed replays as its start denominator, records the first reveal attempt, separates `PASS`, definitive `FAIL`, and terminal `NOT PROVABLE`, and buckets monotonic lock-to-verification duration. WebDriver sessions and the fixed `automation=1` smoke marker are suppressed. The remaining aggregate counts are non-WebDriver event volumes; “human” requires a separate anonymized recruited-pilot log. The complete definitions, formulas, UTC report, privacy exclusions, and reconciliation rules are frozen in [Clean pilot measurement v2](docs/PILOT_MEASUREMENT_V2.md).
+
+The next evaluation begins after at least 30 independently established human Judge starts and uses these explicit targets:
 
 | Funnel metric | Target |
 | --- | --- |
 | Verified Judge completion | At least 70% of start-event volume |
 | Continue-on-dreamDEX intent | At least 25% of verified-completion volume |
-| Repeat-play intensity | At least 1.5 start pageviews per start-route visitor |
-| Preferred 5-minute exposure | At least 80% of interval-classified verified completions |
+| End-to-end proof-verification success | At least 95% of first reveal attempts |
+| Median Judge completion | Below two minutes, conservatively established from duration buckets |
+
+The challenge pilot additionally targets at least ten share actions, five challenge-link opens and three independently verified challenge completions. These are raw event volumes rather than unique-player attribution: opening a share action does not prove that an external post was published, and the fixed challenge link deliberately contains no player or run identifier.
 
 The Continue action remains an external discovery link, not a trade. Future opt-in wallet and trading conversion is roadmap-only and will require its own consent, eligibility and transaction metrics; no current number is presented as trading volume.
 
@@ -111,6 +119,8 @@ flowchart LR
     MODULE --> BINARY[BinarySettlement getSettlement marketKey]
     BINARY -->|Payout-derived outcome + raw calls| VERIFY[Browser ABI-decodes settlement + verifies digests]
     VERIFY -->|Independently re-fetch block + both calls| RPC
+    VERIFY -->|Export proof JSON| STANDALONE[Independent /verify route]
+    STANDALONE -->|Recompute + fresh read-only re-fetch| RPC
     SETTLE -->|Salt + canonical commitment| VERIFY
     VERIFY --> GATE[Boss fate gate]
     LOOP -->|Boss HP reaches zero| GATE
@@ -181,7 +191,7 @@ npm run test:e2e
 npm run build
 ```
 
-`npm run test:e2e` runs the complete Judge Demo client state machine in Chromium against deterministic, cryptographically consistent upstream fixtures. The separate read-only production smoke is available as `npm run test:smoke:live`; GitHub Actions also runs it every Monday and Thursday at 06:17 UTC and on manual dispatch. It verifies replay start, the `425` anti-peek boundary, rejection of incomplete combat, a valid reveal, browser-rendered proof, and external link targets.
+`npm run test:e2e` runs the complete Judge Demo client state machine in Chromium against deterministic, cryptographically consistent upstream fixtures. The separate read-only live-target smoke is available as `npm run test:smoke:live`; GitHub Actions also runs it against production every Monday and Thursday at 06:17 UTC and on manual dispatch. It verifies replay start, the `425` anti-peek boundary, rejection of incomplete combat, a valid reveal, the public receipt key, Ed25519 lock authentication, byte-identical start/reveal receipts, truthful 2/2 Judge progress, browser-rendered proof, the independent `/verify` target, and external explorer/dreamDEX links.
 
 ## Project structure
 
@@ -189,6 +199,8 @@ npm run build
 app/
   page.tsx              Homepage entry and judge/full-run choice
   judge/page.tsx        Direct Judge Demo entry
+  verify/page.tsx       Browser-local independent proof verifier
+  verify-proof.ts       Strict proof parsing and fail-closed reproduction
   market-dungeon.tsx    Shared ten-room game and Judge Demo state machine
   clob-odds.ts          Pure implied-odds derivation and formatting
   event-contract-interval.ts 5m-first selection, labeling, and 15m fallback
@@ -196,7 +208,7 @@ app/
   api/dreamdex.ts       Shared server-only dreamDEX and Somnia reads
   api/dreamdex-odds.ts  Official Markets SDK top-of-book read with fallback
   api/market/route.ts   Live market discovery and settlement lookup
-  api/judge-replay/     Encrypted replay start, reveal and commitment logic
+  api/judge-replay/     Encrypted replay start/reveal plus public receipt key
   globals.css           Responsive game presentation
   layout.tsx            Metadata and social preview configuration
 public/
@@ -212,6 +224,7 @@ scripts/
 docs/
   DORAHACKS_SUBMISSION.md Submission-ready project description and judge path
   DREAMDEX_INTEGRATION_REPORT.md Exact implemented integration surface and gaps
+  PILOT_MEASUREMENT_V2.md Frozen privacy-safe funnel definitions and report format
 ```
 
 ## Safety and current limitations
@@ -221,11 +234,12 @@ docs/
 - A future wallet-enabled mode should use exact-amount approval, transaction simulation, explicit maximum-loss disclosure, and separate user confirmation for every write.
 - Gold and the next-run potion count are stored only on the player's device; active combat and loadout state reset on refresh.
 - Judge combat is rendered in the browser, but reveal is server-gated by a stateless deterministic replay of the submitted structured action log. This proves that the transcript is valid under the published seed and rules; because the seed is public, it is not proof of human input or elapsed play time.
-- Production and Preview require separate `JUDGE_REPLAY_SEAL_KEY` values, each encoded as exactly 64 hexadecimal characters (32 bytes). Rotating a key cleanly invalidates in-flight replay seals.
+- Production and Preview require separate `JUDGE_REPLAY_SEAL_KEY` values, each encoded as exactly 64 hexadecimal characters (32 bytes). The Ed25519 lock-receipt key is deterministically separated from that secret. Rotating the secret cleanly invalidates in-flight replay seals and changes the published verification key; without a retained historical public-key archive, older exported proofs can no longer authenticate their receipt and therefore cannot return `PASS`.
+- A valid lock receipt proves that the official Market Dungeon environment authenticated the commitment, direction, and stated lock window. It is deliberately described as server-authenticated, not as an external timestamp, decentralized attestation, or proof that the server itself was honest.
 - Every page and API response receives an explicit Content Security Policy plus `nosniff`, `DENY` framing, strict-origin referrer and restrictive camera/microphone/geolocation/payment/USB/browser-topics permissions; the framework-identifying response header is disabled. Browser connections are limited to same-origin endpoints and the public Somnia mainnet RPC; production also enables HSTS and upgrades insecure requests. The CSP retains narrowly documented inline script/style allowances required by Next.js hydration and the component's dynamic inline progress styles. Development alone permits eval, WebSockets and Vercel's analytics debug-script origin for the local toolchain.
 - Judge reveal requests are capped at 8 KiB of UTF-8 input. A declared oversize request is rejected before its body is read; requests without a trustworthy length are read incrementally and their stream is cancelled immediately after crossing the limit.
 - GitHub workflows grant their token read-only repository access and pin every external action to a full, reviewed commit SHA; version comments preserve update visibility without trusting mutable tags.
-- Vercel Web Analytics records normal page views plus three anonymous funnel checkpoints as manual pageviews: Judge Demo started, verified Judge Demo completed, and Continue on dreamDEX clicked. Stable `/funnel/...` paths encode only interval, mode, direction, and result so 5m adoption remains measurable on Vercel Hobby, where custom events are unavailable; no wallet, market ID, commitment, or combat transcript is sent. Automated browsers are excluded from the manual funnel events so scheduled smoke runs do not inflate the human baseline.
+- Vercel Web Analytics records normal page views plus the closed `/funnel/v2/...` lifecycle as manual pageviews: entry, accepted seal, first reveal, verified completion, definitive verification failure, sharing, challenge activity, and Continue-on-dreamDEX intent. Labels contain only enumerated categories; no wallet, market ID, commitment, proof, transcript, exact timing, or arbitrary query content is sent. WebDriver sessions and the exact `automation=1` smoke marker are suppressed. Counts are non-WebDriver event volumes, not unique humans; legacy `/funnel/...` counts remain separate. See [Clean pilot measurement v2](docs/PILOT_MEASUREMENT_V2.md).
 - The live footer links to a dedicated **Privacy · Credits · AI Disclosure** page. The versioned [provenance and privacy disclosure](docs/PROVENANCE_AND_PRIVACY.md) documents analytics, browser-local state, direct Somnia RPC verification, the complete visual-asset groups, generative-AI assistance, and the demo video's credited Pixabay music.
 - Availability depends on the public dreamDEX indexer and Somnia RPC.
 
@@ -237,13 +251,14 @@ docs/
 - Official dreamDEX Markets SDK CLOB odds: complete
 - Hash-pinned, direct-RPC BinarySettlement verification at an RPC verification snapshot block: complete
 - Two-minute judge path: complete
-- Salted pre-reveal commitment, working block/contract links, copyable market ID, and portable post-reveal proof JSON: complete
+- Salted pre-reveal commitment, server-authenticated Ed25519 lock receipt, working block/contract links, copyable market ID, and portable post-reveal proof JSON: complete in the unreleased v9 candidate
 - Stateless server-verified Judge combat transcript: complete
 - Social-ready run card with progress, native image sharing, direct X composer, PNG download, and a separate copy/download proof artifact: complete
+- Browser-local independent proof verifier with explicit `PASS`, `FAIL`, and `NOT PROVABLE` outcomes: complete in the unreleased v9 candidate
 - Implementation-specific dreamDEX integration report: complete
 - Desktop and 390 px mobile judge-flow QA: complete
 - Four-tier dual-condition progression: complete
-- 1:52 hackathon demo video: complete
+- Current public v8 demo video (1:52): complete; synchronized 2–3 minute v9 presentation video: pending release gate
 - Wallet writes: intentionally disabled
 
 ## License

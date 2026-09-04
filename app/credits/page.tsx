@@ -19,9 +19,10 @@ export default function CreditsPage() {
 
         <section>
           <h2>Analytics and local data</h2>
-          <p>Market Dungeon uses Vercel Web Analytics for aggregate page views and three anonymous funnel checkpoints: Judge Demo started, verified Judge Demo completed, and Continue on dreamDEX clicked.</p>
-          <p>The funnel labels contain only the selected interval, mode, direction, and result. Market Dungeon does not send wallet addresses, market IDs, commitments, proof contents, combat transcripts, names, or email addresses to analytics. Automated browser tests are excluded from these manual funnel events.</p>
-          <p>The app has no account system and does not connect a wallet or submit a transaction. Persistent gold and the next-run potion count are stored only in this browser. During post-reveal verification, the browser contacts the public Somnia mainnet RPC directly to reproduce the displayed proof. Continuing to dreamDEX opens that separate service in a new tab.</p>
+          <p>Market Dungeon uses Vercel Web Analytics for aggregate page views and a versioned, anonymous Judge funnel. Version 2 separates entry, accepted replay lock, first reveal attempt, verified completion, definitive verification failure, sharing, challenge activity, and Continue-on-dreamDEX intent.</p>
+          <p>The v2 labels use only closed categories such as interval, duration bucket, mode, direction, result, and failure or share-action type. Market Dungeon does not send wallet addresses, market IDs, commitments, proof contents, combat transcripts, names, or email addresses to analytics; exact timings and arbitrary query text are also excluded. WebDriver sessions and tests carrying the fixed <code>automation=1</code> marker are excluded. Remaining counts are non-WebDriver event volumes, not proof of unique people.</p>
+          <p>The app has no account system and does not connect a wallet or submit a transaction. Persistent gold and the next-run potion count are stored only in this browser. During post-reveal verification, the browser contacts the public Somnia mainnet RPC directly to reproduce the displayed proof. The independent verifier reads proof JSON locally and never uploads the complete file. It sends only the public block reference, contract targets, and two read-only call inputs needed to reproduce the recorded state to that fixed RPC; proof data and results are not added to analytics. Continuing to dreamDEX opens that separate service in a new tab.</p>
+          <Link href="/verify">OPEN INDEPENDENT PROOF VERIFIER ↗</Link>
           <a href="https://vercel.com/docs/analytics/privacy-policy" target="_blank" rel="noopener noreferrer">VERCEL WEB ANALYTICS PRIVACY ↗</a>
         </section>
 
@@ -48,7 +49,7 @@ export default function CreditsPage() {
           <div className={styles.links}>
             <a href="https://pixabay.com/music/ambient-dark-fantasy-ambient-dungeon-synth-music-281592/" target="_blank" rel="noopener noreferrer">MUSIC SOURCE ↗</a>
             <a href="https://pixabay.com/service/license-summary/" target="_blank" rel="noopener noreferrer">PIXABAY LICENSE ↗</a>
-            <a href="https://youtu.be/dOpVKgSWxWY" target="_blank" rel="noopener noreferrer">DEMO VIDEO ↗</a>
+            <a href="https://youtu.be/6IviQrMweZ4" target="_blank" rel="noopener noreferrer">DEMO VIDEO ↗</a>
           </div>
         </section>
 

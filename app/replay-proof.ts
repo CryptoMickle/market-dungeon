@@ -51,11 +51,165 @@ export type ReplayCombatProof = {
 };
 
 export const REPLAY_COMMITMENT_DOMAIN = 'market-dungeon/judge-replay/v2';
+export const REPLAY_LOCK_ATTESTATION_DOMAIN = 'market-dungeon/judge-lock-attestation/v1';
+export const REPLAY_LOCK_ATTESTATION_SCHEMA = 'market-dungeon/judge-lock-attestation/v1';
+export const REPLAY_LOCK_PUBLIC_KEY_SCHEMA = 'market-dungeon/judge-lock-attestation-key/v1';
+export const REPLAY_LOCK_PUBLIC_KEY_ENDPOINT = '/api/judge-replay/public-key';
+
+export type ReplayLockAttestation = {
+  schema: typeof REPLAY_LOCK_ATTESTATION_SCHEMA;
+  algorithm: 'Ed25519';
+  keyId: string;
+  environment: string;
+  commitment: string;
+  lockedDirection: ReplayDirection;
+  issuedAt: number;
+  revealAfter: number;
+  expiresAt: number;
+  signature: string;
+};
+
+export type ReplayLockPublicKey = {
+  schema: typeof REPLAY_LOCK_PUBLIC_KEY_SCHEMA;
+  algorithm: 'Ed25519';
+  keyId: string;
+  environment: string;
+  publicKey: string;
+};
 
 const MARKET_ID = /^0x[0-9a-f]{64}$/;
 const ADDRESS = /^0x[0-9a-f]{40}$/;
 const HEX_BYTES = /^0x(?:[0-9a-f]{2})*$/;
 const UNSIGNED_DECIMAL = /^\d+$/;
+const BYTES32 = /^0x[0-9a-f]{64}$/i;
+const ED25519_KEY_ID = /^ed25519:[0-9a-f]{64}$/;
+const ED25519_PUBLIC_KEY = /^[A-Za-z0-9_-]{43}$/;
+const ED25519_SIGNATURE = /^[A-Za-z0-9_-]{86}$/;
+const ENVIRONMENT = /^[a-z][a-z0-9_-]{0,31}$/;
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+}
+
+function hasExactKeys(value: Record<string, unknown>, expected: readonly string[]) {
+  const actual = Object.keys(value).sort();
+  const wanted = [...expected].sort();
+  return actual.length === wanted.length && actual.every((key, index) => key === wanted[index]);
+}
+
+function isPositiveSafeInteger(value: unknown): value is number {
+  return typeof value === 'number' && Number.isSafeInteger(value) && value > 0;
+}
+
+export function isReplayLockAttestation(value: unknown): value is ReplayLockAttestation {
+  if (!isRecord(value) || !hasExactKeys(value, [
+    'algorithm', 'commitment', 'environment', 'expiresAt', 'issuedAt', 'keyId',
+    'lockedDirection', 'revealAfter', 'schema', 'signature',
+  ])) return false;
+  return value.schema === REPLAY_LOCK_ATTESTATION_SCHEMA
+    && value.algorithm === 'Ed25519'
+    && typeof value.keyId === 'string' && ED25519_KEY_ID.test(value.keyId)
+    && typeof value.environment === 'string' && ENVIRONMENT.test(value.environment)
+    && typeof value.commitment === 'string' && BYTES32.test(value.commitment)
+    && (value.lockedDirection === 'UP' || value.lockedDirection === 'DOWN')
+    && isPositiveSafeInteger(value.issuedAt)
+    && isPositiveSafeInteger(value.revealAfter)
+    && isPositiveSafeInteger(value.expiresAt)
+    && value.issuedAt < value.revealAfter
+    && value.revealAfter < value.expiresAt
+    && typeof value.signature === 'string' && ED25519_SIGNATURE.test(value.signature);
+}
+
+export function isReplayLockPublicKey(value: unknown): value is ReplayLockPublicKey {
+  if (!isRecord(value) || !hasExactKeys(value, [
+    'algorithm', 'environment', 'keyId', 'publicKey', 'schema',
+  ])) return false;
+  return value.schema === REPLAY_LOCK_PUBLIC_KEY_SCHEMA
+    && value.algorithm === 'Ed25519'
+    && typeof value.keyId === 'string' && ED25519_KEY_ID.test(value.keyId)
+    && typeof value.environment === 'string' && ENVIRONMENT.test(value.environment)
+    && typeof value.publicKey === 'string' && ED25519_PUBLIC_KEY.test(value.publicKey);
+}
+
+export function canonicalReplayLockAttestation(
+  attestation: Omit<ReplayLockAttestation, 'signature'>,
+) {
+  return [
+    REPLAY_LOCK_ATTESTATION_DOMAIN,
+    `environment=${attestation.environment}`,
+    `keyId=${attestation.keyId}`,
+    `commitment=${attestation.commitment.toLowerCase()}`,
+    `direction=${attestation.lockedDirection}`,
+    `issuedAt=${attestation.issuedAt}`,
+    `revealAfter=${attestation.revealAfter}`,
+    `expiresAt=${attestation.expiresAt}`,
+  ].join('\n');
+}
+
+export function replayLockAttestationMatchesProof(
+  attestation: ReplayLockAttestation,
+  proof: Pick<ReplayCommitmentPayload, 'lockedDirection' | 'issuedAt' | 'revealAfter' | 'expiresAt'> & { commitment: string },
+) {
+  return attestation.commitment.toLowerCase() === proof.commitment.toLowerCase()
+    && attestation.lockedDirection === proof.lockedDirection
+    && attestation.issuedAt === proof.issuedAt
+    && attestation.revealAfter === proof.revealAfter
+    && attestation.expiresAt === proof.expiresAt;
+}
+
+export function sameReplayLockAttestation(
+  left: ReplayLockAttestation | undefined,
+  right: ReplayLockAttestation | undefined,
+) {
+  if (!left || !right) return false;
+  return left.schema === right.schema
+    && left.algorithm === right.algorithm
+    && left.keyId === right.keyId
+    && left.environment === right.environment
+    && left.commitment.toLowerCase() === right.commitment.toLowerCase()
+    && left.lockedDirection === right.lockedDirection
+    && left.issuedAt === right.issuedAt
+    && left.revealAfter === right.revealAfter
+    && left.expiresAt === right.expiresAt
+    && left.signature === right.signature;
+}
+
+function decodeBase64Url(value: string) {
+  const base64 = value.replace(/-/g, '+').replace(/_/g, '/');
+  const padding = '='.repeat((4 - (base64.length % 4)) % 4);
+  const decoded = globalThis.atob(`${base64}${padding}`);
+  return Uint8Array.from(decoded, (character) => character.charCodeAt(0));
+}
+
+export async function verifyReplayLockAttestation(
+  attestation: ReplayLockAttestation,
+  trustedKey: ReplayLockPublicKey,
+) {
+  if (!isReplayLockAttestation(attestation) || !isReplayLockPublicKey(trustedKey)
+    || attestation.keyId !== trustedKey.keyId
+    || attestation.environment !== trustedKey.environment) return false;
+  try {
+    const publicKey = decodeBase64Url(trustedKey.publicKey);
+    const signature = decodeBase64Url(attestation.signature);
+    if (publicKey.byteLength !== 32 || signature.byteLength !== 64) return false;
+    const key = await globalThis.crypto.subtle.importKey(
+      'raw',
+      publicKey,
+      { name: 'Ed25519' },
+      false,
+      ['verify'],
+    );
+    const canonical = canonicalReplayLockAttestation(attestation);
+    return globalThis.crypto.subtle.verify(
+      { name: 'Ed25519' },
+      key,
+      signature,
+      new TextEncoder().encode(canonical),
+    );
+  } catch {
+    return false;
+  }
+}
 
 export function replayMarketProvenanceFromMarket(market: Record<string, unknown>): ReplayMarketProvenance | null {
   const marketType = String(market.marketType ?? '');

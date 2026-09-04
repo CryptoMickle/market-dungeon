@@ -2,7 +2,14 @@ import { fetchFullMarket, hydrateMarket, isRetryableUpstreamError } from '../../
 import { checkRateLimit, rateLimitHeaders, type RateLimitResult } from '../../request-control.ts';
 import { JUDGE_COMBAT, replayJudgeCombat, type JudgeCombatAction } from '../../../judge-combat.ts';
 import { replayMarketProvenanceMatches } from '../../../replay-proof.ts';
-import { canonicalReplay, combatTranscriptDigest, openReplay, replayCommitment, replayTimeStatus } from '../crypto.ts';
+import {
+  canonicalReplay,
+  combatTranscriptDigest,
+  openReplay,
+  replayCommitment,
+  replayLockAttestation,
+  replayTimeStatus,
+} from '../crypto.ts';
 import { dedupeReveal, type RevealResult } from './state.ts';
 
 export const runtime = 'nodejs';
@@ -153,6 +160,7 @@ export async function POST(request: Request) {
           status: 200,
           body: {
             ...hydrated,
+            lockAttestation: replayLockAttestation(claims),
             replayProof: {
               verified: true,
               algorithm: 'SHA-256',

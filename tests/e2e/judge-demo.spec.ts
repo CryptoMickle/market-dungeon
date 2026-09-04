@@ -5,6 +5,7 @@ import { SOMNIA_MAINNET_RPC } from '../../app/onchain-settlement-proof';
 import {
   BLOCK_HASH,
   BLOCK_TAG,
+  LOCK_PUBLIC_KEY,
   market,
   onchainSettlement,
   revealPayload,
@@ -13,21 +14,54 @@ import {
   VALID_ACTIONS,
 } from './judge-demo-fixture';
 
-async function installDeterministicUpstreams(page: Page) {
+async function installDeterministicUpstreams(
+  page: Page,
+  options: {
+    rpcUnavailable?: boolean;
+    rpcFailuresBeforeSuccess?: number;
+    tamperRevealField?: 'attestation' | 'algorithm' | 'ruleset' | 'finalHp';
+    onStartCall?: () => void;
+    onRpcCall?: () => void;
+  } = {},
+) {
+  let rpcFailuresRemaining = options.rpcFailuresBeforeSuccess ?? 0;
   await page.route('**/api/market**', async (route) => {
     await route.fulfill({ json: { market, odds: null } });
   });
   await page.route('**/api/judge-replay/start', async (route) => {
+    options.onStartCall?.();
     expect(route.request().postDataJSON()).toEqual({ direction: 'UP' });
     await route.fulfill({ json: startPayload });
+  });
+  await page.route('**/api/judge-replay/public-key', async (route) => {
+    await route.fulfill({ json: LOCK_PUBLIC_KEY });
   });
   await page.route('**/api/judge-replay/reveal', async (route) => {
     const body = route.request().postDataJSON() as { seal: string; actions: JudgeCombatAction[] };
     expect(body.seal).toBe(SEAL);
     expect(body.actions).toEqual(VALID_ACTIONS);
-    await route.fulfill({ json: revealPayload(body.actions) });
+    const payload = revealPayload(body.actions);
+    if (options.tamperRevealField === 'attestation') {
+      payload.lockAttestation = {
+        ...payload.lockAttestation,
+        signature: `${payload.lockAttestation.signature[0] === 'A' ? 'B' : 'A'}${payload.lockAttestation.signature.slice(1)}`,
+      };
+    } else if (options.tamperRevealField === 'algorithm') {
+      payload.replayProof.algorithm = 'SHA-512';
+    } else if (options.tamperRevealField === 'ruleset') {
+      payload.combatProof.ruleset = 'market-dungeon/judge-combat/v2';
+    } else if (options.tamperRevealField === 'finalHp') {
+      payload.combatProof.finalHp += 1;
+    }
+    await route.fulfill({ json: payload });
   });
   await page.route(SOMNIA_MAINNET_RPC, async (route) => {
+    options.onRpcCall?.();
+    if (options.rpcUnavailable || rpcFailuresRemaining > 0) {
+      rpcFailuresRemaining -= 1;
+      await route.abort('failed');
+      return;
+    }
     const body = route.request().postDataJSON() as { method: string; params: Array<{ to?: string }> };
     let result: unknown;
     if (body.method === 'eth_chainId') result = '0x13a7';
@@ -150,6 +184,47 @@ test('direct /judge entry lands on actionable Judge Setup without scrolling', as
   await expect(page.getByLabel('Judge Demo progress').locator('span').filter({ hasText: 'DEFEAT GUARD' })).toHaveClass(/active/);
 });
 
+test('challenge link opens a fresh Judge replay without exposing the prior run', async ({ page }) => {
+  await installDeterministicUpstreams(page);
+  await page.setViewportSize({ width: 390, height: 844 });
+
+  await page.goto('/judge?challenge=1');
+  await expect(page).toHaveURL(/\/judge\?challenge=1$/);
+  const invitation = page.getByRole('status', { name: 'Challenge invitation' });
+  await expect(invitation).toContainText('CHALLENGE RECEIVED');
+  await expect(invitation).toContainText('fresh, separately sealed Judge replay');
+  await expect(invitation).toContainText('market and outcome are not reused');
+  await expect(page.getByText(/0x[a-f0-9]{64}/i)).toHaveCount(0);
+
+  const lockButton = page.getByRole('button', { name: 'LOCK OMEN & SEAL REPLAY' });
+  await expect(lockButton).toBeVisible();
+  expect(await lockButton.evaluate((element) => element.getBoundingClientRect().bottom <= window.innerHeight)).toBe(true);
+  expect(await page.evaluate(() => window.scrollY)).toBe(0);
+});
+
+test('Judge Demo rejects a malformed or direction-swapped start response before locking', async ({ page }) => {
+  await page.route('**/api/market**', async (route) => {
+    await route.fulfill({ json: { market, odds: null } });
+  });
+  await page.route('**/api/judge-replay/start', async (route) => {
+    await route.fulfill({
+      json: {
+        replay: {
+          ...startPayload.replay,
+          lockedDirection: 'DOWN',
+        },
+      },
+    });
+  });
+
+  await page.goto('/judge');
+  await page.getByRole('button', { name: 'LOCK OMEN & SEAL REPLAY' }).click();
+
+  await expect(page.getByRole('heading', { name: 'Lock your omen before the replay is drawn.' })).toBeVisible();
+  await expect(page.getByText('SEALED REPLAY UNAVAILABLE · YOUR OMEN WAS NOT LOCKED')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'LOCK OMEN & SEAL REPLAY' })).toBeEnabled();
+});
+
 test('full-run setup fetches the next market at the exact five-minute rollover', async ({ page }) => {
   const rolloverSeconds = Math.floor(Date.now() / 1_000) + 3;
   const expiringMarket = {
@@ -236,20 +311,25 @@ test('Judge Demo completes in Chromium and renders independently verified proof 
   await expect(page.getByText('JUDGE DEMO COMPLETE · ONCHAIN RESULT VERIFIED · BLESSED')).toBeVisible();
   const plainProof = page.getByRole('region', { name: 'Plain-language proof summary' });
   await expect(plainProof).toContainText('was locked before market selection');
-  await expect(plainProof).toContainText('could not be replaced');
+  await expect(plainProof).toContainText('could not be changed');
   await expect(plainProof).toContainText('independently reproduced the onchain result');
-  await expect(page.getByText('✓ COMBAT + COMMITMENT + INDEPENDENT RPC VERIFIED')).toBeVisible();
+  await expect(page.getByText('✓ COMBAT + CHOICE LOCK + SOMNIA RESULT VERIFIED')).toBeVisible();
+  const revealedProof = page.locator('.proof-revealed');
+  await expect(revealedProof).not.toHaveAttribute('open', '');
+  await revealedProof.locator('summary').click();
   await expect(page.getByText('✓ BROWSER REFETCHED + ABI-DECODED SOMNIA STATE')).toBeVisible();
   await expect(page.getByText('BROWSER RPC REFETCH + ABI + DIGESTS VERIFIED')).toBeVisible();
-  await expect(page.getByAltText('Market Dungeon share card: room 40 of 40')).toBeVisible();
-  await expect(page.getByText('ROOM 40/40 · 2 ENEMIES DEFEATED')).toBeVisible();
+  await expect(page.getByAltText('Market Dungeon Judge Replay share card: 2 of 2 replay encounters')).toBeVisible();
+  await expect(page.getByText('FINAL-TIER JUDGE REPLAY · 2/2 REPLAY ENCOUNTERS')).toBeVisible();
   const xShare = page.getByRole('link', { name: 'SHARE ON X ↗' });
   await expect(xShare).toHaveAttribute('href', /https:\/\/twitter\.com\/intent\/tweet\?/);
   const xShareUrl = new URL(await xShare.getAttribute('href') ?? '');
-  expect(xShareUrl.searchParams.get('text')).toContain('Reached room 40/40 · 2 enemies defeated');
-  expect(xShareUrl.searchParams.get('url')).toBe('https://market-dungeon.vercel.app');
+  expect(xShareUrl.searchParams.get('text')).toContain('2 of 2 replay encounters cleared');
+  expect(xShareUrl.searchParams.get('text')).toContain('Can you beat my run?');
+  expect(xShareUrl.searchParams.get('url')).toBe('https://market-dungeon.vercel.app/judge?challenge=1');
+  await expect(page.getByRole('link', { name: 'OPEN INDEPENDENT VERIFIER ↗' })).toHaveAttribute('href', '/verify');
 
-  const proofLinks = page.locator('.proof-revealed a');
+  const proofLinks = revealedProof.locator('a');
   await expect(proofLinks).toHaveCount(5);
   for (const link of await proofLinks.all()) {
     const href = await link.getAttribute('href');
@@ -278,23 +358,73 @@ test('Judge Demo completes in Chromium and renders independently verified proof 
   });
   const [cardDownload] = await Promise.all([
     page.waitForEvent('download'),
-    page.getByRole('button', { name: '↗ SHARE RESULT' }).click(),
+    page.getByRole('button', { name: '↗ CHALLENGE A PLAYER' }).click(),
   ]);
   expect(cardDownload.suggestedFilename()).toBe('market-dungeon-run-12121212.png');
-  await expect(page.getByText('SHARING UNAVAILABLE · CARD DOWNLOADED + POST TEXT COPIED')).toBeVisible();
+  await expect(page.getByText('SHARING UNAVAILABLE · CARD DOWNLOADED + CHALLENGE TEXT COPIED')).toBeVisible();
   const copiedPost = await page.evaluate(() => Reflect.get(globalThis, '__marketDungeonClipboard'));
-  expect(copiedPost).toContain('I conquered Market Dungeon');
-  expect(copiedPost).toContain('Reached room 40/40 · 2 enemies defeated');
+  expect(copiedPost).toContain("I beat Market Dungeon's final-tier Judge Replay");
+  expect(copiedPost).toContain('2 of 2 replay encounters cleared');
   expect(copiedPost).toContain('Onchain-verified on Somnia');
-  expect(copiedPost).toContain('https://market-dungeon.vercel.app');
+  expect(copiedPost).toContain('Can you beat my run?');
+  expect(copiedPost).toContain('https://market-dungeon.vercel.app/judge?challenge=1');
   expect(() => JSON.parse(copiedPost as string)).toThrow();
 
   await page.getByRole('button', { name: 'COPY PROOF JSON' }).click();
   await expect(page.getByText('PORTABLE PROOF JSON COPIED')).toBeVisible();
   const copiedProof = await page.evaluate(() => Reflect.get(globalThis, '__marketDungeonClipboard'));
   expect(JSON.parse(copiedProof as string)).toMatchObject({
-    schema: 'market-dungeon/verified-judge-run/v1',
+    schema: 'market-dungeon/verified-judge-run/v2',
     summary: { result: 'BLESSED', lockedDirection: 'UP', winningOutcome: 'UP' },
   });
   expect(runtimeErrors).toEqual([]);
 });
+
+test('temporary browser RPC unavailability preserves the completed sealed run for retry', async ({ page }) => {
+  let startCalls = 0;
+  await installDeterministicUpstreams(page, {
+    rpcFailuresBeforeSuccess: 1,
+    onStartCall: () => { startCalls += 1; },
+  });
+  await page.goto('/judge');
+  await page.getByRole('button', { name: 'LOCK OMEN & SEAL REPLAY' }).click();
+  await page.getByRole('button', { name: /ATTACK/ }).click();
+  await page.getByRole('button', { name: '👑 ENTER FINAL BOSS' }).click();
+  await page.getByRole('button', { name: /ATTACK/ }).click();
+  await page.getByRole('button', { name: /ATTACK/ }).click();
+
+  const reveal = page.getByRole('button', { name: '🔮 REVEAL BOSS FATE' });
+  await reveal.click();
+
+  await expect(page.getByText(/Somnia RPC could not reproduce the proof during this attempt/)).toBeVisible();
+  await expect(page.getByText(/JUDGE DEMO COMPLETE/)).toHaveCount(0);
+  await expect(page.getByText(/REPLAY PROOF MISMATCH/)).toHaveCount(0);
+  await expect(reveal).toBeEnabled();
+
+  await reveal.click();
+  await expect(page.getByText('JUDGE DEMO COMPLETE · ONCHAIN RESULT VERIFIED · BLESSED')).toBeVisible();
+  expect(startCalls).toBe(1);
+});
+
+for (const tamperRevealField of ['attestation', 'algorithm', 'ruleset', 'finalHp'] as const) {
+  test(`Judge Demo rejects changed reveal ${tamperRevealField} locally before any Somnia RPC call`, async ({ page }) => {
+    let rpcCalls = 0;
+    await installDeterministicUpstreams(page, {
+      rpcUnavailable: true,
+      tamperRevealField,
+      onRpcCall: () => { rpcCalls += 1; },
+    });
+    await page.goto('/judge');
+    await page.getByRole('button', { name: 'LOCK OMEN & SEAL REPLAY' }).click();
+    await page.getByRole('button', { name: /ATTACK/ }).click();
+    await page.getByRole('button', { name: '👑 ENTER FINAL BOSS' }).click();
+    await page.getByRole('button', { name: /ATTACK/ }).click();
+    await page.getByRole('button', { name: /ATTACK/ }).click();
+
+    await page.getByRole('button', { name: '🔮 REVEAL BOSS FATE' }).click();
+
+    await expect(page.getByText('REPLAY PROOF MISMATCH · LOCK A NEW OMEN')).toBeVisible();
+    await expect(page.getByText(/Somnia RPC could not reproduce/)).toHaveCount(0);
+    expect(rpcCalls).toBe(0);
+  });
+}

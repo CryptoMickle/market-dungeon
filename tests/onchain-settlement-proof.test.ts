@@ -6,6 +6,7 @@ import {
   BINARY_SETTLEMENT_ABI,
   DREAMDEX_SETTLEMENT_CONTRACTS,
   MODULE_MARKETS_ABI,
+  directSettlementProofRpcOutcome,
   directSettlementProofMatchesMarket,
   directSettlementProofMatchesSomniaRpc,
   directSettlementWinner,
@@ -286,4 +287,19 @@ test('browser RPC verification re-fetches the exact block and both raw results',
     return matchingRpc(validProof)(method, params);
   };
   assert.equal(await directSettlementProofMatchesSomniaRpc(validProof, market, mutatedResultRpc), false);
+});
+
+test('a returned contract contradiction remains FAIL even if the parallel RPC call is unavailable', async () => {
+  const validProof = proof();
+  const mutatedModule = moduleResult({ yesId: YES_ID + 256n });
+  const mixedRpc: SettlementProofRpc = async (method, params) => {
+    if (method !== 'eth_call') return matchingRpc(validProof)(method, params);
+    const call = params[0] as { to?: string };
+    if (call.to?.toLowerCase() === validProof.moduleAddress.toLowerCase()) return mutatedModule;
+    throw new Error('settlement RPC unavailable');
+  };
+
+  const result = await directSettlementProofRpcOutcome(validProof, market, mixedRpc);
+  assert.equal(result.status, 'FAIL');
+  assert.match(result.reason, /does not match/i);
 });

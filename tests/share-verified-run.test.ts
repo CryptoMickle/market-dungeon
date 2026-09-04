@@ -65,6 +65,18 @@ function proofInput(overrides: Partial<VerifiedRunProofInput> = {}): VerifiedRun
       { room: 9, action: 'attack' },
       { room: 9, action: 'attack' },
     ],
+    lockAttestation: {
+      schema: 'market-dungeon/judge-lock-attestation/v1',
+      algorithm: 'Ed25519',
+      keyId: `ed25519:${'01'.repeat(32)}`,
+      environment: 'preview',
+      commitment: COMMITMENT,
+      lockedDirection: 'DOWN',
+      issuedAt: 1,
+      revealAfter: 2,
+      expiresAt: 3,
+      signature: 'a'.repeat(86),
+    },
     onchainSettlement: {
       verified: true,
       source: 'SOMNIA_RPC_ETH_CALL',
@@ -143,10 +155,11 @@ test('portable JSON contains every input needed to reproduce commitment, combat,
   const input = proofInput();
   const parsed = JSON.parse(verifiedRunProofJson(input, '2026-09-03T00:00:00.000Z')) as ReturnType<typeof verifiedRunProofArtifact>;
 
-  assert.equal(parsed.schema, 'market-dungeon/verified-judge-run/v1');
+  assert.equal(parsed.schema, 'market-dungeon/verified-judge-run/v2');
   assert.equal(parsed.generatedAt, '2026-09-03T00:00:00.000Z');
   assert.equal(parsed.replayProof.canonical, input.replayProof.canonical);
   assert.equal(parsed.replayProof.salt, input.replayProof.salt);
+  assert.deepEqual(parsed.lockAttestation, input.lockAttestation);
   assert.deepEqual(parsed.combat.actions, input.combatActions);
   assert.match(parsed.combat.canonicalTranscript, /1:8:attack\n2:9:attack\n3:9:attack/);
   assert.equal(parsed.combat.proof.transcriptDigest, TRANSCRIPT_DIGEST);

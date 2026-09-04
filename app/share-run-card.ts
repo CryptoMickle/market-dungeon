@@ -1,4 +1,5 @@
 export const MARKET_DUNGEON_PLAY_URL = 'https://market-dungeon.vercel.app';
+export const MARKET_DUNGEON_CHALLENGE_URL = `${MARKET_DUNGEON_PLAY_URL}/judge?challenge=1`;
 export const X_SHARE_INTENT_URL = 'https://twitter.com/intent/tweet';
 
 export type RunShareResult = 'BLESSED' | 'CURSED' | 'VOID' | 'DEFEATED';
@@ -31,7 +32,13 @@ function escapeXml(value: string) {
     .replaceAll("'", '&apos;');
 }
 
-function resultPresentation(result: RunShareResult) {
+function resultPresentation(result: RunShareResult, mode: RunShareCardInput['mode']) {
+  if (mode === 'JUDGE_REPLAY') {
+    if (result === 'BLESSED') return { headline: 'JUDGE REPLAY CLEARED', accent: '#34d399', icon: 'VICTORY' };
+    if (result === 'CURSED') return { headline: 'JUDGE REPLAY ENDED', accent: '#fb7185', icon: 'PREDICTION LOST' };
+    if (result === 'VOID') return { headline: 'JUDGE REPLAY CLEARED', accent: '#c084fc', icon: 'MARKET VOID' };
+    return { headline: 'JUDGE REPLAY ENDED', accent: '#fb923c', icon: 'FELL IN COMBAT' };
+  }
   if (result === 'BLESSED') return { headline: 'DUNGEON CONQUERED', accent: '#34d399', icon: 'VICTORY' };
   if (result === 'CURSED') return { headline: 'BOSS LAST STAND', accent: '#fb7185', icon: 'PREDICTION LOST' };
   if (result === 'VOID') return { headline: 'DUNGEON CONQUERED', accent: '#c084fc', icon: 'MARKET VOID' };
@@ -48,50 +55,76 @@ export function runShareCardFilename(input: RunShareCardInput) {
 export function runShareCaption(input: RunShareCardInput) {
   const room = boundedInteger(input.reachedRoom, 1, Math.max(1, input.totalRooms));
   const totalRooms = Math.max(1, boundedInteger(input.totalRooms, 1, 999));
-  const enemies = boundedInteger(input.enemiesDefeated, 0, totalRooms);
+  const judgeReplay = input.mode === 'JUDGE_REPLAY';
+  const enemies = boundedInteger(input.enemiesDefeated, 0, judgeReplay ? 2 : totalRooms);
   const gold = boundedInteger(input.gold, 0, 999_999);
-  const opening = input.result === 'BLESSED'
-    ? '⚔️ I conquered Market Dungeon!'
-    : input.result === 'CURSED'
-      ? "☠️ The boss's last stand ended my Market Dungeon run."
-      : input.result === 'VOID'
-        ? '👑 I conquered Market Dungeon — the market was voided.'
-        : '☠️ My Market Dungeon expedition ended in combat.';
+  const opening = judgeReplay
+    ? input.result === 'BLESSED'
+      ? "⚔️ I beat Market Dungeon's final-tier Judge Replay!"
+      : input.result === 'CURSED'
+        ? "☠️ The boss's last stand ended my final-tier Judge Replay."
+        : input.result === 'VOID'
+          ? "👑 I cleared Market Dungeon's final-tier Judge Replay — the market was voided."
+          : '☠️ My final-tier Judge Replay ended in combat.'
+    : input.result === 'BLESSED'
+      ? '⚔️ I conquered Market Dungeon!'
+      : input.result === 'CURSED'
+        ? "☠️ The boss's last stand ended my Market Dungeon run."
+        : input.result === 'VOID'
+          ? '👑 I conquered Market Dungeon — the market was voided.'
+          : '☠️ My Market Dungeon expedition ended in combat.';
+  const progress = judgeReplay
+    ? `⚔️ ${enemies} of 2 replay encounters cleared · ${gold} gold`
+    : `🏰 Reached room ${room}/${totalRooms} · ${enemies} enemies defeated · ${gold} gold`;
   const prediction = input.actualOutcome
     ? `🔮 BTC ${input.lockedDirection} → BTC ${input.actualOutcome}`
     : `🔮 Locked BTC ${input.lockedDirection}`;
 
   return [
     opening,
-    `🏰 Reached room ${room}/${totalRooms} · ${enemies} enemies defeated · ${gold} gold`,
+    progress,
     prediction,
     input.verifiedOnchain ? '⛓️ Onchain-verified on Somnia' : '⛓️ Powered by Somnia + dreamDEX',
+    '⚡ Can you beat my run?',
     '#Somnia #DreamDEX',
   ].join('\n');
 }
 
 export function runShareClipboardText(input: RunShareCardInput) {
-  return `${runShareCaption(input)}\n${MARKET_DUNGEON_PLAY_URL}`;
+  return `${runShareCaption(input)}\n${MARKET_DUNGEON_CHALLENGE_URL}`;
 }
 
 export function runShareXUrl(input: RunShareCardInput) {
   const url = new URL(X_SHARE_INTENT_URL);
   url.searchParams.set('text', runShareCaption(input));
-  url.searchParams.set('url', MARKET_DUNGEON_PLAY_URL);
+  url.searchParams.set('url', MARKET_DUNGEON_CHALLENGE_URL);
   return url.toString();
+}
+
+export function isChallengeEntry(search: string) {
+  return new URLSearchParams(search).get('challenge') === '1';
 }
 
 export function runShareCardSvg(input: RunShareCardInput) {
   const room = boundedInteger(input.reachedRoom, 1, Math.max(1, input.totalRooms));
   const totalRooms = Math.max(1, boundedInteger(input.totalRooms, 1, 999));
-  const enemies = boundedInteger(input.enemiesDefeated, 0, totalRooms);
+  const judgeReplay = input.mode === 'JUDGE_REPLAY';
+  const enemies = boundedInteger(input.enemiesDefeated, 0, judgeReplay ? 2 : totalRooms);
   const gold = boundedInteger(input.gold, 0, 999_999);
   const tier = boundedInteger(input.tier, 1, Math.max(1, input.totalTiers));
   const totalTiers = Math.max(1, boundedInteger(input.totalTiers, 1, 99));
-  const progress = Math.max(0.025, Math.min(1, room / totalRooms));
+  const progress = judgeReplay
+    ? Math.min(1, enemies / 2)
+    : Math.max(0.025, Math.min(1, room / totalRooms));
   const progressWidth = Math.round(1000 * progress);
-  const presentation = resultPresentation(input.result);
-  const mode = input.mode === 'JUDGE_REPLAY' ? 'FINAL-TIER JUDGE REPLAY' : 'FULL EXPEDITION';
+  const presentation = resultPresentation(input.result, input.mode);
+  const mode = judgeReplay ? 'FINAL-TIER JUDGE REPLAY' : 'FULL EXPEDITION';
+  const primaryLabel = judgeReplay ? 'REPLAY PROGRESS' : 'DUNGEON DEPTH';
+  const primaryValue = judgeReplay ? `${enemies} OF 2` : `ROOM ${room}/${totalRooms}`;
+  const primaryNote = judgeReplay ? 'REPLAY ENCOUNTERS' : `TIER ${tier} OF ${totalTiers}`;
+  const secondaryLabel = judgeReplay ? 'REPLAY FORMAT' : 'ENEMIES DEFEATED';
+  const secondaryValue = judgeReplay ? 'FINAL TIER' : String(enemies);
+  const secondaryNote = judgeReplay ? 'TWO-ENCOUNTER CHECKPOINT' : 'ACROSS THIS EXPEDITION';
   const verification = input.verifiedOnchain ? 'ONCHAIN VERIFIED · SOMNIA' : 'POWERED BY SOMNIA + DREAMDEX';
   const outcome = input.actualOutcome
     ? `BTC ${input.lockedDirection}  →  BTC ${input.actualOutcome}`
@@ -144,15 +177,15 @@ export function runShareCardSvg(input: RunShareCardInput) {
 
     <g transform="translate(58 350)" filter="url(#shadow)">
       <rect width="318" height="142" rx="20" fill="#111114" stroke="#3f3f46"/>
-      <text x="24" y="35" fill="#71717a" font-size="13" font-weight="900" letter-spacing="2">DUNGEON DEPTH</text>
-      <text x="24" y="88" fill="#fff" font-size="38" font-weight="950">ROOM ${room}/${totalRooms}</text>
-      <text x="24" y="119" fill="#a78bfa" font-size="16" font-weight="800">TIER ${tier} OF ${totalTiers}</text>
+      <text x="24" y="35" fill="#71717a" font-size="13" font-weight="900" letter-spacing="2">${primaryLabel}</text>
+      <text x="24" y="88" fill="#fff" font-size="38" font-weight="950">${primaryValue}</text>
+      <text x="24" y="119" fill="#a78bfa" font-size="16" font-weight="800">${primaryNote}</text>
     </g>
     <g transform="translate(399 350)" filter="url(#shadow)">
       <rect width="318" height="142" rx="20" fill="#111114" stroke="#3f3f46"/>
-      <text x="24" y="35" fill="#71717a" font-size="13" font-weight="900" letter-spacing="2">ENEMIES DEFEATED</text>
-      <text x="24" y="94" fill="#fff" font-size="48" font-weight="950">${enemies}</text>
-      <text x="24" y="119" fill="#a1a1aa" font-size="14" font-weight="700">${input.mode === 'JUDGE_REPLAY' ? 'IN THE VERIFIED REPLAY' : 'ACROSS THIS EXPEDITION'}</text>
+      <text x="24" y="35" fill="#71717a" font-size="13" font-weight="900" letter-spacing="2">${secondaryLabel}</text>
+      <text x="24" y="94" fill="#fff" font-size="${judgeReplay ? 36 : 48}" font-weight="950">${secondaryValue}</text>
+      <text x="24" y="119" fill="#a1a1aa" font-size="14" font-weight="700">${secondaryNote}</text>
     </g>
     <g transform="translate(740 350)" filter="url(#shadow)">
       <rect width="402" height="142" rx="20" fill="#111114" stroke="#3f3f46"/>

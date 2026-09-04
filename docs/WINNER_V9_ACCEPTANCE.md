@@ -1,6 +1,6 @@
 # Market Dungeon v9 — Winner Acceptance and Rollback Plan
 
-Status: **WB-00 and WB-01 complete; WB-02 read/verify path complete; Shannon write checkpoint awaits user action; v9 is not released**
+Status: **WB-00, WB-01, WB-03, WB-04, and WB-05 complete locally; WB-02 read/verify feasibility complete and the unapproved Shannon write path is stopped/excluded from v9; v9 is not released**
 
 Baseline date: **4 September 2026**
 
@@ -47,32 +47,62 @@ verified proof links.
   full four-tier expedition remains available. A plain-language proof summary
   explains choice-before-draw, non-replaceable commitment, and independent
   browser verification.
-- **WB-02 — Shannon feasibility: READ/BUILD/VERIFY GO; WRITE GATE NOT PASSED.**
+- **WB-02 — Shannon feasibility: READ/BUILD/VERIFY GO; WRITE TRACK STOPPED AND EXCLUDED FROM v9.**
   SDK `0.29.0` is pinned, an active canonical BTC five-minute market passed 32
   block-pinned discovery checks, exact buy-only IOC calldata can be built with
   `autoApprove: false`, and the fail-closed verifier is exercised against a
   public third-party fill. No Market Dungeon wallet has signed an approval or
-  order, and no Market Dungeon fill is being claimed.
+  order, no Market Dungeon fill is being claimed, and the contest candidate
+  contains no Shannon wallet/write experience.
+- **WB-03 — Independent proof verifier: COMPLETE locally.** `/verify` accepts
+  pasted or uploaded exported proof JSON, strictly validates the artifact,
+  verifies its Market Dungeon server-authenticated Ed25519 lock receipt,
+  recomputes its choice commitment and deterministic combat, decodes its
+  canonical settlement bindings, and re-fetches the recorded Somnia block and
+  both raw contract results. It returns `PASS`, `FAIL`, or `NOT PROVABLE`; the
+  proof remains browser-local and no wallet, replay start/reveal, or indexer API
+  is used. The only same-origin request is a read-only GET for the published
+  receipt key; recorded calls are re-fetched from Somnia RPC. The receipt is not
+  claimed as an external timestamp or third-party attestation.
+- **WB-04 — Privacy-safe challenge loop: COMPLETE locally.** Result sharing
+  now invites the recipient directly into `/judge?challenge=1`, where a clear
+  first-screen notice explains that the recipient receives a fresh,
+  separately sealed replay. Created, opened, and independently verified
+  challenge checkpoints use anonymous aggregate labels without player, wallet,
+  market, commitment, transcript, or proof identifiers.
+- **WB-05 — Clean pilot measurement v2: COMPLETE locally.** The frozen
+  `/funnel/v2/...` lifecycle separates entry, accepted lock, reveal attempt,
+  terminal verifier outcome, coarse duration, sharing, challenge, and dreamDEX
+  intent. WebDriver and `automation=1` smoke sessions are suppressed; legacy
+  data remains separate, and non-WebDriver counts are not called unique humans.
+  Temporary RPC unavailability preserves the sealed completed run for retry.
 - **Release state: UNRELEASED CANDIDATE ONLY.** The work branch is backed up on
-  GitHub, but production, DoraHacks, a v9 tag, and the submission video have not
-  been changed by these work blocks.
+  GitHub through the preceding checkpoint, but the latest local candidate,
+  production, DoraHacks, a v9 tag, and the submission video have not been
+  released by these work blocks.
 
-Combined candidate checks after WB-01/WB-02: lint pass, 63/63 unit tests pass,
-7/7 Shannon spike tests pass, production build pass, and 7/7 Chromium tests
-pass. The browser suite includes prerendered `/judge`, mobile first-screen
-actionability, the full-run DOWN path, rollover, disclosures, and the complete
-Judge proof flow.
+Combined local candidate checks after WB-01 through WB-05: lint pass, 80/80
+unit tests pass, 7/7 Shannon spike tests pass, TypeScript passes, the optimized
+production build passes with static `/judge` and `/verify`, and 18/18 Chromium
+tests pass. The browser suite includes prerendered `/judge`, the identifier-free
+challenge entry, mobile first-screen actionability, strict start-response
+validation, temporary-RPC retry preservation, the full-run DOWN path, rollover,
+disclosures, a complete Judge proof flow, mobile terminal-result and verifier
+coverage, verifier acceptance plus tamper rejection, and zero-RPC rejection of
+tampered receipt, algorithm, ruleset, and final-HP data.
 
 ## Non-negotiable boundaries
 
 1. `/` and the mainnet Judge Demo remain wallet-free and read-only.
 2. Existing mainnet settlement proof remains locked to Somnia chain `5031`.
-3. Shannon write functionality lives on a separate route and is locked to
-   chain `50312`.
-4. Mainnet and Shannon proof formats are distinct, explicitly versioned, and
-   cannot be interpreted as each other.
-5. No server-side private key, custody, session delegation, arbitrary calldata
-   relay, automatic signing, or mainnet write is permitted.
+3. Any future Shannon write functionality must live on a separate route and be
+   locked to chain `50312`.
+4. Any future Shannon proof format must be distinct from the mainnet format,
+   explicitly versioned, and impossible to interpret as a mainnet proof.
+5. No server-side wallet or transaction-signing private key, custody, session
+   delegation, arbitrary calldata relay, automatic wallet signing, or mainnet
+   write is permitted. The environment-derived Ed25519 key may authenticate
+   only the read-only Judge lock receipt; it cannot authorize a transaction.
 6. No unlimited token approval is permitted. Approval must be bounded by the
    user's explicit maximum-loss intent.
 7. A mined transaction is not evidence of a trade. Only a verified fill from
@@ -104,6 +134,10 @@ If any item remains unverified at the end of the timebox, stop the Shannon
 write track. Continue only with the isolated Judge entry point, mainnet
 verifier, social challenge, clean pilot measurement, and presentation work.
 
+**Gate decision for v9: STOP/EXCLUDE.** The unchecked write items were not
+authorized or executed. Shannon Arena is therefore absent from this release;
+the successful read/build/verify spike remains feasibility evidence only.
+
 ## Gate 2 — feature freeze
 
 Feature freeze occurs no later than **48 hours before the DoraHacks deadline**.
@@ -111,21 +145,23 @@ A candidate reaches freeze only when:
 
 - [ ] The original mainnet experience passes 20 consecutive clean-browser
       Judge runs.
-- [ ] Shannon Arena passes 10 consecutive wallet-to-fill runs when included.
-- [ ] The mainnet route never calls wallet write methods.
-- [ ] Shannon verifies chain, account, market status, expiry, book freshness,
-      pool binding, balance, allowance, and maximum loss immediately before
-      every signature.
-- [ ] The exact order calldata is simulated before submission.
-- [ ] A decoded fill, deterministic combat transcript, and later settlement all
-      bind to the same Shannon `marketId`.
-- [ ] The verifier reports `PASS`, `FAIL`, or `NOT PROVABLE`, and deliberate
+- **N/A — Shannon Arena is excluded from v9:** no wallet-to-fill run is claimed
+      or required for this candidate.
+- [x] The mainnet application contains no wallet connection, wallet signature
+      request, approval, or transaction-write call.
+- **N/A — Shannon Arena is excluded from v9:** pre-signature wallet checks,
+      calldata simulation, and fill-to-settlement binding do not exist in the
+      candidate.
+- [x] The verifier reports `PASS`, `FAIL`, or `NOT PROVABLE`, and deliberate
       tampering with a valid artifact produces `FAIL`.
-- [ ] Wrong-chain, changed-account, stale-book, recycled-pool, oversized-
-      approval, non-zero builder-fee, expired-market, rejected-signature,
-      reverted-receipt, zero-fill, duplicate-submit, and modified-proof cases
-      are covered by targeted tests.
-- [ ] Mobile and clean-browser canary checks pass.
+- [x] Modified replay algorithm, combat ruleset, final HP, lock receipt,
+      commitment, market identity, raw ABI result, and canonical block cases
+      are covered by fail-closed tests.
+- **N/A — Shannon Arena is excluded from v9:** wrong-chain wallet,
+      changed-account, stale-book order, recycled-pool order, approval, fee,
+      signature, receipt, zero-fill, and duplicate-submit cases are not release
+      claims.
+- [x] Mobile and clean-browser canary checks pass locally.
 
 Any unexplained failure returns the candidate to a disabled feature flag. It
 does not consume the v8 rollback path.
@@ -142,9 +178,8 @@ Targets for a credible competition pilot:
 - [ ] At least 30 human Judge starts.
 - [ ] At least 70% verified Judge completion.
 - [ ] Median Judge completion below two minutes.
-- [ ] At least five independent Shannon test wallets.
-- [ ] At least ten verified Shannon fills.
-- [ ] At least three complete trade → combat → settlement runs.
+- **N/A for v9:** Shannon wallets, fills, and trade → combat → settlement runs
+      are outside the released read-only candidate and must not be inferred.
 - [ ] At least ten challenges created, five opened, and three verified.
 - [ ] At least 95% proof-verification success.
 
@@ -154,16 +189,16 @@ not present it as conversion, adoption, or product-market-fit evidence.
 ## Presentation gate
 
 - [ ] DoraHacks links directly to the short Judge entry point.
-- [ ] A first-time tester can understand the dual victory condition and start
+- [x] A first-time tester can understand the dual victory condition and start
       without scrolling within ten seconds.
 - [x] The public proof summary says, in plain language, that the choice was
       locked before market selection, the committed market could not be
       replaced, and the browser independently reproduced the onchain result.
-- [ ] Technical call data remains inspectable without dominating the primary
+- [x] Technical call data remains inspectable without dominating the primary
       result view.
 - [ ] The final video is between two and three minutes, shows one uninterrupted
-      successful Judge path, and shows any claimed Shannon fill, verifier,
-      sharing, and pilot evidence.
+      successful Judge path, the verifier, sharing, and any pilot evidence that
+      is actually claimed. Shannon is excluded and must not be implied.
 - [ ] Captions are synchronized and manually checked for Somnia, dreamDEX,
       CLOB, EIP-1898, BTC, and contract terminology.
 - [ ] Public app, DoraHacks page, README, video, source commit, and immutable v9

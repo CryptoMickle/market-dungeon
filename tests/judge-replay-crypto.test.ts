@@ -6,6 +6,8 @@ import {
   REPLAY_MARKET_QUESTION,
   canonicalReplayProof,
   secondsUntilReplayReveal,
+  verifyReplayLockAttestation,
+  type ReplayLockAttestation,
   type ReplayMarketProvenance,
 } from '../app/replay-proof.ts';
 import {
@@ -13,6 +15,8 @@ import {
   newReplayClaims,
   openReplay,
   replayCommitment,
+  replayLockAttestation,
+  replayLockAttestationPublicKey,
   replayTimeStatus,
   sealReplay,
   type ReplayClaims,
@@ -127,6 +131,37 @@ test('server and browser commitment inputs are identical', async () => {
   const nodeHex = `0x${createHash('sha256').update(browserCanonical, 'utf8').digest('hex')}`;
   assert.equal(replayCommitment(replay), browserHex);
   assert.equal(browserHex, nodeHex);
+});
+
+test('Ed25519 lock receipt is deterministic, public, and binds the accepted choice window', async () => {
+  const replay = claims();
+  const attestation = replayLockAttestation(replay);
+  const publicKey = replayLockAttestationPublicKey();
+
+  assert.deepEqual(replayLockAttestation(replay), attestation);
+  assert.equal(attestation.commitment, replayCommitment(replay));
+  assert.equal(attestation.lockedDirection, replay.direction);
+  assert.equal(attestation.issuedAt, replay.issuedAt);
+  assert.equal(attestation.revealAfter, replay.revealAfter);
+  assert.equal(attestation.expiresAt, replay.expiresAt);
+  assert.equal(await verifyReplayLockAttestation(attestation, publicKey), true);
+
+  const mutations: Array<Partial<ReplayLockAttestation>> = [
+    { commitment: `0x${'00'.repeat(32)}` },
+    { lockedDirection: 'UP' },
+    { issuedAt: attestation.issuedAt - 1 },
+    { revealAfter: attestation.revealAfter + 1 },
+    { expiresAt: attestation.expiresAt + 1 },
+    { signature: `${attestation.signature[0] === 'A' ? 'B' : 'A'}${attestation.signature.slice(1)}` },
+  ];
+  for (const mutation of mutations) {
+    assert.equal(await verifyReplayLockAttestation({ ...attestation, ...mutation }, publicKey), false);
+  }
+
+  configure(KEY_B, 'preview');
+  assert.equal(await verifyReplayLockAttestation(attestation, replayLockAttestationPublicKey()), false);
+  configure(KEY_A, 'production');
+  assert.equal(await verifyReplayLockAttestation(attestation, replayLockAttestationPublicKey()), false);
 });
 
 test('commitment binds every market-provenance field', () => {

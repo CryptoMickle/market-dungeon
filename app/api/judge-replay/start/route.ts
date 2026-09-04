@@ -8,7 +8,13 @@ import {
   REPLAY_MARKET_QUESTION,
   replayMarketProvenanceFromMarket,
 } from '../../../replay-proof.ts';
-import { newReplayClaims, replayCommitment, sealReplay, type ReplayDirection } from '../crypto.ts';
+import {
+  newReplayClaims,
+  replayCommitment,
+  replayLockAttestation,
+  sealReplay,
+  type ReplayDirection,
+} from '../crypto.ts';
 import { replayCandidates, type CandidateData, type ReplayCandidateData } from './state.ts';
 
 export const runtime = 'nodejs';
@@ -107,15 +113,18 @@ export async function POST(request: Request) {
       expiresAt: now + REPLAY_TTL_SECONDS,
       ...provenance,
     });
+    const commitment = replayCommitment(claims);
 
     return Response.json({
       replay: {
         seal: sealReplay(claims),
-        commitment: replayCommitment(claims),
+        commitment,
         gameSeed: claims.gameSeed,
         lockedDirection: claims.direction,
+        issuedAt: claims.issuedAt,
         revealAfter: claims.revealAfter,
         expiresAt: claims.expiresAt,
+        lockAttestation: replayLockAttestation(claims),
         publicMarket: { asset: 'BTC', intervalSec: replayPool.intervalSec, network: 'Somnia mainnet', chainId: 5031 },
       },
     }, { headers: responseHeaders(rate, { 'x-replay-candidate-cache': cacheState }) });

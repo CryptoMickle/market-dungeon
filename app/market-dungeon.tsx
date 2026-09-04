@@ -6,15 +6,26 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
 import {
+  challengeCreatedEvent,
+  challengeOpenedEvent,
+  challengeVerifiedEvent,
   dreamDexCtaClickedEvent,
   emitAnalyticsEvent,
-  judgeDemoCompletedEvent,
-  judgeDemoStartedEvent,
+  judgeDemoEntryEvent,
+  judgeDemoLockedEvent,
+  judgeDemoRevealAttemptedEvent,
+  judgeDemoVerificationFailedEvent,
+  judgeDemoVerificationNotProvableEvent,
+  judgeDemoVerifiedEvent,
+  shareActionEvent,
+  shareEngagedEvent,
   type JudgeDemoResult,
+  type MarketDungeonMode,
+  type ShareAction,
 } from './analytics-events';
 import { formatClobPercent, type DreamDexClobOdds } from './clob-odds';
 import oddsStyles from './live-market-odds.module.css';
-import { canonicalJudgeActionLog, JUDGE_COMBAT, seededRoll, type JudgeCombatAction } from './judge-combat';
+import { canonicalJudgeActionLog, JUDGE_COMBAT, replayJudgeCombat, seededRoll, type JudgeCombatAction } from './judge-combat';
 import { dreamDexBtcEventContractUrl } from './dreamdex-link';
 import {
   activeMarketRefreshDelayMs,
@@ -30,19 +41,28 @@ import {
 } from './live-btc-context';
 import {
   directSettlementProofMatchesMarket,
-  directSettlementProofMatchesSomniaRpc,
+  directSettlementProofRpcOutcome,
   isTerminalSettlementMarket,
   type DirectOnchainSettlementProof,
 } from './onchain-settlement-proof';
 import {
   canonicalReplayProof,
+  isReplayLockAttestation,
+  isReplayLockPublicKey,
+  REPLAY_LOCK_PUBLIC_KEY_ENDPOINT,
   replayMarketProvenanceMatches,
+  replayLockAttestationMatchesProof,
+  sameReplayLockAttestation,
   secondsUntilReplayReveal,
+  verifyReplayLockAttestation,
   type ReplayCombatProof,
+  type ReplayLockAttestation,
+  type ReplayLockPublicKey,
   type ReplayProof,
 } from './replay-proof';
 import {
-  MARKET_DUNGEON_PLAY_URL,
+  isChallengeEntry,
+  MARKET_DUNGEON_CHALLENGE_URL,
   runShareCardDataUrl,
   runShareCardFilename,
   runShareCaption,
@@ -55,6 +75,11 @@ import {
   verifiedRunProofJson,
   type VerifiedRunProofInput,
 } from './share-verified-run';
+import {
+  isStrictOnchainSettlementProof,
+  isStrictReplayCombatProof,
+  isStrictReplayProof,
+} from './verify-proof';
 
 type Direction = 'UP' | 'DOWN';
 type Action = 'attack' | 'storm' | 'potion';
@@ -74,6 +99,7 @@ type Market = {
   finalized: boolean; voided: boolean; winningOutcome: number | null; demoReplay?: boolean;
   replaySeal?: string; replayCommitment?: string; replayGameSeed?: string;
   replayLockedDirection?: Direction; replayRevealAfter?: number; replayExpiresAt?: number;
+  replayLockAttestation?: ReplayLockAttestation; replayLockPublicKey?: ReplayLockPublicKey;
   replayProof?: ReplayProof; combatProof?: ReplayCombatProof;
   onchainSettlement?: DirectOnchainSettlementProof;
 };
@@ -381,7 +407,8 @@ function HumanProofSummary({ verified = false }: { verified?: boolean }) {
       <span>{verified ? 'WHAT YOUR BROWSER VERIFIED' : 'WHAT THIS RUN WILL PROVE'}</span>
       <div>
         <p><b>Choice first.</b> Your BTC direction {verified ? 'was locked' : 'locks'} before market selection.</p>
-        <p><b>No replacement.</b> The committed market {verified ? 'could not' : 'cannot'} be replaced; reveal must match the original salted commitment.</p>
+        <p><b>Signed lock.</b> Market Dungeon&apos;s environment {verified ? 'authenticated' : 'authenticates'} the commitment, direction, and lock window. This is a server receipt, not an external timestamp.</p>
+        <p><b>No replacement.</b> The signed commitment {verified ? 'could not' : 'cannot'} be changed; reveal must match the original market and outcome.</p>
         <p><b>Independent result.</b> Your browser {verified ? 'independently reproduced' : 'independently reproduces'} the onchain result from one canonical Somnia block and both raw contract responses.</p>
       </div>
     </section>
@@ -439,7 +466,7 @@ export default function MarketDungeon({ directJudgeEntry = false }: { directJudg
     ? 'JUDGE DEMO · CHOOSE OMEN BEFORE MARKET SELECTION'
     : 'LIVE DREAMDEX MARKET · READ ONLY');
   const [combatLog, setCombatLog] = useState<string[]>(() => directJudgeEntry
-    ? ['Choose BTC UP or DOWN first. The server will then draw a random finalized market and return only an encrypted seal plus commitment.']
+    ? ['Choose BTC UP or DOWN first. The server will then draw a random finalized market and return an encrypted seal, commitment, and signed lock receipt.']
     : []);
   const [lastReward, setLastReward] = useState('');
   const [oracleBusy, setOracleBusy] = useState(false);
@@ -457,18 +484,36 @@ export default function MarketDungeon({ directJudgeEntry = false }: { directJudg
   const [judgeActionLog, setJudgeActionLog] = useState<JudgeCombatAction[]>([]);
   const [liveBtcContext, setLiveBtcContext] = useState<LiveBtcContext | null>(null);
   const [shareStatus, setShareStatus] = useState('');
+  const [proofStatus, setProofStatus] = useState('');
+  const [challengeEntry, setChallengeEntry] = useState(false);
   const [replayRevealRemaining, setReplayRevealRemaining] = useState(0);
   const [judgeStartRetryRemaining, setJudgeStartRetryRemaining] = useState(0);
   const [replayRetryRemaining, setReplayRetryRemaining] = useState(0);
   const oracleBusyRef = useRef(false);
-  const judgeCompletionTrackedRef = useRef(false);
+  const judgeRunStartedAtRef = useRef<number | null>(null);
+  const judgeRevealAttemptTrackedRef = useRef(false);
+  const judgeTerminalTrackedRef = useRef(false);
   const dreamDexCtaTrackedRef = useRef(false);
-  const directJudgeStartTrackedRef = useRef(false);
+  const judgeEntryTrackedRef = useRef(false);
+  const challengeCreatedTrackedRef = useRef(false);
+  const challengeOpenedTrackedRef = useRef(false);
+  const challengeVerifiedTrackedRef = useRef(false);
+  const shareEngagedTrackedRef = useRef(false);
+  const shareActionsTrackedRef = useRef<Set<ShareAction>>(new Set());
 
   useEffect(() => {
-    if (!directJudgeEntry || directJudgeStartTrackedRef.current) return;
-    directJudgeStartTrackedRef.current = true;
-    emitAnalyticsEvent(judgeDemoStartedEvent());
+    if (!directJudgeEntry || judgeEntryTrackedRef.current) return;
+    const timer = window.setTimeout(() => {
+      const challenge = isChallengeEntry(window.location.search);
+      judgeEntryTrackedRef.current = true;
+      setChallengeEntry(challenge);
+      emitAnalyticsEvent(judgeDemoEntryEvent(challenge ? 'challenge' : 'direct'));
+      if (challenge && !challengeOpenedTrackedRef.current) {
+        challengeOpenedTrackedRef.current = true;
+        emitAnalyticsEvent(challengeOpenedEvent());
+      }
+    }, 0);
+    return () => window.clearTimeout(timer);
   }, [directJudgeEntry]);
 
   useEffect(() => {
@@ -478,6 +523,14 @@ export default function MarketDungeon({ directJudgeEntry = false }: { directJudg
     }, 0);
     return () => window.clearTimeout(timer);
   }, []);
+
+  useEffect(() => {
+    if (phase !== 'VICTORY' && phase !== 'DEAD') return;
+    const frame = window.requestAnimationFrame(() => {
+      document.querySelector('.result-view')?.scrollIntoView({ block: 'start', behavior: 'auto' });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [phase]);
 
   useEffect(() => {
     if (!profileReady || judgeMode) return;
@@ -630,16 +683,23 @@ export default function MarketDungeon({ directJudgeEntry = false }: { directJudg
     return true;
   }
 
+  function resetShareAnalytics() {
+    shareEngagedTrackedRef.current = false;
+    shareActionsTrackedRef.current = new Set();
+    challengeCreatedTrackedRef.current = false;
+  }
+
   function startRun() {
     if (!marketReady) return;
     dreamDexCtaTrackedRef.current = false;
+    resetShareAnalytics();
     const nextRoster = buildRoster();
     setRoster(nextRoster); setTier(1); setRoom(0); setTurn(0); setPhase('COMBAT');
     setHp(100); setMonsterHp(nextRoster[0].hp); setPotions((value) => Math.min(MAX_POTIONS, Math.max(START_POTIONS, value))); setWeapon(1); setArmor(0);
     setCombatPotionUses(0); setBandageUsed(false); setMerchantPotions(2); setWeaponSold(false); setArmorSold(false);
     setOracleChecks(0); setOracleResult(null); setOracleBusy(false); oracleBusyRef.current = false; setLastReward('');
     setJudgeMode(false); setDeathCause('COMBAT');
-    setJudgeActionLog([]); setShareStatus('');
+    setJudgeActionLog([]); setShareStatus(''); setProofStatus('');
     setMarketEntryRemaining(remaining);
     setCombatLog([`${omenName} recorded: BTC ${direction} against live dreamDEX market #${market.marketId.slice(-4).toUpperCase()}. No order was sent.`]);
     setNotice(`${omenName} · DELVEWORN RUN STARTED`);
@@ -647,15 +707,19 @@ export default function MarketDungeon({ directJudgeEntry = false }: { directJudg
 
   function startJudgeDemo() {
     if (judgeLoading) return;
-    judgeCompletionTrackedRef.current = false;
+    judgeRunStartedAtRef.current = null;
+    judgeRevealAttemptTrackedRef.current = false;
+    judgeTerminalTrackedRef.current = false;
     dreamDexCtaTrackedRef.current = false;
-    emitAnalyticsEvent(judgeDemoStartedEvent());
+    challengeVerifiedTrackedRef.current = false;
+    resetShareAnalytics();
+    emitAnalyticsEvent(judgeDemoEntryEvent('home'));
     setMarket(sealedReplay); setPhase('JUDGE_SETUP'); setJudgeMode(true); setDeathCause('COMBAT');
-    setJudgeActionLog([]); setShareStatus('');
+    setJudgeActionLog([]); setShareStatus(''); setProofStatus('');
     setReplayRevealRemaining(0);
     setJudgeStartRetryRemaining(0); setReplayRetryRemaining(0);
     setMarketEntryRemaining(null);
-    setCombatLog(['Choose BTC UP or DOWN first. The server will then draw a random finalized market and return only an encrypted seal plus commitment.']);
+    setCombatLog(['Choose BTC UP or DOWN first. The server will then draw a random finalized market and return an encrypted seal, commitment, and signed lock receipt.']);
     setNotice('JUDGE DEMO · CHOOSE OMEN BEFORE MARKET SELECTION');
   }
 
@@ -681,22 +745,65 @@ export default function MarketDungeon({ directJudgeEntry = false }: { directJudg
       if (!response.ok || !data.replay) throw new Error(data.error ?? 'Replay unavailable');
       const replay = data.replay as {
         seal: string; commitment: string; gameSeed: string; lockedDirection: Direction;
-        revealAfter: number; expiresAt: number;
+        issuedAt: number; revealAfter: number; expiresAt: number;
+        lockAttestation: unknown;
         publicMarket: { intervalSec: number };
       };
+      const replayIntervalSec = Number(replay.publicMarket?.intervalSec);
+      if (typeof replay.seal !== 'string'
+        || !/^v2\.[A-Za-z0-9_-]{16}\.[A-Za-z0-9_-]{43,4000}\.[A-Za-z0-9_-]{22}$/.test(replay.seal)
+        || !/^0x[0-9a-f]{64}$/i.test(replay.commitment)
+        || typeof replay.gameSeed !== 'string' || !/^[A-Za-z0-9_-]{43}$/.test(replay.gameSeed)
+        || replay.lockedDirection !== direction
+        || (replayIntervalSec !== 300 && replayIntervalSec !== 900)
+        || !Number.isSafeInteger(replay.issuedAt) || replay.issuedAt <= 0
+        || !Number.isSafeInteger(replay.revealAfter) || replay.revealAfter <= 0
+        || !Number.isSafeInteger(replay.expiresAt)
+        || replay.issuedAt >= replay.revealAfter || replay.revealAfter >= replay.expiresAt
+        || !isReplayLockAttestation(replay.lockAttestation)
+        || !replayLockAttestationMatchesProof(replay.lockAttestation, {
+          commitment: replay.commitment,
+          lockedDirection: replay.lockedDirection,
+          issuedAt: replay.issuedAt,
+          revealAfter: replay.revealAfter,
+          expiresAt: replay.expiresAt,
+        })) {
+        throw new Error('Invalid replay response');
+      }
+      const keyResponse = await fetch(REPLAY_LOCK_PUBLIC_KEY_ENDPOINT, {
+        method: 'GET',
+        cache: 'no-store',
+        headers: { accept: 'application/json' },
+        signal: AbortSignal.timeout(5_000),
+      });
+      const trustedKey = keyResponse.ok ? await keyResponse.json() : null;
+      if (!isReplayLockPublicKey(trustedKey)
+        || !await verifyReplayLockAttestation(replay.lockAttestation, trustedKey)) {
+        throw new Error('Invalid replay lock attestation');
+      }
+      const acceptedIntervalSec = eventContractIntervalSeconds(replayIntervalSec);
+      judgeRunStartedAtRef.current = window.performance.now();
+      judgeRevealAttemptTrackedRef.current = false;
+      judgeTerminalTrackedRef.current = false;
+      challengeVerifiedTrackedRef.current = false;
+      dreamDexCtaTrackedRef.current = false;
+      resetShareAnalytics();
+      emitAnalyticsEvent(judgeDemoLockedEvent(acceptedIntervalSec));
       const nextRoster = buildRoster((TOTAL_TIERS - 1) * TOTAL_ROOMS + 1);
       const guardRoom = TOTAL_ROOMS - 2;
       setMarket({
         ...sealedReplay,
         marketId: `sealed:${replay.commitment}`,
         status: 'OMEN LOCKED',
-        intervalSec: eventContractIntervalSeconds(replay.publicMarket.intervalSec),
+        intervalSec: acceptedIntervalSec,
         replaySeal: replay.seal,
         replayCommitment: replay.commitment,
         replayGameSeed: replay.gameSeed,
         replayLockedDirection: replay.lockedDirection,
         replayRevealAfter: replay.revealAfter,
         replayExpiresAt: replay.expiresAt,
+        replayLockAttestation: replay.lockAttestation,
+        replayLockPublicKey: trustedKey,
       });
       setReplayRevealRemaining(secondsUntilReplayReveal(replay.revealAfter));
       setJudgeStartRetryRemaining(0); setReplayRetryRemaining(0);
@@ -706,7 +813,7 @@ export default function MarketDungeon({ directJudgeEntry = false }: { directJudg
       setPotions(JUDGE_COMBAT.player.potions); setGold(62); setWeapon(JUDGE_COMBAT.player.weapon); setArmor(JUDGE_COMBAT.player.armor);
       setCombatPotionUses(0); setBandageUsed(false); setMerchantPotions(2); setWeaponSold(false); setArmorSold(false);
       setOracleChecks(0); setOracleResult(null); setOracleBusy(false); oracleBusyRef.current = false; setLastReward('');
-      setJudgeActionLog([]); setShareStatus('');
+      setJudgeActionLog([]); setShareStatus(''); setProofStatus('');
       setCombatLog([`${omenName} locked before market selection. Commitment ${replay.commitment.slice(0, 14)}… binds the encrypted replay; combat uses an independent seed.`]);
       setNotice(`JUDGE DEMO · ${omenName} LOCKED · DEFEAT THE WOUNDED GUARD`);
     } catch {
@@ -857,11 +964,44 @@ export default function MarketDungeon({ directJudgeEntry = false }: { directJudg
     setNotice(`TIER ${nextTier} · NEW PREDICTION LOCKED · ${omenName}`);
   }
 
+  function trackJudgeCompletion(
+    resolvedDirection: Direction,
+    result: JudgeDemoResult,
+    intervalSec: unknown,
+  ) {
+    if (!judgeMode || judgeTerminalTrackedRef.current) return;
+    judgeTerminalTrackedRef.current = true;
+    const elapsedMs = judgeRunStartedAtRef.current === null
+      ? undefined
+      : window.performance.now() - judgeRunStartedAtRef.current;
+    emitAnalyticsEvent(judgeDemoVerifiedEvent(resolvedDirection, result, intervalSec, elapsedMs));
+    if (challengeEntry && !challengeVerifiedTrackedRef.current) {
+      challengeVerifiedTrackedRef.current = true;
+      emitAnalyticsEvent(challengeVerifiedEvent());
+    }
+  }
+
+  function trackJudgeFailure(reason: 'server-rejected' | 'browser-mismatch') {
+    if (!judgeMode || judgeTerminalTrackedRef.current) return;
+    judgeTerminalTrackedRef.current = true;
+    emitAnalyticsEvent(judgeDemoVerificationFailedEvent(reason));
+  }
+
+  function trackJudgeNotProvable(reason: 'seal-expired') {
+    if (!judgeMode || judgeTerminalTrackedRef.current) return;
+    judgeTerminalTrackedRef.current = true;
+    emitAnalyticsEvent(judgeDemoVerificationNotProvableEvent(reason));
+  }
+
   async function checkSettlement(automatic = false) {
     if (oracleBusyRef.current || phase !== 'ORACLE') return;
     oracleBusyRef.current = true; setOracleBusy(true); setOracleChecks((value) => value + 1);
     setNotice(automatic ? 'ORACLE AUTO-CHECK IN PROGRESS…' : 'CHECKING DREAMDEX SETTLEMENT…');
     try {
+      if (judgeMode && !judgeRevealAttemptTrackedRef.current) {
+        judgeRevealAttemptTrackedRef.current = true;
+        emitAnalyticsEvent(judgeDemoRevealAttemptedEvent(market.intervalSec));
+      }
       const response = judgeMode
         ? await fetch('/api/judge-replay/reveal', {
             method: 'POST',
@@ -890,6 +1030,8 @@ export default function MarketDungeon({ directJudgeEntry = false }: { directJudg
           return;
         }
         if (judgeMode && [400, 409, 410, 422].includes(response.status)) {
+          if (response.status === 410) trackJudgeNotProvable('seal-expired');
+          else trackJudgeFailure('server-rejected');
           setReplayRetryRemaining(0);
           setMarket(sealedReplay); setPhase('JUDGE_SETUP'); setOracleResult(null);
           setNotice(response.status === 410 ? 'REPLAY SEAL EXPIRED · LOCK A NEW OMEN' : 'REPLAY VERIFICATION FAILED · LOCK A NEW OMEN');
@@ -902,26 +1044,49 @@ export default function MarketDungeon({ directJudgeEntry = false }: { directJudg
       }
       setReplayRetryRemaining(0);
       const result = data.market as Market;
-      const onchainSettlement = data.onchainSettlement as DirectOnchainSettlementProof | undefined;
-      const localSettlementProofMatches = directSettlementProofMatchesMarket(onchainSettlement, result);
-      const browserRpcProofMatches = localSettlementProofMatches
-        ? await directSettlementProofMatchesSomniaRpc(onchainSettlement, result)
-        : false;
       const terminalSettlement = isTerminalSettlementMarket(result);
+      const onchainCandidate: unknown = data.onchainSettlement;
+      const onchainSettlement = isStrictOnchainSettlementProof(onchainCandidate) ? onchainCandidate : undefined;
+      let localSettlementProofMatches = false;
       let resolvedDirection = direction;
       if (judgeMode) {
-        const replayProof = data.replayProof as ReplayProof | undefined;
-        const combatProof = data.combatProof as ReplayCombatProof | undefined;
+        const reconstructedCombat = market.replayGameSeed ? canonicalJudgeActionLog(market.replayGameSeed, judgeActionLog) : '';
+        const replayCandidate: unknown = data.replayProof;
+        const combatCandidate: unknown = data.combatProof;
+        const revealAttestationCandidate: unknown = data.lockAttestation;
+        const replayProof = isStrictReplayProof(replayCandidate) ? replayCandidate : undefined;
+        const combatProof = isStrictReplayCombatProof(combatCandidate, judgeActionLog, reconstructedCombat)
+          ? combatCandidate
+          : undefined;
         const reconstructedCanonical = replayProof ? canonicalReplayProof(replayProof) : '';
         const computedCommitment = reconstructedCanonical ? await sha256Hex(reconstructedCanonical) : '';
-        const reconstructedCombat = market.replayGameSeed ? canonicalJudgeActionLog(market.replayGameSeed, judgeActionLog) : '';
         const computedCombatDigest = reconstructedCombat ? await sha256Hex(reconstructedCombat) : '';
-        const proofMatches = replayProof?.verified === true
+        const replayedCombat = market.replayGameSeed
+          ? replayJudgeCombat(market.replayGameSeed, judgeActionLog)
+          : null;
+        try {
+          localSettlementProofMatches = Boolean(onchainSettlement)
+            && directSettlementProofMatchesMarket(onchainSettlement, result);
+        } catch {
+          localSettlementProofMatches = false;
+        }
+        const attestationMatches = Boolean(replayProof)
+          && isReplayLockAttestation(revealAttestationCandidate)
+          && isReplayLockPublicKey(market.replayLockPublicKey)
+          && sameReplayLockAttestation(market.replayLockAttestation, revealAttestationCandidate)
+          && replayLockAttestationMatchesProof(revealAttestationCandidate, replayProof!)
+          && await verifyReplayLockAttestation(revealAttestationCandidate, market.replayLockPublicKey);
+        const proofMatches = terminalSettlement
+          && replayProof?.verified === true
+          && replayProof.algorithm === 'SHA-256'
           && combatProof?.verified === true
-          && combatProof.guardDefeated === true
-          && combatProof.bossDefeated === true
-          && combatProof.playerSurvived === true
-          && combatProof.steps === judgeActionLog.length
+          && combatProof.ruleset === 'market-dungeon/judge-combat/v1'
+          && replayedCombat?.verified === true
+          && combatProof.guardDefeated === replayedCombat.guardDefeated
+          && combatProof.bossDefeated === replayedCombat.bossDefeated
+          && combatProof.playerSurvived === replayedCombat.playerSurvived
+          && combatProof.finalHp === replayedCombat.finalHp
+          && combatProof.steps === replayedCombat.steps
           && combatProof.transcriptDigest === computedCombatDigest
           && replayProof.canonical === reconstructedCanonical
           && computedCommitment === replayProof.commitment
@@ -931,9 +1096,10 @@ export default function MarketDungeon({ directJudgeEntry = false }: { directJudg
           && replayProof.marketId.toLowerCase() === result.marketId.toLowerCase()
           && replayProof.committedOutcome === Number(result.winningOutcome)
           && replayMarketProvenanceMatches(replayProof, result as unknown as Record<string, unknown>)
-          && localSettlementProofMatches
-          && browserRpcProofMatches;
+          && attestationMatches
+          && localSettlementProofMatches;
         if (!proofMatches) {
+          trackJudgeFailure('browser-mismatch');
           setMarket(sealedReplay); setPhase('JUDGE_SETUP'); setOracleResult(null);
           setNotice('REPLAY PROOF MISMATCH · LOCK A NEW OMEN');
           setCombatLog(['The browser could not independently reproduce the Somnia block, raw settlement calls, combat digest, or commitment. No outcome was applied; start a fresh sealed replay.']);
@@ -941,21 +1107,55 @@ export default function MarketDungeon({ directJudgeEntry = false }: { directJudg
         }
         resolvedDirection = replayProof.lockedDirection;
         setDirection(resolvedDirection);
-        setMarket((previous) => ({ ...previous, ...result, replayProof, combatProof, onchainSettlement }));
       } else if (terminalSettlement) {
-        if (!localSettlementProofMatches || !browserRpcProofMatches) throw new Error('Independent Somnia RPC proof mismatch');
-        setMarket((previous) => ({ ...previous, ...result, onchainSettlement }));
+        try {
+          localSettlementProofMatches = Boolean(onchainSettlement)
+            && directSettlementProofMatchesMarket(onchainSettlement, result);
+        } catch {
+          localSettlementProofMatches = false;
+        }
+        if (!localSettlementProofMatches) throw new Error('Local Somnia settlement proof mismatch');
       }
       if (!terminalSettlement) {
         setNotice(remaining > 0 ? 'BOSS DOWN · AUTO-CHECK STARTS AT EXPIRY' : 'SETTLEMENT PENDING · NEXT CHECK IN 5S');
         if (!automatic) addLog('dreamDEX has not finalized yet. The boss remains down, but the tier is not cleared until the prediction resolves.');
         return;
       }
-      if (result.voided) {
-        if (judgeMode && !judgeCompletionTrackedRef.current) {
-          judgeCompletionTrackedRef.current = true;
-          emitAnalyticsEvent(judgeDemoCompletedEvent(resolvedDirection, 'void', result.intervalSec));
+      const browserRpcProofOutcome = await directSettlementProofRpcOutcome(onchainSettlement, result);
+      if (browserRpcProofOutcome.status === 'NOT PROVABLE') {
+        setNotice(judgeMode
+          ? 'REPLAY VERIFICATION UNAVAILABLE · RETRY REVEAL'
+          : automatic ? 'SETTLEMENT PROOF RETRYING IN 5S' : 'SETTLEMENT PROOF UNAVAILABLE · AUTO-RETRY ARMED');
+        if (judgeMode) {
+          addLog('Somnia RPC could not reproduce the proof during this attempt. Your sealed replay and completed combat remain intact; retry Reveal Boss Fate.');
+        } else if (!automatic) {
+          addLog('Somnia RPC could not reproduce the settlement during this attempt. No outcome was applied; automatic verification remains armed.');
         }
+        return;
+      }
+      if (browserRpcProofOutcome.status !== 'PASS') {
+        if (judgeMode) {
+          trackJudgeFailure('browser-mismatch');
+          setMarket(sealedReplay); setPhase('JUDGE_SETUP'); setOracleResult(null);
+          setNotice('REPLAY PROOF MISMATCH · LOCK A NEW OMEN');
+          setCombatLog(['The browser could not independently reproduce the canonical Somnia block or raw contract results. No outcome was applied; start a fresh sealed replay.']);
+          return;
+        }
+        throw new Error('Independent Somnia RPC proof mismatch');
+      }
+      if (judgeMode) {
+        setMarket((previous) => ({
+          ...previous,
+          ...result,
+          replayProof: data.replayProof as ReplayProof,
+          combatProof: data.combatProof as ReplayCombatProof,
+          onchainSettlement,
+        }));
+      } else {
+        setMarket((previous) => ({ ...previous, ...result, onchainSettlement }));
+      }
+      if (result.voided) {
+        trackJudgeCompletion(resolvedDirection, 'void', result.intervalSec);
         setOracleResult('VOID'); setGold((value) => value + monster.reward);
         setPhase(judgeMode || tier === TOTAL_TIERS ? 'VICTORY' : 'TIER_SETUP');
         setNotice('MARKET VOIDED · NO PREDICTION LOSS · BOSS REWARD PRESERVED');
@@ -965,20 +1165,14 @@ export default function MarketDungeon({ directJudgeEntry = false }: { directJudg
       const resolvedOmenName = resolvedDirection === 'UP' ? 'GOLD AWAKENS' : 'SHADOWS RISE';
       const won = Number(result.winningOutcome) === (resolvedDirection === 'UP' ? 0 : 1);
       if (won) {
-        if (judgeMode && !judgeCompletionTrackedRef.current) {
-          judgeCompletionTrackedRef.current = true;
-          emitAnalyticsEvent(judgeDemoCompletedEvent(resolvedDirection, 'blessed', result.intervalSec));
-        }
+        trackJudgeCompletion(resolvedDirection, 'blessed', result.intervalSec);
         const reward = monster.reward + 50;
         setOracleResult('BLESSED'); setGold((value) => value + reward);
         setPhase(judgeMode || tier === TOTAL_TIERS ? 'VICTORY' : 'TIER_SETUP');
         setNotice(judgeMode || tier === TOTAL_TIERS ? `FINAL BOSS DEFEATED · +${reward} GOLD` : `TIER ${tier} CLEARED · NEW BTC PREDICTION REQUIRED`);
         addLog(`${resolvedOmenName} was correct. The boss stays down: ${monster.reward} boss gold + 50 prediction gold.`);
       } else {
-        if (judgeMode && !judgeCompletionTrackedRef.current) {
-          judgeCompletionTrackedRef.current = true;
-          emitAnalyticsEvent(judgeDemoCompletedEvent(resolvedDirection, 'cursed', result.intervalSec));
-        }
+        trackJudgeCompletion(resolvedDirection, 'cursed', result.intervalSec);
         setOracleResult('CURSED'); setHp(0); setDeathCause('PREDICTION'); setPhase('DEAD'); setNotice('PREDICTION WRONG · BOSS LAST STAND · RUN ENDED');
         addLog(`${resolvedOmenName} was wrong. The fallen boss rises for one final strike. No boss reward is awarded.`);
       }
@@ -1014,18 +1208,28 @@ export default function MarketDungeon({ directJudgeEntry = false }: { directJudg
     setBandageUsed(false); setMerchantPotions(2); setWeaponSold(false); setArmorSold(false);
     setOracleChecks(0); setOracleResult(null); setOracleBusy(false); oracleBusyRef.current = false;
     setJudgeMode(false); setJudgeLoading(false); setDeathCause('COMBAT');
-    setJudgeActionLog([]); setShareStatus('');
+    setJudgeActionLog([]); setShareStatus(''); setProofStatus('');
     setReplayRevealRemaining(0);
     setJudgeStartRetryRemaining(0); setReplayRetryRemaining(0);
     setMarketEntryRemaining(null);
     setMarketOdds(null);
-    judgeCompletionTrackedRef.current = false;
+    judgeRunStartedAtRef.current = null;
+    judgeRevealAttemptTrackedRef.current = false;
+    judgeTerminalTrackedRef.current = false;
     dreamDexCtaTrackedRef.current = false;
+    challengeVerifiedTrackedRef.current = false;
+    resetShareAnalytics();
     setNotice('LIVE DREAMDEX MARKET · READ ONLY');
     if (directJudgeEntry) router.replace('/');
   }
 
-  const resultHeading = oracleResult === 'BLESSED' ? 'Combat and prediction conquered.' : oracleResult === 'CURSED' ? 'The boss strikes back.' : 'Dungeon conquered.';
+  const resultHeading = oracleResult === 'BLESSED'
+    ? 'Combat and prediction conquered.'
+    : oracleResult === 'CURSED'
+      ? 'The boss strikes back.'
+      : judgeMode
+        ? 'The final-tier replay is cleared.'
+        : 'Dungeon conquered.';
   const resultCopy = oracleResult === 'BLESSED'
     ? `${omenName} was correct. The final boss stays down and the run earns both boss and prediction gold.`
     : oracleResult === 'CURSED'
@@ -1033,7 +1237,8 @@ export default function MarketDungeon({ directJudgeEntry = false }: { directJudg
       : 'The Event Contract was voided, so the defeated boss remained down without a prediction penalty.';
 
   function verifiedProofInput(): VerifiedRunProofInput | null {
-    if (!market.replayProof || !market.combatProof || !market.onchainSettlement || !oracleResult) return null;
+    if (!market.replayProof || !market.combatProof || !market.onchainSettlement
+      || !market.replayLockAttestation || !oracleResult) return null;
     return {
       result: oracleResult,
       intervalSec: market.intervalSec,
@@ -1041,6 +1246,7 @@ export default function MarketDungeon({ directJudgeEntry = false }: { directJudg
       combatProof: market.combatProof,
       combatActions: judgeActionLog,
       onchainSettlement: market.onchainSettlement,
+      lockAttestation: market.replayLockAttestation,
     };
   }
 
@@ -1079,6 +1285,31 @@ export default function MarketDungeon({ directJudgeEntry = false }: { directJudg
     };
   }
 
+  function analyticsMode(input: RunShareCardInput): MarketDungeonMode {
+    return input.mode === 'JUDGE_REPLAY' ? 'judge_demo' : 'full_run';
+  }
+
+  function trackShareAction(input: RunShareCardInput, action: ShareAction) {
+    if (!shareActionsTrackedRef.current.has(action)) {
+      shareActionsTrackedRef.current.add(action);
+      emitAnalyticsEvent(shareActionEvent(analyticsMode(input), action));
+    }
+    if (!shareEngagedTrackedRef.current) {
+      shareEngagedTrackedRef.current = true;
+      emitAnalyticsEvent(shareEngagedEvent(analyticsMode(input)));
+    }
+  }
+
+  function trackChallengeCreated(input: RunShareCardInput) {
+    // The pilot's canonical challenge-created count starts from a completed,
+    // independently verified Judge run. Full-run cards may still be shared,
+    // but they do not satisfy that proof boundary.
+    if (!input.verifiedOnchain) return;
+    if (challengeCreatedTrackedRef.current) return;
+    challengeCreatedTrackedRef.current = true;
+    emitAnalyticsEvent(challengeCreatedEvent());
+  }
+
   async function shareRunCard(input: RunShareCardInput) {
     let card: File | null = null;
     try {
@@ -1097,11 +1328,13 @@ export default function MarketDungeon({ directJudgeEntry = false }: { directJudg
       if (canShareCard) {
         try {
           await navigator.share({
-            title: 'Market Dungeon — run result',
+            title: 'Market Dungeon — can you beat my run?',
             text: runShareCaption(input),
-            url: MARKET_DUNGEON_PLAY_URL,
+            url: MARKET_DUNGEON_CHALLENGE_URL,
             files: [card],
           });
+          trackShareAction(input, 'native-completed');
+          trackChallengeCreated(input);
           setShareStatus('RUN CARD SHARED');
           return;
         } catch (error) {
@@ -1110,12 +1343,17 @@ export default function MarketDungeon({ directJudgeEntry = false }: { directJudg
       }
     }
 
-    if (card) downloadFile(card);
+    if (card) {
+      downloadFile(card);
+      trackShareAction(input, 'card-downloaded');
+    }
     try {
       await navigator.clipboard.writeText(runShareClipboardText(input));
+      trackShareAction(input, 'text-copied');
+      trackChallengeCreated(input);
       setShareStatus(card
-        ? 'SHARING UNAVAILABLE · CARD DOWNLOADED + POST TEXT COPIED'
-        : 'SHARING UNAVAILABLE · POST TEXT COPIED');
+        ? 'SHARING UNAVAILABLE · CARD DOWNLOADED + CHALLENGE TEXT COPIED'
+        : 'SHARING UNAVAILABLE · CHALLENGE TEXT COPIED');
     } catch {
       setShareStatus(card
         ? 'SHARING UNAVAILABLE · CARD DOWNLOADED'
@@ -1124,8 +1362,13 @@ export default function MarketDungeon({ directJudgeEntry = false }: { directJudg
   }
 
   async function downloadRunCard(input: RunShareCardInput, forX = false) {
+    if (forX) {
+      trackShareAction(input, 'x-intent-opened');
+      trackChallengeCreated(input);
+    }
     try {
       downloadFile(await renderRunCardPng(input));
+      trackShareAction(input, 'card-downloaded');
       setShareStatus(forX ? 'CARD DOWNLOADED · ATTACH IT IN THE X COMPOSER' : 'RUN CARD DOWNLOADED');
     } catch {
       setShareStatus(forX ? 'X OPENED · CARD DOWNLOAD FAILED' : 'CARD DOWNLOAD FAILED');
@@ -1138,9 +1381,9 @@ export default function MarketDungeon({ directJudgeEntry = false }: { directJudg
     const json = verifiedRunProofJson(proofInput);
     try {
       await navigator.clipboard.writeText(json);
-      setShareStatus('PORTABLE PROOF JSON COPIED');
+      setProofStatus('PORTABLE PROOF JSON COPIED');
     } catch {
-      setShareStatus('COPY FAILED · USE DOWNLOAD PROOF JSON');
+      setProofStatus('COPY FAILED · USE DOWNLOAD PROOF JSON');
     }
   }
 
@@ -1156,7 +1399,7 @@ export default function MarketDungeon({ directJudgeEntry = false }: { directJudg
     link.click();
     link.remove();
     window.setTimeout(() => URL.revokeObjectURL(url), 0);
-    setShareStatus('PORTABLE PROOF JSON DOWNLOADED');
+    setProofStatus('PORTABLE PROOF JSON DOWNLOADED');
   }
 
   function trackDreamDexContinue() {
@@ -1172,23 +1415,30 @@ export default function MarketDungeon({ directJudgeEntry = false }: { directJudg
 
   const runShareInput = currentRunShareInput();
   const portableProofAvailable = Boolean(verifiedProofInput());
+  const runShareProgress = runShareInput?.mode === 'JUDGE_REPLAY'
+    ? `FINAL-TIER JUDGE REPLAY · ${Math.min(2, runShareInput.enemiesDefeated)}/2 REPLAY ENCOUNTERS`
+    : runShareInput
+      ? `ROOM ${runShareInput.reachedRoom}/${runShareInput.totalRooms} · ${runShareInput.enemiesDefeated} ENEMIES DEFEATED`
+      : '';
   const runSharePanel = runShareInput ? (
     <section className="run-share-panel" aria-label="Share your Market Dungeon result">
       <div className="run-share-heading">
         <span>YOUR MARKET DUNGEON RUN CARD</span>
-        <strong>ROOM {runShareInput.reachedRoom}/{runShareInput.totalRooms} · {runShareInput.enemiesDefeated} ENEMIES DEFEATED</strong>
-        <small>{runShareInput.verifiedOnchain ? 'The card summarizes the run; the separate JSON carries the complete reproducible proof.' : 'A social-ready snapshot of how far this expedition reached.'}</small>
+        <strong>{runShareProgress}</strong>
+        <small>{runShareInput.verifiedOnchain ? 'A social-ready summary of this verified replay. The portable proof is available above.' : 'A social-ready snapshot of how far this expedition reached.'}</small>
       </div>
       <Image
         className="run-share-card"
         src={runShareCardDataUrl(runShareInput)}
-        alt={`Market Dungeon share card: room ${runShareInput.reachedRoom} of ${runShareInput.totalRooms}`}
+        alt={runShareInput.mode === 'JUDGE_REPLAY'
+          ? `Market Dungeon Judge Replay share card: ${Math.min(2, runShareInput.enemiesDefeated)} of 2 replay encounters`
+          : `Market Dungeon share card: room ${runShareInput.reachedRoom} of ${runShareInput.totalRooms}`}
         width={1200}
         height={675}
         unoptimized
       />
       <div className="run-share-actions">
-        <button className="share-primary" type="button" onClick={() => void shareRunCard(runShareInput)}>↗ SHARE RESULT</button>
+        <button className="share-primary" type="button" onClick={() => void shareRunCard(runShareInput)}>↗ CHALLENGE A PLAYER</button>
         <a
           className="share-x"
           href={runShareXUrl(runShareInput)}
@@ -1198,15 +1448,24 @@ export default function MarketDungeon({ directJudgeEntry = false }: { directJudg
         >SHARE ON X ↗</a>
         <button type="button" onClick={() => void downloadRunCard(runShareInput)}>DOWNLOAD CARD</button>
       </div>
-      <small className="run-share-x-note">X opens with the post text filled in. Attach the downloaded PNG card before posting.</small>
-      {portableProofAvailable && (
-        <div className="portable-proof-actions">
-          <span>TECHNICAL VERIFICATION</span>
-          <button type="button" onClick={() => void copyVerifiedProof()}>COPY PROOF JSON</button>
-          <button type="button" onClick={downloadVerifiedProof}>DOWNLOAD PROOF JSON</button>
-        </div>
-      )}
+      <small className="run-share-x-note">The link opens a fresh, separately sealed Judge replay. X opens with the challenge text filled in; attach the downloaded PNG card before posting.</small>
       <small className="run-share-status" aria-live="polite">{shareStatus}</small>
+    </section>
+  ) : null;
+
+  const portableProofPanel = portableProofAvailable ? (
+    <section className="portable-proof-panel" aria-label="Portable run verification">
+      <div className="portable-proof-heading">
+        <span>PORTABLE PROOF · INDEPENDENT CHECK</span>
+        <strong>Verify this completed replay in two steps.</strong>
+        <small>First save or copy the proof. Then open the verifier, which checks the signed server receipt, deterministic combat, and recorded Somnia state without a wallet or file upload.</small>
+      </div>
+      <div className="portable-proof-actions">
+        <button className="proof-download" type="button" onClick={downloadVerifiedProof}>1 · DOWNLOAD PROOF JSON</button>
+        <button type="button" onClick={() => void copyVerifiedProof()}>COPY PROOF JSON</button>
+        <Link className="proof-verifier-link" href="/verify" target="_blank" rel="noopener noreferrer">2 · OPEN INDEPENDENT VERIFIER ↗</Link>
+      </div>
+      <small className="portable-proof-status" aria-live="polite">{proofStatus}</small>
     </section>
   ) : null;
 
@@ -1255,6 +1514,12 @@ export default function MarketDungeon({ directJudgeEntry = false }: { directJudg
 
         {phase === 'JUDGE_SETUP' && (
           <section className="action-dock action-dock-judge_setup judge-first-lock" aria-label="Start the two-minute Judge Demo">
+            {challengeEntry && (
+              <div className="challenge-entry-banner" role="status" aria-label="Challenge invitation">
+                <span>⚡ CHALLENGE RECEIVED</span>
+                <small>Beat a fresh, separately sealed Judge replay. Your challenger&apos;s market and outcome are not reused.</small>
+              </div>
+            )}
             <div className="judge-lock-intro">
               <span>STEP 1 OF 5 · CHOOSE BEFORE THE DRAW</span>
               <strong>Lock a BTC direction, then defeat the guard and boss.</strong>
@@ -1354,7 +1619,7 @@ export default function MarketDungeon({ directJudgeEntry = false }: { directJudg
             <div className="judge-setup-view">
               <p className="section-kicker">STEP 1 · CHOOSE BEFORE MARKET SELECTION</p>
               <h2>Lock your omen before the replay is drawn.</h2>
-              <p className="muted">After you lock UP or DOWN, the server randomly selects a finalized, traded BTC 5-minute market. A balanced 15m pool remains the automatic fallback. Only an encrypted seal, a salted commitment and an unrelated combat seed reach this browser.</p>
+              <p className="muted">After you lock UP or DOWN, the server randomly selects a finalized, traded BTC 5-minute market. A balanced 15m pool remains the automatic fallback. The browser receives an encrypted seal, a salted commitment, an unrelated combat seed, and a signed server lock receipt—but no identifying market data.</p>
               <div className="prediction-card judge-prediction-card">
                 <span>SEALED BTC 5-MIN REPLAY · 15M FALLBACK · SOMNIA MAINNET</span>
                 <strong>UP OR DOWN</strong>
@@ -1368,7 +1633,7 @@ export default function MarketDungeon({ directJudgeEntry = false }: { directJudg
                 </div>
                 <LiveMarketOdds odds={marketOdds} direction={direction} />
               </div>
-              <div className="judge-seal-note"><span>CRYPTOGRAPHIC SEAL</span><strong>Your direction locks before a random historical settlement is selected.</strong><small>After lock, the browser receives no identifying market metadata. Full proof, revealed salt and outcome appear only at Reveal Boss Fate.</small></div>
+              <div className="judge-seal-note"><span>CRYPTOGRAPHIC SEAL + SIGNED RECEIPT</span><strong>Your direction locks before a random historical settlement is selected.</strong><small>The official environment authenticates the commitment and lock window. This is a server receipt, not an external timestamp. Full market proof appears only at Reveal Boss Fate.</small></div>
               <MarketProof market={market} mode="sealed" />
             </div>
           ) : phase === 'TIER_SETUP' ? (
@@ -1410,13 +1675,14 @@ export default function MarketDungeon({ directJudgeEntry = false }: { directJudg
               <div className="result-icon">{oracleResult === 'BLESSED' ? '✨' : oracleResult === 'CURSED' ? '📉' : '👑'}</div>
               <p className="section-kicker">{judgeMode ? 'JUDGE DEMO COMPLETE · ONCHAIN RESULT VERIFIED' : `TIER ${tier}/${TOTAL_TIERS} · FULL RUN COMPLETE`} · {oracleResult ?? 'SETTLED'}</p>
               <h2>{resultHeading}</h2><p className="muted">{resultCopy}</p>
-              {judgeMode && <HumanProofSummary verified />}
-              {judgeMode && <div className="judge-verification"><span>✓ COMBAT + COMMITMENT + INDEPENDENT RPC VERIFIED</span><strong>dreamDEX market #{marketCode}</strong><small>Server replayed {market.combatProof?.steps ?? 0} seeded actions and derived the payout from BinarySettlement; the browser independently re-fetched the block and both raw calls from Somnia, ABI-decoded them, and verified every exposed binding before applying the result.</small></div>}
-              {runSharePanel}
-              {dreamDexContinuePanel}
-              {judgeMode && <MarketProof market={market} mode="revealed" open />}
               <div className="victory-conditions resolved"><div><span>✓ CONDITION 1</span><strong>Boss defeated in combat</strong></div><div><span>{oracleResult === 'VOID' ? '○ VOID EXCEPTION' : '✓ CONDITION 2'}</span><strong>{oracleResult === 'VOID' ? 'Prediction voided · no loss' : 'BTC prediction correct'}</strong></div></div>
-              <div className="final-stats"><div><span>TIERS CLEARED</span><strong>{judgeMode ? 'REPLAY' : `${tier}/${TOTAL_TIERS}`}</strong></div><div><span>FINAL GOLD</span><strong><GoldIcon /> {gold}</strong></div></div>
+              {judgeMode && <HumanProofSummary verified />}
+              {judgeMode && <div className="judge-verification"><span>✓ COMBAT + CHOICE LOCK + SOMNIA RESULT VERIFIED</span><strong>dreamDEX market #{marketCode}</strong><small>{market.combatProof?.steps ?? 0} replayed actions and two block-pinned contract reads reproduced the displayed result. Expand the proof only if you want the raw calldata.</small></div>}
+              {portableProofPanel}
+              {dreamDexContinuePanel}
+              {runSharePanel}
+              {judgeMode && <MarketProof market={market} mode="revealed" />}
+              <div className="final-stats"><div><span>{judgeMode ? 'REPLAY ENCOUNTERS' : 'TIERS CLEARED'}</span><strong>{judgeMode ? `${runShareInput?.enemiesDefeated ?? 0}/2` : `${tier}/${TOTAL_TIERS}`}</strong></div><div><span>FINAL GOLD</span><strong><GoldIcon /> {gold}</strong></div></div>
             </div>
           ) : phase === 'DEAD' ? (
             <div className="result-view">
@@ -1424,11 +1690,12 @@ export default function MarketDungeon({ directJudgeEntry = false }: { directJudg
               <h2>{deathCause === 'PREDICTION' ? 'The boss strikes back.' : 'You fell in combat.'}</h2><p className="muted">{deathCause === 'PREDICTION' ? resultCopy : 'The prediction cannot save a lost fight. Gold persists, potions return to at least the starting amount, and attack and defense reset for the next run.'}</p>
               {deathCause === 'PREDICTION' && <div className="victory-conditions failed"><div><span>✓ CONDITION 1</span><strong>Boss defeated in combat</strong></div><div><span>✕ CONDITION 2</span><strong>BTC prediction incorrect</strong></div></div>}
               {judgeMode && deathCause === 'PREDICTION' && <HumanProofSummary verified />}
-              {judgeMode && deathCause === 'PREDICTION' && <div className="judge-verification"><span>✓ COMBAT + COMMITMENT + INDEPENDENT RPC VERIFIED</span><strong>dreamDEX market #{marketCode}</strong><small>Server-verified combat preceded reveal; the browser independently re-fetched and ABI-decoded the proved Somnia block and both settlement calls before applying the losing payout hidden inside the commitment.</small></div>}
-              {runSharePanel}
+              {judgeMode && deathCause === 'PREDICTION' && <div className="judge-verification"><span>✓ COMBAT + CHOICE LOCK + SOMNIA RESULT VERIFIED</span><strong>dreamDEX market #{marketCode}</strong><small>The combat replay and two block-pinned contract reads reproduced the losing payout. Expand the proof only if you want the raw calldata.</small></div>}
+              {judgeMode && deathCause === 'PREDICTION' && portableProofPanel}
               {deathCause === 'PREDICTION' && dreamDexContinuePanel}
-              {judgeMode && deathCause === 'PREDICTION' && <MarketProof market={market} mode="revealed" open />}
-              <div className="final-stats"><div><span>TIER / ROOMS</span><strong>{tier} · {roomsCleared}/{TOTAL_ROOMS}</strong></div><div><span>GOLD KEPT</span><strong><GoldIcon /> {gold}</strong></div></div>
+              {runSharePanel}
+              {judgeMode && deathCause === 'PREDICTION' && <MarketProof market={market} mode="revealed" />}
+              <div className="final-stats"><div><span>{judgeMode ? 'REPLAY ENCOUNTERS' : 'TIER / ROOMS'}</span><strong>{judgeMode ? `${runShareInput?.enemiesDefeated ?? 0}/2` : `${tier} · ${roomsCleared}/${TOTAL_ROOMS}`}</strong></div><div><span>GOLD KEPT</span><strong><GoldIcon /> {gold}</strong></div></div>
             </div>
           ) : (
             <div className="combat-view">
@@ -1537,8 +1804,8 @@ export default function MarketDungeon({ directJudgeEntry = false }: { directJudg
         <footer>
           <p>DELVEWORN × DREAMDEX EVENT CONTRACTS · SOMNIA</p>
           <span>Competition prototype · no wallet · no approval · no order submission · {replaySealed ? `sealed commitment ${marketCode}` : `market #${marketCode || '—'}`}</span>
-          <span>Anonymous Vercel Analytics measures page views and three funnel checkpoints; no wallet address, market ID, proof, or combat transcript is sent.</span>
-          <nav aria-label="Project transparency"><Link href="/credits">PRIVACY · CREDITS · AI DISCLOSURE</Link></nav>
+          <span>Anonymous v2 funnel labels measure entry, verified completion and product actions; no wallet, market ID, proof, transcript, exact timing or free-form text is sent.</span>
+          <nav aria-label="Project transparency"><Link href="/verify">VERIFY A PROOF</Link><Link href="/credits">PRIVACY · CREDITS · AI DISCLOSURE</Link></nav>
         </footer>
       </div>
     </main>

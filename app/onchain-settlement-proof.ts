@@ -246,6 +246,11 @@ export function directSettlementProofMatchesMarket(
 
 export type SettlementProofRpc = (method: string, params: readonly unknown[]) => Promise<unknown>;
 
+export type SettlementProofRpcOutcome = {
+  status: 'PASS' | 'FAIL' | 'NOT PROVABLE';
+  reason: string;
+};
+
 async function somniaMainnetRpc(method: string, params: readonly unknown[]) {
   const response = await fetch(SOMNIA_MAINNET_RPC, {
     method: 'POST',
@@ -255,8 +260,87 @@ async function somniaMainnetRpc(method: string, params: readonly unknown[]) {
     signal: AbortSignal.timeout(8_000),
   });
   const payload = await response.json() as { result?: unknown; error?: unknown };
-  if (!response.ok || payload.error || payload.result == null) throw new Error('Somnia RPC verification failed');
+  if (!response.ok || payload.error || !Object.hasOwn(payload, 'result')) throw new Error('Somnia RPC verification failed');
   return payload.result;
+}
+
+export async function directSettlementProofRpcOutcome(
+  proof: DirectOnchainSettlementProof | undefined,
+  market: SettlementMarket,
+  rpc: SettlementProofRpc = somniaMainnetRpc,
+): Promise<SettlementProofRpcOutcome> {
+  if (!proof || !directSettlementProofMatchesMarket(proof, market)) {
+    return {
+      status: 'FAIL',
+      reason: 'The proof does not match the canonical market and settlement structure.',
+    };
+  }
+
+  let chainId: unknown;
+  try {
+    chainId = await rpc('eth_chainId', []);
+  } catch {
+    return {
+      status: 'NOT PROVABLE',
+      reason: 'Somnia RPC was unavailable before its chain identity could be checked.',
+    };
+  }
+
+  if (typeof chainId !== 'string' || !HEX.test(chainId) || Number(BigInt(chainId)) !== proof.chainId) {
+    return {
+      status: 'FAIL',
+      reason: 'The responding RPC did not identify as the recorded Somnia chain.',
+    };
+  }
+
+  let block: unknown;
+  try {
+    block = await rpc('eth_getBlockByHash', [proof.blockHash, false]);
+  } catch {
+    return {
+      status: 'NOT PROVABLE',
+      reason: 'Somnia RPC was unavailable while the recorded block was being fetched.',
+    };
+  }
+  const rpcBlock = block as { number?: unknown; hash?: unknown } | null;
+  const blockMatches = typeof rpcBlock?.number === 'string'
+    && HEX.test(rpcBlock.number)
+    && BigInt(rpcBlock.number) === BigInt(proof.blockTag)
+    && typeof rpcBlock.hash === 'string'
+    && BYTES32.test(rpcBlock.hash)
+    && rpcBlock.hash.toLowerCase() === proof.blockHash.toLowerCase();
+  if (!blockMatches) {
+    return {
+      status: 'FAIL',
+      reason: 'Somnia did not return the recorded canonical block number and hash.',
+    };
+  }
+
+  const [moduleCall, settlementCall] = await Promise.allSettled([
+    rpc('eth_call', [{ to: proof.calls.moduleMarket.to, data: proof.calls.moduleMarket.data }, proof.calls.moduleMarket.blockReference]),
+    rpc('eth_call', [{ to: proof.calls.settlementRecord.to, data: proof.calls.settlementRecord.data }, proof.calls.settlementRecord.blockReference]),
+  ]);
+  const moduleMismatch = moduleCall.status === 'fulfilled'
+    && !sameRawHex(moduleCall.value, proof.calls.moduleMarket.result);
+  const settlementMismatch = settlementCall.status === 'fulfilled'
+    && !sameRawHex(settlementCall.value, proof.calls.settlementRecord.result);
+  if (moduleMismatch || settlementMismatch) {
+    return {
+      status: 'FAIL',
+      reason: 'Somnia returned contract data that does not match the recorded proof.',
+    };
+  }
+  if (moduleCall.status === 'rejected' || settlementCall.status === 'rejected') {
+    return {
+      status: 'NOT PROVABLE',
+      reason: 'Somnia RPC was unavailable while the recorded contract state was being fetched.',
+    };
+  }
+
+  return {
+    status: 'PASS',
+    reason: 'Somnia returned the recorded canonical block and both exact contract results.',
+  };
 }
 
 export async function directSettlementProofMatchesSomniaRpc(
@@ -264,29 +348,5 @@ export async function directSettlementProofMatchesSomniaRpc(
   market: SettlementMarket,
   rpc: SettlementProofRpc = somniaMainnetRpc,
 ) {
-  if (!proof || !directSettlementProofMatchesMarket(proof, market)) return false;
-
-  try {
-    const [chainId, block, moduleResult, settlementResult] = await Promise.all([
-      rpc('eth_chainId', []),
-      rpc('eth_getBlockByHash', [proof.blockHash, false]),
-      rpc('eth_call', [{ to: proof.calls.moduleMarket.to, data: proof.calls.moduleMarket.data }, proof.calls.moduleMarket.blockReference]),
-      rpc('eth_call', [{ to: proof.calls.settlementRecord.to, data: proof.calls.settlementRecord.data }, proof.calls.settlementRecord.blockReference]),
-    ]);
-    const rpcBlock = block as { number?: unknown; hash?: unknown } | null;
-
-    return typeof chainId === 'string'
-      && HEX.test(chainId)
-      && Number(BigInt(chainId)) === proof.chainId
-      && typeof rpcBlock?.number === 'string'
-      && HEX.test(rpcBlock.number)
-      && BigInt(rpcBlock.number) === BigInt(proof.blockTag)
-      && typeof rpcBlock.hash === 'string'
-      && BYTES32.test(rpcBlock.hash)
-      && rpcBlock.hash.toLowerCase() === proof.blockHash.toLowerCase()
-      && sameRawHex(moduleResult, proof.calls.moduleMarket.result)
-      && sameRawHex(settlementResult, proof.calls.settlementRecord.result);
-  } catch {
-    return false;
-  }
+  return (await directSettlementProofRpcOutcome(proof, market, rpc)).status === 'PASS';
 }

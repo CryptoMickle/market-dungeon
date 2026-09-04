@@ -8,7 +8,7 @@ const disclosure = readFileSync(new URL('../docs/PROVENANCE_AND_PRIVACY.md', imp
 
 test('privacy and creative provenance remain directly accessible from the game', () => {
   assert.match(page, /href="\/credits"/);
-  assert.match(page, /Anonymous Vercel Analytics measures page views and three funnel checkpoints/);
+  assert.match(page, /Anonymous v2 funnel labels measure entry, verified completion and product actions/);
 
   for (const content of [credits, disclosure]) {
     assert.match(content, /does not send wallet addresses, market IDs, commitments, proof contents, combat transcripts, names, or email addresses/i);

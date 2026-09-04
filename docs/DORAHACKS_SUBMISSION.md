@@ -1,5 +1,7 @@
 # Market Dungeon — DoraHacks Submission Copy
 
+Status: **v9 candidate copy — publish only in the atomic v9 release**
+
 ## One-line pitch
 
 Market Dungeon turns a live dreamDEX BTC Event Contract into the second victory condition of a complete fantasy roguelite: defeat the boss, predict the market correctly, and survive both.
@@ -13,10 +15,10 @@ Combat victory is necessary but not sufficient. After the boss reaches zero HP, 
 ## Judge scorecard
 
 - **Innovation & Originality — 20%:** Event Contract settlement is not a price widget or side bet; it is the second victory condition of a complete fantasy roguelite.
-- **Technical Implementation — 25%:** The build combines official Markets SDK CLOB data with EIP-1898 hash-pinned Somnia mainnet reads of `BinaryModule` and `BinarySettlement` at one RPC verification snapshot block, a salted commitment, an authenticated server seal, and deterministic server-side combat replay.
+- **Technical Implementation — 25%:** The build combines official Markets SDK CLOB data with EIP-1898 hash-pinned Somnia mainnet reads of `BinaryModule` and `BinarySettlement` at one RPC verification snapshot block, a salted commitment, an authenticated server seal, a publicly verifiable Ed25519 lock receipt, and deterministic server-side combat replay.
 - **User Experience & Design — 20%:** Judges can explore the full four-tier game or complete a focused five-step replay in under two minutes, with BTC 5m markets preferred so the market cadence fits a play session.
 - **Business & Ecosystem Impact — 20%:** Every tier introduces another dreamDEX Event Contract, turning market discovery into repeatable game content and creating a low-friction acquisition path toward a future opt-in trading mode.
-- **Presentation & Demo — 15%:** The 1:52 video, live production build, social-ready progress card, and reproducible Somnia proof make the complete claim easy to understand, share and independently inspect.
+- **Presentation & Demo — 15%:** The focused Judge path, synchronized v9 presentation, social-ready progress card, portable proof, and browser-local verifier make the complete claim easy to understand, share, and independently reproduce once the atomic v9 release is complete.
 
 ## Why Event Contracts matter here
 
@@ -33,26 +35,27 @@ Market Dungeon is a consumer acquisition layer for Event Contracts. It gives pla
 
 The current read-only build removes wallet, funding and approval friction so any judge or first-time player can complete the full integration safely. A future opt-in trading mode can convert that engagement into DreamDEX activity by offering an exact-amount Event Contract order before dungeon entry, with transaction simulation, maximum-loss disclosure and a separate confirmation for every write.
 
-Every tier already introduces a fresh BTC Event Contract. Preferring the new 5-minute window lets settlement occur within the play session, while the same structure can support additional assets, intervals and seasonal campaigns. This turns new dreamDEX markets into reusable game content and gives the ecosystem a differentiated path to game-native users. The contest build does not claim current trading volume; it demonstrates the acquisition and retention loop that can precede it.
+Every tier already introduces a fresh BTC Event Contract. Preferring the new 5-minute window lets settlement occur within the play session, while the same structure can support additional assets, intervals and seasonal campaigns. A completed result can also invite another player straight into a fresh, separately sealed two-minute replay through a fixed, identifier-free challenge link. This turns new dreamDEX markets into reusable game content and gives the ecosystem a differentiated path to game-native users. The contest build does not claim current trading volume; it demonstrates an engagement and referral loop that can precede it.
 
-### Measured baseline and success targets
+### Legacy baseline and clean-v2 success targets
 
-Vercel Web Analytics recorded **65 visitors and 187 page views from 27 August to 3 September 2026**, with **28 visitors referred by DoraHacks**. The anonymous Judge funnel recorded 17 start pageviews, 14 verified-completion pageviews and 2 Continue-on-dreamDEX pageviews. All 10 completions recorded after interval segmentation used the preferred 5-minute path; four earlier completions are not interval-classified.
+Vercel Web Analytics recorded a **legacy v1** baseline of **65 visitors and 187 page views from 27 August to 3 September 2026**, with **28 visitors referred by DoraHacks**. The old anonymous Judge funnel recorded 17 start pageviews, 14 verified-completion pageviews and 2 Continue-on-dreamDEX pageviews. All 10 completions recorded after interval segmentation used the preferred 5-minute path; four earlier completions are not interval-classified.
 
-This first window is a directional baseline: route totals are event volumes rather than deduplicated users, the schema changed during the window, and automated production smoke runs are included. It implies an 82% completion/start ratio, 14% Continue/completion ratio and 2.8 starts per start-route visitor, but those figures are not presented as clean human conversion or retention. Automated browsers are excluded from manual funnel events from this release onward.
+This first window is a directional legacy baseline: route totals are event volumes rather than deduplicated users, the schema changed during the window, and automated production smoke runs are included. It implies an 82% completion/start ratio, 14% Continue/completion ratio and 2.8 starts per start-route visitor, but those figures are not presented as clean human conversion or retention and are never mixed with v2.
 
-After at least 30 human Judge starts, the next rolling seven-day window will be evaluated against four targets: **at least 70% verified completion**, **at least 25% Continue-on-dreamDEX intent**, **at least 1.5 starts per start-route visitor**, and **at least 80% 5-minute exposure among interval-classified completions**. Continue is still an external discovery action. Wallet connection, eligible opt-in orders and trading conversion are future scope and will be measured separately; Market Dungeon makes no current trading-volume claim.
+The clean v2 funnel starts only after a sealed replay response is accepted, records reveal and verifier outcomes once per run, and uses coarse duration buckets. WebDriver plus the fixed `automation=1` smoke marker are suppressed, but aggregate analytics still cannot prove unique humans. After at least 30 starts are independently established by an anonymized recruited-pilot log, targets are **at least 70% verified completion**, **at least 95% proof-verification success**, **a conservative median below two minutes**, and **at least 25% Continue-on-dreamDEX intent**. The exact formulas, raw-count report, privacy limits, and challenge gates are in [Clean pilot measurement v2](PILOT_MEASUREMENT_V2.md). Continue is still an external discovery action. Wallet connection, eligible opt-in orders and trading conversion are future scope and will be measured separately; Market Dungeon makes no current trading-volume claim.
 
 ## Two-minute judge path
 
-1. Open the live demo and select **2-MIN JUDGE DEMO · SEALED MARKET REPLAY**.
+1. Open the live demo and select **START 2-MIN JUDGE DEMO · VERIFIED RUN**.
 2. Confirm that no selected replay market ID, address, strike, expiry or outcome is present before the choice. The visible opening line belongs to a separate live market, is labeled as context only, and does not identify the replay.
-3. Choose `UP` or `DOWN`, then press **Lock Omen & Seal Replay**. The server now randomly selects a recent, finalized and traded market and binds its complete BTC/binary template, interval, trading window and origin with an encrypted token and salted commitment.
+3. Choose `UP` or `DOWN`, then press **Lock Omen & Seal Replay**. The server now randomly selects a recent, finalized and traded market and binds its complete BTC/binary template, interval, trading window and origin with an encrypted token and salted commitment. It also signs a receipt over that commitment, direction, and lock window with the environment's Ed25519 key.
 4. Note the full SHA-256 commitment, then defeat one wounded Tier 4 guard and the wounded final boss through normal combat. `Attack`, `Storm`, and `Potion` are recorded as a bounded structured action log.
 5. Confirm that the exact market identity and outcome remain sealed after the boss reaches zero HP.
 6. Press **Reveal Boss Fate**. The server first replays the combat log and refuses reveal unless both enemies were defeated. It then calls BinaryModule and BinarySettlement with both reads pinned to one canonical Somnia block hash, derives the winner from the returned payout vector, and rejects any mismatch with the hidden commitment.
-7. Inspect the revealed block hash, payout vector, market key, contract links, and reproducible `eth_call` inputs/results. The browser independently re-fetches that exact block by hash and repeats both calls with EIP-1898 `{ blockHash, requireCanonical: true }`, requires exact byte matches, ABI-decodes them, and validates those bindings plus the combat digest and commitment before applying the result.
-8. Inspect the generated 1200×675 run card with room depth, enemies defeated, gold, locked choice, outcome and verified status. **Share result** uses native PNG sharing where supported; **Share on X** downloads the card and opens a pre-filled post; **Download card** saves it directly. The separate **Copy proof JSON** and **Download proof JSON** actions export the canonical commitment input, full combat action transcript and digest, exact block hash, both contracts, and both raw RPC calls/results.
+7. Read the compressed result first: both victory conditions, the plain-language proof summary, and the verified Somnia result.
+8. Export the canonical proof JSON and open `/verify` in its new tab. That independent, browser-local tool verifies the server-authenticated Ed25519 lock receipt against the fixed public-key endpoint, recomputes the commitment and deterministic combat, decodes the settlement, and freshly re-fetches the recorded Somnia block plus both exact contract results. It reports `PASS`, `FAIL`, or `NOT PROVABLE` and never asks for a wallet or uploads the file.
+9. Continue to the current dreamDEX market, then inspect the generated 1200×675 card. A Judge result shows final-tier replay progress out of two encounters; a full expedition shows its actual room and tier. Both include gold, locked choice, outcome, and verification status. **Challenge a player** uses native PNG sharing where supported and links directly to `/judge?challenge=1`; **Share on X** downloads the card and opens a pre-filled challenge post; **Download card** saves it directly. The recipient gets a fresh replay, never the sender's market or outcome. Raw ABI and calldata remain available afterward in a collapsed technical panel.
 
 The replay is fast, but the settlement is not mocked.
 
@@ -68,7 +71,7 @@ The hackathon build is intentionally read-only:
 - no redemption or other transaction; and
 - no private key in the browser.
 
-The Judge Demo sends no identifying market metadata before reveal. The selected market and locked direction are authenticated inside an AES-256-GCM seal under a server-only key; combat uses an unrelated public seed so damage rolls cannot identify the hidden market.
+The Judge Demo sends no identifying market metadata before reveal. The selected market and locked direction are authenticated inside an AES-256-GCM seal under a server-only key; combat uses an unrelated public seed so damage rolls cannot identify the hidden market. The start response also includes an Ed25519 receipt that binds the commitment, direction, and stated lock window to the official Market Dungeon environment. This is a server-authenticated receipt, not an external timestamp, third-party endorsement, or proof that the server itself was honest. The independent verifier trusts only the public key returned by the fixed same-origin endpoint. Rotating the environment secret changes that key, so historical proofs require retained historical public keys to remain fully provable.
 
 The browser presents **Reveal Boss Fate** only after boss defeat, and the API independently replays the structured action log before returning any settlement. The replay is stateless, capped at 64 actions and 8 KiB, and fails closed for invalid transitions, impossible potion use, player death, incomplete combat, or actions after completion. It proves a valid transcript under the public deterministic seed, not human input or elapsed play time. A short 15-second anti-peek hold still applies; the interface shows the remaining seconds and keeps reveal disabled until the server boundary opens.
 
@@ -82,16 +85,17 @@ The browser presents **Reveal Boss Fate** only after boss defeat, and the API in
 - dreamDEX GraphQL indexer for discovery, market metadata, reference question, and settlement consistency checks.
 - EIP-1898 hash-pinned Somnia mainnet RPC reads of `BinaryModule.markets(marketId)` and `BinarySettlement.getSettlement(marketKey)` at one RPC verification snapshot block, with payout-derived outcome and fail-closed indexer/commitment comparison.
 - `cache-control: private, no-store, max-age=0` for replay state.
-- Responsive desktop and mobile layouts with a focused five-step judge flow, social-ready result cards for full runs and Judge replays, and a separate copy/download portable proof artifact.
+- Responsive desktop and mobile layouts with a focused five-step judge flow, social-ready result cards, a separate portable proof artifact, and a browser-local independent verifier.
 
 ## Links
 
 - Live demo: https://market-dungeon.vercel.app
-- Demo video (1:52): https://youtu.be/6IviQrMweZ4
+- Independent proof verifier: `/verify` in the v9 candidate; replace with the production URL only after the atomic v9 release
+- Current public v8 demo video (1:52): https://youtu.be/6IviQrMweZ4
 - Immutable submission release: https://github.com/CryptoMickle/market-dungeon/releases/tag/hackathon-submission-2026-v8
 - Source code: https://github.com/CryptoMickle/market-dungeon
 - Integration and SDK/docs feedback: https://github.com/CryptoMickle/market-dungeon/blob/main/docs/DREAMDEX_INTEGRATION_REPORT.md
 
 ## Current scope
 
-The contest build includes the full four-tier roguelite, 5m-first active-market integration with 15m fallback, official-SDK CLOB odds, EIP-1898 hash-pinned direct-RPC settlement verification at one RPC verification snapshot block, stateless server-verified Judge combat, social-ready run cards, portable proof JSON, the two-minute judge path, working block/contract links, a copyable market ID, and responsive presentation. Wallet writes are deliberately outside this submission's scope so judges can verify the complete integration without signing or risking assets. The repository also includes an implementation-specific [dreamDEX integration report](https://github.com/CryptoMickle/market-dungeon/blob/main/docs/DREAMDEX_INTEGRATION_REPORT.md) covering fields, discovery, RPC verification, security boundaries, documentation gaps, and recommended improvements.
+The contest build includes the full four-tier roguelite, 5m-first active-market integration with 15m fallback, official-SDK CLOB odds, EIP-1898 hash-pinned direct-RPC settlement verification at one RPC verification snapshot block, stateless server-verified Judge combat, social-ready run cards, portable proof JSON, a browser-local independent verifier, the two-minute judge path, working block/contract links, a copyable market ID, and responsive presentation. Wallet writes are deliberately outside this submission's scope so judges can verify the complete integration without signing or risking assets. The repository also includes an implementation-specific [dreamDEX integration report](https://github.com/CryptoMickle/market-dungeon/blob/main/docs/DREAMDEX_INTEGRATION_REPORT.md) covering fields, discovery, RPC verification, security boundaries, documentation gaps, and recommended improvements.

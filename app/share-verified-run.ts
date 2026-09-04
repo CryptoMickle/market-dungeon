@@ -4,7 +4,7 @@ import {
   SOMNIA_MAINNET_RPC,
   type DirectOnchainSettlementProof,
 } from './onchain-settlement-proof.ts';
-import type { ReplayCombatProof, ReplayProof } from './replay-proof.ts';
+import type { ReplayCombatProof, ReplayLockAttestation, ReplayProof } from './replay-proof.ts';
 
 export const MARKET_DUNGEON_URL = 'https://market-dungeon.vercel.app';
 export const SOMNIA_EXPLORER_URL = 'https://explorer.somnia.network';
@@ -18,6 +18,7 @@ export type VerifiedRunProofInput = {
   combatProof: ReplayCombatProof;
   combatActions: JudgeCombatAction[];
   onchainSettlement: DirectOnchainSettlementProof;
+  lockAttestation: ReplayLockAttestation;
 };
 
 export function verifiedRunProofFilename(marketId: string) {
@@ -32,7 +33,7 @@ export function verifiedRunProofArtifact(input: VerifiedRunProofInput, generated
   const settlementUrl = `${SOMNIA_EXPLORER_URL}/address/${encodeURIComponent(onchainSettlement.settlementAddress)}`;
 
   return {
-    schema: 'market-dungeon/verified-judge-run/v1',
+    schema: 'market-dungeon/verified-judge-run/v2',
     generatedAt,
     app: MARKET_DUNGEON_URL,
     summary: {
@@ -43,6 +44,7 @@ export function verifiedRunProofArtifact(input: VerifiedRunProofInput, generated
       marketId: replayProof.marketId,
     },
     replayProof,
+    lockAttestation: input.lockAttestation,
     combat: {
       proof: combatProof,
       actions: combatActions,
@@ -71,6 +73,8 @@ export function verifiedRunProofArtifact(input: VerifiedRunProofInput, generated
       binarySettlement: settlementUrl,
     },
     verificationSteps: [
+      'Fetch the read-only Judge lock-attestation public key from the fixed Market Dungeon endpoint.',
+      'Verify the Ed25519 signature over commitment, direction, issuedAt, revealAfter, and expiresAt.',
       'SHA-256(replayProof.canonical) must equal replayProof.commitment.',
       'SHA-256(combat.canonicalTranscript) must equal combat.proof.transcriptDigest.',
       'Run the four independentRpcVerification requests against the listed RPC.',
@@ -106,6 +110,7 @@ export function verifiedRunShareText(input: VerifiedRunProofInput) {
     `Market ID: ${replayProof.marketId}`,
     `Combat verified: guard + boss · ${combatProof.steps} actions · digest ${combatProof.transcriptDigest}`,
     `Commitment verified: ${replayProof.commitment}`,
+    `Server-authenticated lock receipt: ${input.lockAttestation.keyId}`,
     `Direct Somnia RPC verification snapshot: block #${onchainSettlement.blockNumber} · payout [${onchainSettlement.payoutNumerators.join(', ')}]`,
     `RPC verification snapshot block hash: ${onchainSettlement.blockHash}`,
     `RPC verification snapshot block: ${blockUrl}`,

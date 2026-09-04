@@ -11,7 +11,7 @@ permissions:
 jobs:
   judge-demo-production:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
     env:
       LIVE_SMOKE_BASE_URL: https://market-dungeon.vercel.app
     steps:

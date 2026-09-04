@@ -4,14 +4,21 @@ import { encodeFunctionResult } from 'viem';
 
 import { replayJudgeCombat, type JudgeCombatAction } from '../app/judge-combat.ts';
 import { DREAMDEX_MAINNET_CONTRACTS } from '../app/api/dreamdex.ts';
-import { newReplayClaims, sealReplay } from '../app/api/judge-replay/crypto.ts';
+import { newReplayClaims, replayLockAttestation, sealReplay } from '../app/api/judge-replay/crypto.ts';
+import { GET as lockPublicKey } from '../app/api/judge-replay/public-key/route.ts';
 import { POST as revealReplay } from '../app/api/judge-replay/reveal/route.ts';
 import { resetReplayRevealStateForTests } from '../app/api/judge-replay/reveal/state.ts';
 import { POST as startReplay } from '../app/api/judge-replay/start/route.ts';
 import { resetReplayStartStateForTests } from '../app/api/judge-replay/start/state.ts';
 import { resetRequestControlForTests } from '../app/api/request-control.ts';
 import { BINARY_SETTLEMENT_ABI, MODULE_MARKETS_ABI } from '../app/onchain-settlement-proof.ts';
-import { REPLAY_MARKET_QUESTION, type ReplayMarketProvenance } from '../app/replay-proof.ts';
+import {
+  isReplayLockAttestation,
+  isReplayLockPublicKey,
+  REPLAY_MARKET_QUESTION,
+  verifyReplayLockAttestation,
+  type ReplayMarketProvenance,
+} from '../app/replay-proof.ts';
 
 const KEY = '33'.repeat(32);
 const MARKET_ID = `0x${'cd'.repeat(32)}`;
@@ -143,10 +150,20 @@ test('start route uses a balanced outcome pool and leaks no selected-market meta
   assert.equal(response.status, 200);
   assert.equal(response.headers.get('cache-control'), NO_STORE);
   assert.deepEqual(Object.keys(payload.replay).sort(), [
-    'commitment', 'expiresAt', 'gameSeed', 'lockedDirection', 'publicMarket', 'revealAfter', 'seal',
+    'commitment', 'expiresAt', 'gameSeed', 'issuedAt', 'lockAttestation', 'lockedDirection',
+    'publicMarket', 'revealAfter', 'seal',
   ]);
   assert.deepEqual(payload.replay.publicMarket, { asset: 'BTC', intervalSec: 300, network: 'Somnia mainnet', chainId: 5031 });
   assert.doesNotMatch(JSON.stringify(payload.replay), /marketId|marketAddress|poolAddress|strikeUsd|winningOutcome|expiryIso|resolvedAt/i);
+  const publicKeyResponse = await lockPublicKey();
+  const publicKey = await publicKeyResponse.json();
+  assert.equal(publicKeyResponse.status, 200);
+  assert.equal(publicKeyResponse.headers.get('cache-control'), NO_STORE);
+  assert.equal(isReplayLockAttestation(payload.replay.lockAttestation), true);
+  assert.equal(isReplayLockPublicKey(publicKey), true);
+  if (isReplayLockAttestation(payload.replay.lockAttestation) && isReplayLockPublicKey(publicKey)) {
+    assert.equal(await verifyReplayLockAttestation(payload.replay.lockAttestation, publicKey), true);
+  }
   assert.equal(requestBody.query?.match(/tradeCount: \{_gt: 0\}/g)?.length, 2);
   assert.equal(requestBody.query?.match(/expiry: \{_gte: \$minExpiry, _lte: \$now\}/g)?.length, 2);
   assert.equal(requestBody.query?.match(/clobStatus: \{_eq: "Finalized"\}/g)?.length, 2);
@@ -563,6 +580,7 @@ test('reveal route verifies combat, commitment, and Somnia settlement together',
 
   const payload = await response.json() as {
     market: { marketId: string };
+    lockAttestation: unknown;
     replayProof: { verified: boolean; commitment: string };
     combatProof: { verified: boolean; steps: number; guardDefeated: boolean; bossDefeated: boolean; transcriptDigest: string };
     onchainSettlement: {
@@ -578,6 +596,7 @@ test('reveal route verifies combat, commitment, and Somnia settlement together',
   assert.equal(payload.network.chainId, 5031);
   assert.equal(payload.replayProof.verified, true);
   assert.match(payload.replayProof.commitment, /^0x[0-9a-f]{64}$/);
+  assert.deepEqual(payload.lockAttestation, replayLockAttestation(claims));
   assert.deepEqual({
     verified: payload.combatProof.verified,
     steps: payload.combatProof.steps,

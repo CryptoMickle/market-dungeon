@@ -1,12 +1,27 @@
-import { createCipheriv, createDecipheriv, createHash, randomBytes } from 'node:crypto';
+import {
+  createCipheriv,
+  createDecipheriv,
+  createHash,
+  createPrivateKey,
+  createPublicKey,
+  hkdfSync,
+  randomBytes,
+  sign,
+} from 'node:crypto';
 
 import { canonicalJudgeActionLog, type JudgeCombatAction } from '../../judge-combat.ts';
 import {
   MAX_REPLAY_MARKET_AGE_SECONDS,
   REPLAY_COMMITMENT_DOMAIN,
+  REPLAY_LOCK_ATTESTATION_SCHEMA,
+  REPLAY_LOCK_ATTESTATION_DOMAIN,
+  REPLAY_LOCK_PUBLIC_KEY_SCHEMA,
   canonicalReplayProof,
+  canonicalReplayLockAttestation,
   replayMarketProvenanceFromMarket,
   type ReplayDirection,
+  type ReplayLockAttestation,
+  type ReplayLockPublicKey,
   type ReplayMarketProvenance,
 } from '../../replay-proof.ts';
 
@@ -30,6 +45,9 @@ const DOMAIN = REPLAY_COMMITMENT_DOMAIN;
 const TOKEN_VERSION = 'v2';
 const MARKET_ID = /^0x[0-9a-f]{64}$/;
 const BASE64URL_32_BYTES = /^[A-Za-z0-9_-]{43}$/;
+const ED25519_PKCS8_SEED_PREFIX = Buffer.from('302e020100300506032b657004220420', 'hex');
+const ED25519_SPKI_PREFIX = Buffer.from('302a300506032b6570032100', 'hex');
+const ATTESTATION_KDF_SALT = Buffer.from('market-dungeon/judge-lock-attestation/hkdf-sha256/v1', 'utf8');
 
 function replayEnvironment() {
   return process.env.VERCEL_ENV ?? (process.env.NODE_ENV === 'production' ? 'production' : 'development');
@@ -77,6 +95,61 @@ export function canonicalReplay(claims: ReplayClaims) {
 
 export function replayCommitment(claims: ReplayClaims) {
   return `0x${createHash('sha256').update(canonicalReplay(claims), 'utf8').digest('hex')}`;
+}
+
+function replayLockAttestationKey() {
+  const environment = replayEnvironment();
+  const seed = Buffer.from(hkdfSync(
+    'sha256',
+    replayKey(),
+    ATTESTATION_KDF_SALT,
+    Buffer.from(`${REPLAY_LOCK_ATTESTATION_DOMAIN}\nenvironment=${environment}`, 'utf8'),
+    32,
+  ));
+  const privateKey = createPrivateKey({
+    key: Buffer.concat([ED25519_PKCS8_SEED_PREFIX, seed]),
+    format: 'der',
+    type: 'pkcs8',
+  });
+  const encodedPublicKey = createPublicKey(privateKey).export({ format: 'der', type: 'spki' });
+  const publicKeyDer = Buffer.isBuffer(encodedPublicKey) ? encodedPublicKey : Buffer.from(encodedPublicKey);
+  if (!publicKeyDer.subarray(0, ED25519_SPKI_PREFIX.length).equals(ED25519_SPKI_PREFIX)
+    || publicKeyDer.length !== ED25519_SPKI_PREFIX.length + 32) {
+    throw new Error('Unexpected Ed25519 public key encoding');
+  }
+  const publicKey = publicKeyDer.subarray(ED25519_SPKI_PREFIX.length);
+  const keyId = `ed25519:${createHash('sha256').update(publicKey).digest('hex')}`;
+  return { environment, keyId, privateKey, publicKey };
+}
+
+export function replayLockAttestation(claims: ReplayClaims): ReplayLockAttestation {
+  const { environment, keyId, privateKey } = replayLockAttestationKey();
+  const unsigned: Omit<ReplayLockAttestation, 'signature'> = {
+    schema: REPLAY_LOCK_ATTESTATION_SCHEMA,
+    algorithm: 'Ed25519',
+    keyId,
+    environment,
+    commitment: replayCommitment(claims),
+    lockedDirection: claims.direction,
+    issuedAt: claims.issuedAt,
+    revealAfter: claims.revealAfter,
+    expiresAt: claims.expiresAt,
+  };
+  return {
+    ...unsigned,
+    signature: sign(null, Buffer.from(canonicalReplayLockAttestation(unsigned), 'utf8'), privateKey).toString('base64url'),
+  };
+}
+
+export function replayLockAttestationPublicKey(): ReplayLockPublicKey {
+  const { environment, keyId, publicKey } = replayLockAttestationKey();
+  return {
+    schema: REPLAY_LOCK_PUBLIC_KEY_SCHEMA,
+    algorithm: 'Ed25519',
+    keyId,
+    environment,
+    publicKey: publicKey.toString('base64url'),
+  };
 }
 
 export function combatTranscriptDigest(gameSeed: string, actions: JudgeCombatAction[]) {
