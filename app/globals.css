@@ -310,6 +310,23 @@ span.gold-icon { display: inline-block !important; }
 .verified-share-actions button:not(:first-child) { background: rgba(9, 9, 11, .52); color: #e9d5ff; }
 .verified-share-actions button:hover { filter: brightness(1.12); }
 .verified-share > .verified-share-status { min-height: 10px; margin: 7px 0 0; color: #a7f3d0; font-size: 7px; font-weight: 900; letter-spacing: .08em; text-align: center; }
+.run-share-panel { width: 100%; margin-top: 14px; padding: 13px; border: 1px solid rgba(192, 132, 252, .55); border-radius: 13px; background: linear-gradient(145deg, rgba(88, 28, 135, .27), rgba(9, 9, 11, .78)); text-align: left; box-shadow: inset 0 0 34px rgba(124, 58, 237, .08); }
+.run-share-heading span, .run-share-heading strong, .run-share-heading small { display: block; }
+.run-share-heading span { color: #d8b4fe; font-size: 8px; font-weight: 950; letter-spacing: .14em; }
+.run-share-heading strong { margin-top: 5px; font-size: 12px; line-height: 1.35; }
+.run-share-heading small { margin-top: 4px; color: #a78bfa; font-size: 8px; line-height: 1.45; }
+.run-share-card { display: block; width: 100%; height: auto; margin-top: 11px; border: 1px solid rgba(216, 180, 254, .42); border-radius: 10px; background: #09090b; box-shadow: 0 14px 34px rgba(0, 0, 0, .36); }
+.run-share-actions { display: grid; grid-template-columns: 1.15fr 1fr .9fr; gap: 7px; margin-top: 10px; }
+.run-share-actions button, .run-share-actions a, .portable-proof-actions button { display: flex; min-height: 42px; align-items: center; justify-content: center; padding: 10px; border: 1px solid #7c3aed; border-radius: 9px; background: rgba(9, 9, 11, .56); color: #e9d5ff; font-size: 9px; font-weight: 950; line-height: 1.2; text-align: center; text-decoration: none; cursor: pointer; }
+.run-share-actions .share-primary { background: #6d28d9; color: white; }
+.run-share-actions .share-x { border-color: #e4e4e7; background: #fafafa; color: #09090b; }
+.run-share-actions button:hover, .run-share-actions a:hover, .portable-proof-actions button:hover { filter: brightness(1.12); }
+.run-share-actions button:focus-visible, .run-share-actions a:focus-visible, .portable-proof-actions button:focus-visible { outline: 2px solid #d8b4fe; outline-offset: 2px; }
+.run-share-x-note { display: block; margin-top: 7px; color: #a1a1aa; font-size: 7px; line-height: 1.45; text-align: center; }
+.portable-proof-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(192, 132, 252, .2); }
+.portable-proof-actions span { grid-column: 1 / -1; color: #71717a; font-size: 7px; font-weight: 950; letter-spacing: .14em; }
+.portable-proof-actions button { border-color: #3f3f46; color: #d4d4d8; }
+.run-share-status { display: block; min-height: 10px; margin: 8px 0 0; color: #a7f3d0; font-size: 7px; font-weight: 900; letter-spacing: .08em; text-align: center; }
 .dreamdex-continue { width: 100%; display: grid; grid-template-columns: 1fr; gap: 10px; margin-top: 10px; padding: 13px; border: 1px solid rgba(249, 115, 22, .55); border-radius: 11px; background: linear-gradient(135deg, rgba(124, 45, 18, .26), rgba(88, 28, 135, .18)); text-align: left; }
 .dreamdex-continue span, .dreamdex-continue strong, .dreamdex-continue small { display: block; }
 .dreamdex-continue span { color: #fdba74; font-size: 8px; font-weight: 950; letter-spacing: .14em; }
@@ -515,6 +532,14 @@ footer a:focus-visible { outline: 2px solid #c4b5fd; outline-offset: 3px; }
   .verified-share small { margin-top: 6px; font-size: 10px; }
   .verified-share-actions button { min-height: 48px; font-size: 11px; }
   .verified-share > .verified-share-status { font-size: 9px; }
+  .run-share-panel { padding: 16px; }
+  .run-share-heading span { font-size: 10px; }
+  .run-share-heading strong { margin-top: 7px; font-size: 14px; }
+  .run-share-heading small { margin-top: 6px; font-size: 10px; }
+  .run-share-card { margin-top: 14px; border-radius: 12px; }
+  .run-share-actions button, .run-share-actions a, .portable-proof-actions button { min-height: 48px; font-size: 11px; }
+  .run-share-x-note, .run-share-status { font-size: 9px; }
+  .portable-proof-actions span { font-size: 9px; }
   .dreamdex-continue { grid-template-columns: minmax(0, 1fr) auto; align-items: center; padding: 16px; }
   .dreamdex-continue span { font-size: 10px; }
   .dreamdex-continue strong { margin-top: 7px; font-size: 14px; }
@@ -810,6 +835,7 @@ footer a:focus-visible { outline: 2px solid #c4b5fd; outline-offset: 3px; }
 
 @media (max-width: 360px) {
   .prediction-buttons, .rule-grid, .combat-actions, .supply-actions, .shop-grid, .between-actions, .victory-conditions { grid-template-columns: 1fr; }
+  .run-share-actions { grid-template-columns: 1fr; }
   .sticky-hud > div { padding-inline: 8px; }
   .sticky-hud strong { font-size: 10px; }
   .ten-room-map { gap: 2px; padding-inline: 4px; }

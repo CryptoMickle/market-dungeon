@@ -139,6 +139,13 @@ test('Judge Demo completes in Chromium and renders independently verified proof 
   await expect(page.getByText('✓ COMBAT + COMMITMENT + INDEPENDENT RPC VERIFIED')).toBeVisible();
   await expect(page.getByText('✓ BROWSER REFETCHED + ABI-DECODED SOMNIA STATE')).toBeVisible();
   await expect(page.getByText('BROWSER RPC REFETCH + ABI + DIGESTS VERIFIED')).toBeVisible();
+  await expect(page.getByAltText('Market Dungeon share card: room 40 of 40')).toBeVisible();
+  await expect(page.getByText('ROOM 40/40 · 2 ENEMIES DEFEATED')).toBeVisible();
+  const xShare = page.getByRole('link', { name: 'SHARE ON X ↗' });
+  await expect(xShare).toHaveAttribute('href', /https:\/\/twitter\.com\/intent\/tweet\?/);
+  const xShareUrl = new URL(await xShare.getAttribute('href') ?? '');
+  expect(xShareUrl.searchParams.get('text')).toContain('Reached room 40/40 · 2 enemies defeated');
+  expect(xShareUrl.searchParams.get('url')).toBe('https://market-dungeon.vercel.app');
 
   const proofLinks = page.locator('.proof-revealed a');
   await expect(proofLinks).toHaveCount(5);
@@ -158,18 +165,31 @@ test('Judge Demo completes in Chromium and renders independently verified proof 
     });
     Object.defineProperty(navigator, 'canShare', {
       configurable: true,
-      value: () => false,
+      value: () => true,
     });
     Object.defineProperty(navigator, 'clipboard', {
       configurable: true,
       value: {
-        writeText: async (value: string) => { Reflect.set(globalThis, '__marketDungeonCopiedProof', value); },
+        writeText: async (value: string) => { Reflect.set(globalThis, '__marketDungeonClipboard', value); },
       },
     });
   });
-  await page.getByRole('button', { name: '↗ SHARE RUN + PROOF' }).click();
-  await expect(page.getByText('SHARE UNAVAILABLE · PROOF JSON COPIED')).toBeVisible();
-  const copiedProof = await page.evaluate(() => Reflect.get(globalThis, '__marketDungeonCopiedProof'));
+  const [cardDownload] = await Promise.all([
+    page.waitForEvent('download'),
+    page.getByRole('button', { name: '↗ SHARE RESULT' }).click(),
+  ]);
+  expect(cardDownload.suggestedFilename()).toBe('market-dungeon-run-12121212.png');
+  await expect(page.getByText('SHARING UNAVAILABLE · CARD DOWNLOADED + POST TEXT COPIED')).toBeVisible();
+  const copiedPost = await page.evaluate(() => Reflect.get(globalThis, '__marketDungeonClipboard'));
+  expect(copiedPost).toContain('I conquered Market Dungeon');
+  expect(copiedPost).toContain('Reached room 40/40 · 2 enemies defeated');
+  expect(copiedPost).toContain('Onchain-verified on Somnia');
+  expect(copiedPost).toContain('https://market-dungeon.vercel.app');
+  expect(() => JSON.parse(copiedPost as string)).toThrow();
+
+  await page.getByRole('button', { name: 'COPY PROOF JSON' }).click();
+  await expect(page.getByText('PORTABLE PROOF JSON COPIED')).toBeVisible();
+  const copiedProof = await page.evaluate(() => Reflect.get(globalThis, '__marketDungeonClipboard'));
   expect(JSON.parse(copiedProof as string)).toMatchObject({
     schema: 'market-dungeon/verified-judge-run/v1',
     summary: { result: 'BLESSED', lockedDirection: 'UP', winningOutcome: 'UP' },
