@@ -81,21 +81,22 @@ verified proof links.
   production, DoraHacks, a v9 tag, and the submission video have not been
   released by these work blocks.
 
-Combined local candidate checks after WB-01 through WB-05: lint pass, 80/80
-unit tests pass, 7/7 Shannon spike tests pass, TypeScript passes, the optimized
-production build passes with static `/judge` and `/verify`, and 18/18 Chromium
-tests pass. The browser suite includes prerendered `/judge`, the identifier-free
+Current implemented-code checkpoint `542cc4700097fb1fd9af03f22074c7815a7ccd3e`
+passes lint, TypeScript, 80/80 unit tests, 7/7 Shannon spike tests, the optimized
+production build with static `/judge` and `/verify`, and 19/19 Chromium tests.
+This is not yet the frozen release commit. The browser suite includes
+prerendered `/judge`, the visible pre-reveal receipt evidence row, the identifier-free
 challenge entry, mobile first-screen actionability, strict start-response
 validation, temporary-RPC retry preservation, the full-run DOWN path, rollover,
 disclosures, a complete Judge proof flow, mobile terminal-result and verifier
 coverage, verifier acceptance plus tamper rejection, and zero-RPC rejection of
 tampered receipt, algorithm, ruleset, and final-HP data.
 
-### Recorded v9 candidate evidence
+### Historical pre-freeze evidence (`c49c562`; not the final release candidate)
 
 | Evidence | Result |
 | --- | --- |
-| Candidate code commit | `c49c562e10fcdc4708599c1d5e5abfa6b95537b3` |
+| Historical code commit | `c49c562e10fcdc4708599c1d5e5abfa6b95537b3` |
 | Local static checks | lint pass; TypeScript pass; clean diff check |
 | Unit and spike checks | 80/80 application tests; 7/7 read-only Shannon proof-kernel tests |
 | Deterministic browser regression | 18/18 Chromium tests; the two-test mobile proof/verifier chain additionally passed 10/10 consecutive repetitions (20 tests) |
@@ -103,11 +104,20 @@ tampered receipt, algorithm, ruleset, and final-HP data.
 | Live stability window | 4 September 2026, 17:13–17:25 UTC; 11.5 minutes |
 | Live target | The exact optimized local production build of the candidate commit, using the real dreamDEX indexer/Markets SDK and public Somnia mainnet RPC |
 | Live result | 20/20 consecutive clean-browser Judge runs passed with `retries: 0` |
-| Live coverage per run | fresh sealed replay; `425` anti-peek; invalid-combat rejection; public Ed25519 key; signed and byte-identical start/reveal lock receipt; valid combat/reveal; server and browser Somnia proof; truthful 2/2 Judge result; `/verify`, explorer, contract, and dreamDEX link targets |
+| Live coverage per run | fresh sealed replay; `425` anti-peek; invalid-combat rejection; public Ed25519 key; signed and byte-identical start/reveal lock receipt; valid combat/reveal; server and browser Somnia proof; truthful 2/2 Judge result; and `/verify`, explorer, contract, and dreamDEX link targets |
+| Historical limitation | The test checked the `/verify` link target but did not import the exported proof into the standalone verifier or require its visible `PASS`. It is therefore stability evidence, not the final proof-round-trip release gate. |
 
 These runs are release engineering evidence, not human pilot activity. They used
 the fixed `automation=1` marker and WebDriver, so the v2 analytics contract
 excludes them from pilot counts.
+
+At commit `8cdf2918079da64832495bd8080117b376ddab5a`, the live smoke was
+upgraded to download the exact new proof, import the same bytes into standalone
+`/verify`, and require its visible `PASS` plus receipt, market, block and
+Somnia re-fetch checks. That checkpoint passed 20/20 real-upstream runs with
+zero retries. Commit `542cc47` then added the visible pre-reveal receipt row, so
+the 20-run gate must be repeated on the eventual frozen release commit before
+it can be checked below.
 
 ## Non-negotiable boundaries
 
@@ -161,8 +171,10 @@ the successful read/build/verify spike remains feasibility evidence only.
 Feature freeze occurs no later than **48 hours before the DoraHacks deadline**.
 A candidate reaches freeze only when:
 
-- [x] The original mainnet experience passes 20 consecutive clean-browser
-      Judge runs.
+- [ ] The frozen release commit passes 20 consecutive clean-browser Judge
+      runs, each carrying its exact downloaded proof through standalone
+      `/verify` to visible `PASS`. Earlier checkpoints passed their narrower
+      gates, but are not substitutes for this final-SHA run.
 - **N/A — Shannon Arena is excluded from v9:** no wallet-to-fill run is claimed
       or required for this candidate.
 - [x] The mainnet application contains no wallet connection, wallet signature

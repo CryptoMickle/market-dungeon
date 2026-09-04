@@ -16,7 +16,7 @@ Combat victory is necessary but not sufficient. After the boss reaches zero HP, 
 
 - **Innovation & Originality — 20%:** Event Contract settlement is not a price widget or side bet; it is the second victory condition of a complete fantasy roguelite.
 - **Technical Implementation — 25%:** The build combines official Markets SDK CLOB data with EIP-1898 hash-pinned Somnia mainnet reads of `BinaryModule` and `BinarySettlement` at one RPC verification snapshot block, a salted commitment, an authenticated server seal, a publicly verifiable Ed25519 lock receipt, and deterministic server-side combat replay.
-- **User Experience & Design — 20%:** Judges can explore the full four-tier game or complete a focused five-step replay in under two minutes, with BTC 5m markets preferred so the market cadence fits a play session.
+- **User Experience & Design — 20%:** Judges can explore the full four-tier game or use a focused five-step replay designed for an approximately two-minute walkthrough, with BTC 5m markets preferred so the market cadence fits a play session.
 - **Business & Ecosystem Impact — 20%:** Every tier introduces another dreamDEX Event Contract, turning market discovery into repeatable game content and creating a low-friction acquisition path toward a future opt-in trading mode.
 - **Presentation & Demo — 15%:** The focused Judge path, synchronized v9 presentation, social-ready progress card, portable proof, and browser-local verifier make the complete claim easy to understand, share, and independently reproduce once the atomic v9 release is complete.
 
@@ -31,11 +31,11 @@ Neither condition replaces the other. This gives the Event Contract a clear, dra
 
 ## Business and ecosystem impact
 
-Market Dungeon is a consumer acquisition layer for Event Contracts. It gives players a reason to understand a live market because the settlement changes an outcome they already care about inside the game.
+Market Dungeon is designed as a consumer acquisition layer for Event Contracts. It gives players a reason to understand a live market because the settlement changes an outcome they already care about inside the game.
 
 The current read-only build removes wallet, funding and approval friction so any judge or first-time player can complete the full integration safely. A future opt-in trading mode can convert that engagement into DreamDEX activity by offering an exact-amount Event Contract order before dungeon entry, with transaction simulation, maximum-loss disclosure and a separate confirmation for every write.
 
-Every tier already introduces a fresh BTC Event Contract. Preferring the new 5-minute window lets settlement occur within the play session, while the same structure can support additional assets, intervals and seasonal campaigns. A completed result can also invite another player straight into a fresh, separately sealed two-minute replay through a fixed, identifier-free challenge link. This turns new dreamDEX markets into reusable game content and gives the ecosystem a differentiated path to game-native users. The contest build does not claim current trading volume; it demonstrates an engagement and referral loop that can precede it.
+Every tier already introduces a fresh BTC Event Contract. Preferring the new 5-minute window lets settlement occur within the play session, while the same structure can support additional assets, intervals and seasonal campaigns. A completed result can also invite another player straight into a fresh, separately sealed two-minute replay through a fixed, identifier-free challenge link. This turns new dreamDEX markets into reusable game content and gives the ecosystem a differentiated path to game-native users. The contest build does not claim current trading volume or validated referral conversion; it implements a testable engagement and referral loop that can precede them.
 
 ### Legacy baseline and clean-v2 success targets
 

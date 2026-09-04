@@ -57,6 +57,11 @@ It is a fast replay, not a mocked settlement.
 7. Continue to the current dreamDEX market or inspect the generated 1200×675 run card. **Challenge a player** sends the PNG and a direct link to `/judge?challenge=1` through supported native share targets; **Share on X** downloads the card and opens a pre-filled challenge post; **Download card** saves it directly. The challenge recipient always receives a fresh, separately sealed replay rather than the sender's market or outcome.
 8. Expand the raw technical proof only when needed and inspect its block and contract links in the Somnia explorer. No wallet, approval, order or other transaction is requested.
 
+In Preview, the share controls intentionally keep the canonical Production
+challenge URL. Test Preview challenge handling directly at Preview
+`/judge?challenge=1`; the generated share link is not Preview evidence until
+Production serves the same v9 release.
+
 ## Why Event Contracts fit the game
 
 Market Dungeon combines skill and prediction without turning the prediction into an attack:
@@ -75,7 +80,7 @@ Market Dungeon is designed as a consumer on-ramp to Event Contracts rather than 
 - **Next step:** an optional wallet-enabled mode can let eligible players place an exact-amount Event Contract order before entering the dungeon, with simulation, maximum-loss disclosure and a separate confirmation for every write.
 - **Expansion:** additional assets, intervals and seasonal campaigns can turn new dreamDEX markets into new game content without replacing the underlying combat loop.
 
-The contest build does not claim to generate trading volume. It demonstrates the acquisition and engagement layer that can bring game-native users to Event Contracts before an explicitly consented trading mode is added.
+The contest build does not claim to generate trading volume or validated referral conversion. It implements a testable acquisition and engagement layer that can bring game-native users to Event Contracts before an explicitly consented trading mode is added.
 
 ### Legacy baseline and clean-v2 targets
 
@@ -191,7 +196,7 @@ npm run test:e2e
 npm run build
 ```
 
-`npm run test:e2e` runs the complete Judge Demo client state machine in Chromium against deterministic, cryptographically consistent upstream fixtures. The separate read-only live-target smoke is available as `npm run test:smoke:live`; GitHub Actions also runs it against production every Monday and Thursday at 06:17 UTC and on manual dispatch. It verifies replay start, the `425` anti-peek boundary, rejection of incomplete combat, a valid reveal, the public receipt key, Ed25519 lock authentication, byte-identical start/reveal receipts, truthful 2/2 Judge progress, browser-rendered proof, the independent `/verify` target, and external explorer/dreamDEX links.
+`npm run test:e2e` runs the complete Judge Demo client state machine in Chromium against deterministic, cryptographically consistent upstream fixtures. The separate read-only live-target smoke is available as `npm run test:smoke:live`; GitHub Actions also runs it against production every Monday and Thursday at 06:17 UTC and on manual dispatch. It verifies replay start, the `425` anti-peek boundary, rejection of incomplete combat, a valid reveal, the public receipt key, Ed25519 lock authentication, byte-identical start/reveal receipts, truthful 2/2 Judge progress, browser-rendered proof, and external explorer/dreamDEX links. It then downloads the exact new proof, imports those same bytes into standalone `/verify`, and requires visible `PASS` with matching receipt, market, block and live Somnia re-fetch checks.
 
 ## Project structure
 
