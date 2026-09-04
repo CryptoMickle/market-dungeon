@@ -218,9 +218,9 @@ export function revealPayload(actions: JudgeCombatAction[]) {
   const combat = replayJudgeCombat(GAME_SEED, actions);
   const transcript = canonicalJudgeActionLog(GAME_SEED, actions);
   return {
-    market,
-    onchainSettlement,
-    lockAttestation: LOCK_ATTESTATION,
+    market: structuredClone(market),
+    onchainSettlement: structuredClone(onchainSettlement),
+    lockAttestation: structuredClone(LOCK_ATTESTATION),
     replayProof: {
       verified: true,
       algorithm: 'SHA-256',
