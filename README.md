@@ -8,13 +8,13 @@ The current contest build is intentionally read-only. It reads live market metad
 
 **Play:** https://market-dungeon.vercel.app
 
-**V9 proof verifier:** https://market-dungeon.vercel.app/verify (available when Production serves v9)
+**Independent proof verifier:** https://market-dungeon.vercel.app/verify
 
 **Baseline v8 demo (1:52):** https://youtu.be/6IviQrMweZ4
 
 **DoraHacks submission:** https://dorahacks.io/buidl/48083
 
-**Immutable v9 submission release:** https://github.com/CryptoMickle/market-dungeon/releases/tag/hackathon-submission-2026-v9 (created only after every applicable gate passes)
+**Immutable v10 submission release:** https://github.com/CryptoMickle/market-dungeon/releases/tag/hackathon-submission-2026-v10
 
 **Integration and SDK/docs feedback:** [docs/DREAMDEX_INTEGRATION_REPORT.md](docs/DREAMDEX_INTEGRATION_REPORT.md)
 
@@ -60,7 +60,7 @@ It is a fast replay, not a mocked settlement.
 In Preview, the share controls intentionally keep the canonical Production
 challenge URL. Test Preview challenge handling directly at Preview
 `/judge?challenge=1`; the generated share link is not Preview evidence until
-Production serves the same v9 release.
+Production serves the same v10 release.
 
 ## Why Event Contracts fit the game
 
@@ -281,14 +281,14 @@ docs/
 - Official dreamDEX Markets SDK CLOB odds: complete
 - Hash-pinned, direct-RPC BinarySettlement verification at an RPC verification snapshot block: complete
 - Two-minute judge path: complete
-- Salted pre-reveal commitment, server-authenticated Ed25519 lock receipt, working block/contract links, copyable market ID, and portable post-reveal proof JSON: complete in the unreleased v9 candidate
+- Salted pre-reveal commitment, server-authenticated Ed25519 lock receipt, working block/contract links, copyable market ID, and portable post-reveal proof JSON: complete
 - Stateless server-verified Judge combat transcript: complete
 - Social-ready run card with progress, native image sharing, direct X composer, PNG download, and a separate copy/download proof artifact: complete
-- Browser-local independent proof verifier with explicit `PASS`, `FAIL`, and `NOT PROVABLE` outcomes: complete in the unreleased v9 candidate
+- Browser-local independent proof verifier with explicit `PASS`, `FAIL`, and `NOT PROVABLE` outcomes: complete
 - Implementation-specific dreamDEX integration report: complete
 - Desktop and 390 px mobile judge-flow QA: complete
 - Four-tier dual-condition progression: complete
-- Baseline v8 demo video (1:52): complete; the synchronized 2–3 minute v9 Production video, caption QA, and final URL are recorded as external immutable-release evidence after their release gates pass
+- Baseline v8 demo video (1:52): complete; the replacement competition video and caption QA remain paused and are not part of the v10 source release
 - Wallet writes: intentionally disabled
 
 ## License

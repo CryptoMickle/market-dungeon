@@ -445,28 +445,37 @@ function JudgeLockReceiptEvidence({
 
   return (
     <section className="judge-lock-receipt" aria-label="Server-authenticated lock receipt">
-      <div className="receipt-status">
-        <span>SERVER-AUTHENTICATED LOCK RECEIPT</span>
-        <strong>✓ VERIFIED IN THIS BROWSER</strong>
-        <small>Not an external timestamp or endorsement</small>
-      </div>
-      <div>
-        <span>ALGORITHM</span>
-        <strong>{attestation.algorithm}</strong>
-      </div>
-      <div>
-        <span>KEY ID · SHA-256 FINGERPRINT</span>
-        <code title={attestation.keyId}>{receiptKeyFingerprint(attestation.keyId)}</code>
-      </div>
-      <div>
-        <span>LOCKED DIRECTION</span>
-        <strong>BTC {attestation.lockedDirection}</strong>
-      </div>
-      <div className="receipt-window">
-        <span>LOCK / REVEAL WINDOW</span>
-        <strong><time dateTime={new Date(attestation.issuedAt * 1_000).toISOString()}>LOCK {receiptUtc(attestation.issuedAt)}</time></strong>
-        <small><time dateTime={new Date(attestation.revealAfter * 1_000).toISOString()}>REVEAL FROM {receiptUtc(attestation.revealAfter)}</time> · <time dateTime={new Date(attestation.expiresAt * 1_000).toISOString()}>EXPIRES {receiptUtc(attestation.expiresAt)}</time></small>
-      </div>
+      <details>
+        <summary className="receipt-summary">
+          <div className="receipt-status">
+            <span>SERVER-AUTHENTICATED LOCK RECEIPT</span>
+            <strong>✓ VERIFIED IN THIS BROWSER</strong>
+            <small>Not an external timestamp or endorsement</small>
+          </div>
+          <div><span>LOCKED OMEN</span><strong>BTC {attestation.lockedDirection}</strong></div>
+          <div><span>REVEAL GATE</span><strong><time dateTime={new Date(attestation.revealAfter * 1_000).toISOString()}>{receiptUtc(attestation.revealAfter).slice(11)}</time></strong></div>
+          <b>VIEW SIGNED RECEIPT</b>
+        </summary>
+        <div className="receipt-details">
+          <div>
+            <span>ALGORITHM</span>
+            <strong>{attestation.algorithm}</strong>
+          </div>
+          <div>
+            <span>KEY ID · SHA-256 FINGERPRINT</span>
+            <code title={attestation.keyId}>{receiptKeyFingerprint(attestation.keyId)}</code>
+          </div>
+          <div>
+            <span>LOCKED DIRECTION</span>
+            <strong>BTC {attestation.lockedDirection}</strong>
+          </div>
+          <div className="receipt-window">
+            <span>LOCK / REVEAL WINDOW</span>
+            <strong><time dateTime={new Date(attestation.issuedAt * 1_000).toISOString()}>LOCK {receiptUtc(attestation.issuedAt)}</time></strong>
+            <small><time dateTime={new Date(attestation.revealAfter * 1_000).toISOString()}>REVEAL FROM {receiptUtc(attestation.revealAfter)}</time> · <time dateTime={new Date(attestation.expiresAt * 1_000).toISOString()}>EXPIRES {receiptUtc(attestation.expiresAt)}</time></small>
+          </div>
+        </div>
+      </details>
     </section>
   );
 }
@@ -1489,7 +1498,7 @@ export default function MarketDungeon({ directJudgeEntry = false }: { directJudg
       <div className="run-share-heading">
         <span>YOUR MARKET DUNGEON RUN CARD</span>
         <strong>{runShareProgress}</strong>
-        <small>{runShareInput.verifiedOnchain ? 'A social-ready summary of this verified replay. The portable proof is available above.' : 'A social-ready snapshot of how far this expedition reached.'}</small>
+        <small>{runShareInput.verifiedOnchain ? 'A social-ready summary of this verified replay. The portable proof is available in Evidence below.' : 'A social-ready snapshot of how far this expedition reached.'}</small>
       </div>
       <Image
         className="run-share-card"
@@ -1555,7 +1564,7 @@ export default function MarketDungeon({ directJudgeEntry = false }: { directJudg
   );
 
   return (
-    <main className={`game-shell phase-${phase.toLowerCase()} ${['SETUP', 'JUDGE_SETUP'].includes(phase) ? 'setup-shell' : 'in-expedition'} ${directJudgeEntry ? 'direct-judge-entry' : ''}`}>
+    <main className={`game-shell phase-${phase.toLowerCase()} ${['SETUP', 'JUDGE_SETUP'].includes(phase) ? 'setup-shell' : 'in-expedition'} ${judgeMode ? 'judge-mode' : ''} ${directJudgeEntry ? 'direct-judge-entry' : ''}`}>
       <div className="game-column">
         <header className="game-header">
           <p className="eyebrow">DELVEWORN · EVENT CONTRACTS EDITION</p>
@@ -1586,8 +1595,13 @@ export default function MarketDungeon({ directJudgeEntry = false }: { directJudg
             )}
             <div className="judge-lock-intro">
               <span>STEP 1 OF 5 · CHOOSE BEFORE THE DRAW</span>
-              <strong>Lock a BTC direction, then defeat the guard and boss.</strong>
-              <small>The prediction decides whether your combat victory becomes permanent.</small>
+              <h2>Lock your omen before the replay is drawn.</h2>
+              <small>Choose BTC UP or DOWN. The hidden onchain outcome decides whether your combat victory becomes permanent.</small>
+              <div className="judge-lock-context" aria-live="polite">
+                <span>LIVE BTC CONTEXT</span>
+                <strong>{liveBtcContext ? liveBtcContextPrice(liveBtcContext) : 'REFERENCE UNAVAILABLE'}</strong>
+                <small>{liveBtcContext ? `dreamDEX ${eventContractIntervalName(liveBtcContext.intervalSec)} opening line · context only` : 'The sealed replay remains available.'}</small>
+              </div>
             </div>
             <div className="judge-quick-choice" aria-label="Choose BTC direction">
               <button aria-pressed={direction === 'UP'} className={direction === 'UP' ? 'up selected' : 'up'} onClick={() => setDirection('UP')}><b><GoldIcon /> GOLD AWAKENS</b><small>BTC UP</small></button>
@@ -1599,6 +1613,13 @@ export default function MarketDungeon({ directJudgeEntry = false }: { directJudg
               <button className="judge-action" onClick={() => void startJudgeReplay()} disabled={judgeLoading || judgeStartRetryRemaining > 0}>{judgeLoading ? 'LOCKING + SEALING REPLAY…' : judgeStartRetryRemaining > 0 ? `RETRY LOCK IN ${judgeStartRetryRemaining}S` : 'LOCK OMEN & SEAL REPLAY'}</button>
               <small>No wallet, approval or order will be requested.</small>
             </div>
+            <section className="judge-setup-progress" aria-label="Judge Demo progress">
+              <span className="active"><b>1</b> LOCK</span>
+              <span><b>2</b> GUARD</span>
+              <span><b>3</b> BOSS</span>
+              <span><b>4</b> HEAL</span>
+              <span><b>5</b> REVEAL</span>
+            </section>
             <HumanProofSummary />
           </section>
         )}
@@ -1742,30 +1763,49 @@ export default function MarketDungeon({ directJudgeEntry = false }: { directJudg
               <div className="reward-box"><span>RECOVERED</span><strong><GoldIcon /> {lastReward}</strong></div>
             </div>
           ) : phase === 'VICTORY' ? (
-            <div className="result-view">
-              <div className="result-icon">{oracleResult === 'BLESSED' ? '✨' : oracleResult === 'CURSED' ? '📉' : '👑'}</div>
-              <p className="section-kicker">{judgeMode ? 'JUDGE DEMO COMPLETE · ONCHAIN RESULT VERIFIED' : `TIER ${tier}/${TOTAL_TIERS} · FULL RUN COMPLETE`} · {oracleResult ?? 'SETTLED'}</p>
-              <h2>{resultHeading}</h2><p className="muted">{resultCopy}</p>
-              <div className="victory-conditions resolved"><div><span>✓ CONDITION 1</span><strong>Boss defeated in combat</strong></div><div><span>{oracleResult === 'VOID' ? '○ VOID EXCEPTION' : '✓ CONDITION 2'}</span><strong>{oracleResult === 'VOID' ? 'Prediction voided · no loss' : 'BTC prediction correct'}</strong></div></div>
-              {judgeMode && <HumanProofSummary verified />}
-              {judgeMode && <div className="judge-verification"><span>✓ COMBAT + CHOICE LOCK + SOMNIA RESULT VERIFIED</span><strong>dreamDEX market #{marketCode}</strong><small>{market.combatProof?.steps ?? 0} replayed actions and two block-pinned contract reads reproduced the displayed result. Expand the proof only if you want the raw calldata.</small></div>}
-              {portableProofPanel}
-              {dreamDexContinuePanel}
-              {runSharePanel}
-              {judgeMode && <MarketProof market={market} mode="revealed" />}
+            <div className={`result-view ${judgeMode ? 'judge-result-view' : ''}`}>
+              <div className="result-hero-grid">
+                <div className="result-hero">
+                  <div className="result-icon">{oracleResult === 'BLESSED' ? '✨' : oracleResult === 'CURSED' ? '📉' : '👑'}</div>
+                  <p className="section-kicker">{judgeMode ? 'JUDGE DEMO COMPLETE · ONCHAIN RESULT VERIFIED' : `TIER ${tier}/${TOTAL_TIERS} · FULL RUN COMPLETE`} · {oracleResult ?? 'SETTLED'}</p>
+                  <h2>{resultHeading}</h2><p className="muted">{resultCopy}</p>
+                  <div className="victory-conditions resolved"><div><span>✓ CONDITION 1</span><strong>Boss defeated in combat</strong></div><div><span>{oracleResult === 'VOID' ? '○ VOID EXCEPTION' : '✓ CONDITION 2'}</span><strong>{oracleResult === 'VOID' ? 'Prediction voided · no loss' : 'BTC prediction correct'}</strong></div></div>
+                  {judgeMode && <div className="judge-verification"><span>✓ COMBAT + CHOICE LOCK + SOMNIA RESULT VERIFIED</span><strong>Verified end to end</strong><small>dreamDEX market #{marketCode} · {market.combatProof?.steps ?? 0} replayed actions · two block-pinned contract reads</small></div>}
+                </div>
+                {judgeMode && runSharePanel}
+              </div>
+              {judgeMode ? <div className="judge-result-evidence">
+                <HumanProofSummary verified />
+                {portableProofPanel}
+                {dreamDexContinuePanel}
+                <MarketProof market={market} mode="revealed" />
+              </div> : <>
+                {portableProofPanel}
+                {dreamDexContinuePanel}
+                {runSharePanel}
+              </>}
               <div className="final-stats"><div><span>{judgeMode ? 'REPLAY ENCOUNTERS' : 'TIERS CLEARED'}</span><strong>{judgeMode ? `${runShareInput?.enemiesDefeated ?? 0}/2` : `${tier}/${TOTAL_TIERS}`}</strong></div><div><span>FINAL GOLD</span><strong><GoldIcon /> {gold}</strong></div></div>
             </div>
           ) : phase === 'DEAD' ? (
-            <div className="result-view">
-              <div className="result-icon">☠️</div><p className="section-kicker">{judgeMode ? 'JUDGE DEMO COMPLETE · ONCHAIN LOSS VERIFIED' : `TIER ${tier} · EXPEDITION ENDED`}</p>
-              <h2>{deathCause === 'PREDICTION' ? 'The boss strikes back.' : 'You fell in combat.'}</h2><p className="muted">{deathCause === 'PREDICTION' ? resultCopy : 'The prediction cannot save a lost fight. Gold persists, potions return to at least the starting amount, and attack and defense reset for the next run.'}</p>
-              {deathCause === 'PREDICTION' && <div className="victory-conditions failed"><div><span>✓ CONDITION 1</span><strong>Boss defeated in combat</strong></div><div><span>✕ CONDITION 2</span><strong>BTC prediction incorrect</strong></div></div>}
-              {judgeMode && deathCause === 'PREDICTION' && <HumanProofSummary verified />}
-              {judgeMode && deathCause === 'PREDICTION' && <div className="judge-verification"><span>✓ COMBAT + CHOICE LOCK + SOMNIA RESULT VERIFIED</span><strong>dreamDEX market #{marketCode}</strong><small>The combat replay and two block-pinned contract reads reproduced the losing payout. Expand the proof only if you want the raw calldata.</small></div>}
-              {judgeMode && deathCause === 'PREDICTION' && portableProofPanel}
-              {deathCause === 'PREDICTION' && dreamDexContinuePanel}
-              {runSharePanel}
-              {judgeMode && deathCause === 'PREDICTION' && <MarketProof market={market} mode="revealed" />}
+            <div className={`result-view ${judgeMode ? 'judge-result-view' : ''}`}>
+              <div className="result-hero-grid">
+                <div className="result-hero">
+                  <div className="result-icon">☠️</div><p className="section-kicker">{judgeMode ? 'JUDGE DEMO COMPLETE · ONCHAIN LOSS VERIFIED' : `TIER ${tier} · EXPEDITION ENDED`}</p>
+                  <h2>{deathCause === 'PREDICTION' ? 'The boss strikes back.' : 'You fell in combat.'}</h2><p className="muted">{deathCause === 'PREDICTION' ? resultCopy : 'The prediction cannot save a lost fight. Gold persists, potions return to at least the starting amount, and attack and defense reset for the next run.'}</p>
+                  {deathCause === 'PREDICTION' && <div className="victory-conditions failed"><div><span>✓ CONDITION 1</span><strong>Boss defeated in combat</strong></div><div><span>✕ CONDITION 2</span><strong>BTC prediction incorrect</strong></div></div>}
+                  {judgeMode && deathCause === 'PREDICTION' && <div className="judge-verification"><span>✓ COMBAT + CHOICE LOCK + SOMNIA RESULT VERIFIED</span><strong>Verified end to end</strong><small>dreamDEX market #{marketCode} · losing payout independently reproduced</small></div>}
+                </div>
+                {judgeMode && runSharePanel}
+              </div>
+              {judgeMode && deathCause === 'PREDICTION' ? <div className="judge-result-evidence">
+                <HumanProofSummary verified />
+                {portableProofPanel}
+                {dreamDexContinuePanel}
+                <MarketProof market={market} mode="revealed" />
+              </div> : <>
+                {deathCause === 'PREDICTION' && dreamDexContinuePanel}
+                {runSharePanel}
+              </>}
               <div className="final-stats"><div><span>{judgeMode ? 'REPLAY ENCOUNTERS' : 'TIER / ROOMS'}</span><strong>{judgeMode ? `${runShareInput?.enemiesDefeated ?? 0}/2` : `${tier} · ${roomsCleared}/${TOTAL_ROOMS}`}</strong></div><div><span>GOLD KEPT</span><strong><GoldIcon /> {gold}</strong></div></div>
             </div>
           ) : (

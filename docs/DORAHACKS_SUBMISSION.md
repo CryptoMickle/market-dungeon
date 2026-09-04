@@ -1,6 +1,6 @@
 # Market Dungeon — DoraHacks Submission Copy
 
-Status: **v9 candidate copy — publish only in the atomic v9 release**
+Status: **v10 release copy — publish with the immutable v10 release**
 
 ## One-line pitch
 
@@ -18,7 +18,7 @@ Combat victory is necessary but not sufficient. After the boss reaches zero HP, 
 - **Technical Implementation — 25%:** The build combines official Markets SDK CLOB data with EIP-1898 hash-pinned Somnia mainnet reads of `BinaryModule` and `BinarySettlement` at one RPC verification snapshot block, a salted commitment, an authenticated server seal, a publicly verifiable Ed25519 lock receipt, and deterministic server-side combat replay.
 - **User Experience & Design — 20%:** Judges can explore the full four-tier game or use a focused five-step replay designed for an approximately two-minute walkthrough, with BTC 5m markets preferred so the market cadence fits a play session.
 - **Business & Ecosystem Impact — 20%:** Every tier introduces another dreamDEX Event Contract, turning market discovery into repeatable game content and creating a low-friction acquisition path toward a future opt-in trading mode.
-- **Presentation & Demo — 15%:** The focused Judge path, synchronized v9 presentation, social-ready progress card, portable proof, and browser-local verifier make the complete claim easy to understand, share, and independently reproduce once the atomic v9 release is complete.
+- **Presentation & Demo — 15%:** The game-first v10 Judge path, social-ready progress card, portable proof, and browser-local verifier make the complete claim easy to understand, share, and independently reproduce.
 
 ## Why Event Contracts matter here
 
@@ -90,13 +90,13 @@ The browser presents **Reveal Boss Fate** only after boss defeat, and the API in
 ## Links
 
 - Live demo: https://market-dungeon.vercel.app
-- Independent proof verifier: https://market-dungeon.vercel.app/verify (available when Production serves v9)
+- Independent proof verifier: https://market-dungeon.vercel.app/verify
 - Baseline v8 demo video (1:52): https://youtu.be/6IviQrMweZ4
-- Final v9 video: record the Production-capture URL in DoraHacks and the immutable v9 release evidence; do not add deployment-derived metadata to the frozen source tree
-- Immutable v9 submission release: https://github.com/CryptoMickle/market-dungeon/releases/tag/hackathon-submission-2026-v9
+- Replacement competition video: paused; the published baseline remains valid until a separately verified replacement is ready
+- Immutable v10 submission release: https://github.com/CryptoMickle/market-dungeon/releases/tag/hackathon-submission-2026-v10
 - Source code: https://github.com/CryptoMickle/market-dungeon
-- Integration and SDK/docs feedback: https://github.com/CryptoMickle/market-dungeon/blob/hackathon-submission-2026-v9/docs/DREAMDEX_INTEGRATION_REPORT.md
+- Integration and SDK/docs feedback: https://github.com/CryptoMickle/market-dungeon/blob/hackathon-submission-2026-v10/docs/DREAMDEX_INTEGRATION_REPORT.md
 
 ## Current scope
 
-The contest build includes the full four-tier roguelite, 5m-first active-market integration with 15m fallback, official-SDK CLOB odds, EIP-1898 hash-pinned direct-RPC settlement verification at one RPC verification snapshot block, stateless server-verified Judge combat, social-ready run cards, portable proof JSON, a browser-local independent verifier, the two-minute judge path, working block/contract links, a copyable market ID, and responsive presentation. Wallet writes are deliberately outside this submission's scope so judges can verify the complete integration without signing or risking assets. The repository also includes an implementation-specific [dreamDEX integration report](https://github.com/CryptoMickle/market-dungeon/blob/hackathon-submission-2026-v9/docs/DREAMDEX_INTEGRATION_REPORT.md) covering fields, discovery, RPC verification, security boundaries, documentation gaps, and recommended improvements.
+The contest build includes the full four-tier roguelite, 5m-first active-market integration with 15m fallback, official-SDK CLOB odds, EIP-1898 hash-pinned direct-RPC settlement verification at one RPC verification snapshot block, stateless server-verified Judge combat, social-ready run cards, portable proof JSON, a browser-local independent verifier, the two-minute judge path, working block/contract links, a copyable market ID, and responsive presentation. Wallet writes are deliberately outside this submission's scope so judges can verify the complete integration without signing or risking assets. The repository also includes an implementation-specific [dreamDEX integration report](https://github.com/CryptoMickle/market-dungeon/blob/hackathon-submission-2026-v10/docs/DREAMDEX_INTEGRATION_REPORT.md) covering fields, discovery, RPC verification, security boundaries, documentation gaps, and recommended improvements.

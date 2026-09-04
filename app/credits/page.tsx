@@ -45,7 +45,7 @@ export default function CreditsPage() {
 
         <section>
           <h2>Demo-video music</h2>
-          <p>The live web app contains no music. The baseline 1:52 v8 hackathon video uses “Dark Fantasy Ambient (Dungeon Synth music),” created by DeusLower / Vlad Bakutov and licensed under the Pixabay Content License. Final v9 video evidence is recorded externally with the immutable v9 release after Production capture and caption QA.</p>
+          <p>The live web app contains no music. The baseline 1:52 v8 hackathon video uses “Dark Fantasy Ambient (Dungeon Synth music),” created by DeusLower / Vlad Bakutov and licensed under the Pixabay Content License. A replacement competition video remains paused until its Production capture and captions can be verified separately.</p>
           <div className={styles.links}>
             <a href="https://pixabay.com/music/ambient-dark-fantasy-ambient-dungeon-synth-music-281592/" target="_blank" rel="noopener noreferrer">MUSIC SOURCE ↗</a>
             <a href="https://pixabay.com/service/license-summary/" target="_blank" rel="noopener noreferrer">PIXABAY LICENSE ↗</a>
@@ -58,7 +58,7 @@ export default function CreditsPage() {
           <p>Somnia, dreamDEX, and DoraHacks names are used descriptively for the hackathon integration. Their respective marks and services remain the property of their owners.</p>
           <div className={styles.links}>
             <a href="https://github.com/CryptoMickle/market-dungeon" target="_blank" rel="noopener noreferrer">SOURCE CODE ↗</a>
-            <a href="https://github.com/CryptoMickle/market-dungeon/blob/hackathon-submission-2026-v9/docs/PROVENANCE_AND_PRIVACY.md" target="_blank" rel="noopener noreferrer">VERSIONED DISCLOSURE ↗</a>
+            <a href="https://github.com/CryptoMickle/market-dungeon/blob/hackathon-submission-2026-v10/docs/PROVENANCE_AND_PRIVACY.md" target="_blank" rel="noopener noreferrer">VERSIONED DISCLOSURE ↗</a>
           </div>
         </section>
       </article>

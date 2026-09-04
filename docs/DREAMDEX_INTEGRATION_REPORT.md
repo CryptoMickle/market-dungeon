@@ -1,17 +1,17 @@
 # dreamDEX Integration Report
 
-Implementation snapshot: 4 September 2026.
+Implementation snapshot: 5 September 2026.
 
-Status: **This report spans the deployed read-only v8 build and the unreleased
-read-only v9 candidate. Sections that describe the public proof verifier,
-Ed25519 lock receipt, v2 analytics, or v9 sharing refer to the candidate until
-the atomic v9 release is complete.**
+Status: **This report describes the current read-only v10 contest build. Its
+onchain integration, verifier, receipt, analytics, and sharing trust boundaries
+are inherited unchanged from the released v9 build; v10 reorganizes the Judge
+presentation without expanding transaction authority.**
 
 This document also serves as the hackathon submission's optional SDK and documentation feedback report.
 
 ## Judge summary
 
-- The deployed v8 app and the v9 candidate prefer active BTC 5-minute Event Contracts, fall back to 15 minutes when required, and read finalized settlement data from dreamDEX on Somnia mainnet.
+- The current contest build prefers active BTC 5-minute Event Contracts, falls back to 15 minutes when required, and reads finalized settlement data from dreamDEX on Somnia mainnet.
 - The active prediction cards show live UP/DOWN implied odds from the market-ID-keyed dreamDEX CLOB through the official `@somnia-chain/markets-sdk` package.
 - The Judge Replay locks the player's direction before a balanced, cryptographically random finalized market is selected.
 - The selected market and direction are authenticated inside an AES-256-GCM seal; the browser receives no identifying market metadata before reveal.
@@ -30,7 +30,7 @@ Market Dungeon uses the official dreamDEX Markets SDK plus two server-side data 
 | dreamDEX Markets SDK | `@somnia-chain/markets-sdk` `0.29.0` | Recycle-safe top-of-book lookup keyed by the exact active `marketId` |
 | Somnia mainnet JSON-RPC | `https://api.infra.mainnet.somnia.network` | Server: chain verification, RPC verification snapshot block number/hash, pool parameters, and EIP-1898 hash-pinned `BinaryModule.markets` / `BinarySettlement.getSettlement` reads. Browser after reveal: independent block-by-hash and canonical hash-pinned call re-fetch with exact raw-result comparison. |
 
-The browser never calls the dreamDEX indexer or SDK upstream directly. It calls only the public Somnia RPC after reveal to reproduce the already exposed read-only proof. No wallet connection, wallet signature request, approval, order, redemption, or transaction write is implemented. The v9 candidate's Ed25519 signature is a server-authenticated read-only lock receipt; it cannot authorize a wallet or blockchain transaction.
+The browser never calls the dreamDEX indexer or SDK upstream directly. It calls only the public Somnia RPC after reveal to reproduce the already exposed read-only proof. No wallet connection, wallet signature request, approval, order, redemption, or transaction write is implemented. The build's Ed25519 signature is a server-authenticated read-only lock receipt; it cannot authorize a wallet or blockchain transaction.
 
 ## GraphQL queries and fields
 
@@ -86,13 +86,13 @@ For every terminal market—indexed as either `finalized = true` or `voided = tr
 
 The live settlement endpoint never returns a terminal result for application unless this direct proof succeeds. The browser then independently repeats the proof before it applies a void refund path, prediction win/loss, gold, death, victory, or tier progression. A pending non-terminal market may still be returned without a settlement proof because it cannot yet change game state.
 
-The v9 candidate's revealed proof includes the RPC verification snapshot block number/hash, canonical EIP-1898 reference, deployments, market origin and trading window, market key, IDs, payout vector, and the raw target/block-reference/calldata/result for both `eth_call`s. The UI exposes working block and contract links and a copyable market ID. Social sharing is intentionally separated from technical verification: a client-generated 1200×675 PNG summarizes either two-encounter Judge replay progress or the full expedition's actual room/tier, plus enemies, gold, prediction and verification status, for native sharing or a pre-filled X post. Copy/download JSON actions retain the server-authenticated lock receipt, complete canonical commitment input, combat actions/digest, and reproducible RPC requests/results. The card is rendered locally and does not publish or persist run data. The JSON proves contract state at the recorded snapshot block; it does not claim that this is the block containing the transaction that originally finalized that state.
+The build's revealed proof includes the RPC verification snapshot block number/hash, canonical EIP-1898 reference, deployments, market origin and trading window, market key, IDs, payout vector, and the raw target/block-reference/calldata/result for both `eth_call`s. The UI exposes working block and contract links and a copyable market ID. Social sharing is intentionally separated from technical verification: a client-generated 1200×675 PNG summarizes either two-encounter Judge replay progress or the full expedition's actual room/tier, plus enemies, gold, prediction and verification status, for native sharing or a pre-filled X post. Copy/download JSON actions retain the server-authenticated lock receipt, complete canonical commitment input, combat actions/digest, and reproducible RPC requests/results. The card is rendered locally and does not publish or persist run data. The JSON proves contract state at the recorded snapshot block; it does not claim that this is the block containing the transaction that originally finalized that state.
 
 ## Metadata, settlement, and combat boundaries
 
 - Active-market metadata is public immediately and drives the full live expedition.
 - Judge Replay returns no selected replay market identifier, address, strike, expiry, or outcome before reveal. Those values are authenticated inside an AES-256-GCM seal under a server-only environment key.
-- The v9 candidate's start route also signs an Ed25519 receipt over the salted commitment, locked direction, and lock-window timestamps. The browser verifies that receipt against the fixed same-origin public-key endpoint before accepting the lock, and reveal must return the byte-identical receipt. This prevents a client from fabricating a post-hoc portable proof, but it is a Market Dungeon server authentication boundary—not an external timestamp, decentralized attestation, or proof of server honesty.
+- The start route also signs an Ed25519 receipt over the salted commitment, locked direction, and lock-window timestamps. The browser verifies that receipt against the fixed same-origin public-key endpoint before accepting the lock, and reveal must return the byte-identical receipt. This prevents a client from fabricating a post-hoc portable proof, but it is a Market Dungeon server authentication boundary—not an external timestamp, decentralized attestation, or proof of server honesty.
 - The version-2 pre-reveal SHA-256 commitment binds market ID, binary/BTC template, interval, canonical question, trading window, finalized status, trade count, last trade, operator, venue, context, oracle question ID, creator, creation transaction, recorded outcome, locked direction, independent `gameSeed`, replay timestamps, and a hidden random salt.
 - At reveal, the server replays the bounded `Attack`, `Storm`, and `Potion` transcript from the sealed `gameSeed`. The request is rejected unless both the guard and boss are defeated and the player survives.
 - Only after combat verification does the server re-fetch the committed metadata and execute both module and settlement reads against the same canonical EIP-1898 block-hash reference. The browser independently fetches the block by hash and repeats both canonical hash-pinned calls from Somnia RPC, requires an exact raw-result match, ABI-decodes both responses, validates the direct proof bindings, and recomputes both the combat transcript digest and replay commitment before applying the payout-derived result.

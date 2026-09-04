@@ -124,9 +124,9 @@ test('completed mobile Judge result is truthful, ordered, and portable into the 
 
   expect(await page.evaluate(() => {
     const selectors = [
+      '.run-share-panel',
       '.portable-proof-panel',
       '.dreamdex-continue',
-      '.run-share-panel',
       '.proof-revealed',
     ];
     const nodes = selectors.map((selector) => document.querySelector(selector));
