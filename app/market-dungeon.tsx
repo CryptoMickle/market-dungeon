@@ -386,9 +386,17 @@ function MarketProof({
             <span>MARKETS(MARKET ID) ETH_CALL · TARGET · EIP-1898 BLOCK HASH · CALLDATA</span>
             <code>{market.onchainSettlement.calls.moduleMarket.to} · {market.onchainSettlement.calls.moduleMarket.blockReference.blockHash} · {market.onchainSettlement.calls.moduleMarket.data}</code>
           </div>
+          <div className="proof-wide proof-raw-result" role="group" aria-label="MARKETS market ID eth_call raw result">
+            <span>MARKETS(MARKET ID) ETH_CALL · EXACT RAW RESULT</span>
+            <code>{market.onchainSettlement.calls.moduleMarket.result}</code>
+          </div>
           <div className="proof-wide">
             <span>GETSETTLEMENT(MARKET KEY) ETH_CALL · TARGET · EIP-1898 BLOCK HASH · CALLDATA</span>
             <code>{market.onchainSettlement.calls.settlementRecord.to} · {market.onchainSettlement.calls.settlementRecord.blockReference.blockHash} · {market.onchainSettlement.calls.settlementRecord.data}</code>
+          </div>
+          <div className="proof-wide proof-raw-result" role="group" aria-label="getSettlement market key eth_call raw result">
+            <span>GETSETTLEMENT(MARKET KEY) ETH_CALL · EXACT RAW RESULT</span>
+            <code>{market.onchainSettlement.calls.settlementRecord.result}</code>
           </div>
         </>}
         <div className="proof-wide">
@@ -1783,7 +1791,7 @@ export default function MarketDungeon({ directJudgeEntry = false }: { directJudg
           )}
         </section>
 
-        {phase !== 'JUDGE_SETUP' && <section className={`action-dock action-dock-${phase.toLowerCase()}`}>
+        {phase !== 'JUDGE_SETUP' && <section className={`action-dock action-dock-${phase.toLowerCase()} ${['VICTORY', 'DEAD'].includes(phase) ? 'action-dock-terminal' : ''}`}>
           {phase === 'SETUP' ? (
             <div className="judge-entry">
               <div className="desktop-omen-picker" aria-label="Choose BTC direction">

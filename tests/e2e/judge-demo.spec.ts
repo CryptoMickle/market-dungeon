@@ -418,6 +418,69 @@ test('Judge Demo completes in Chromium and renders independently verified proof 
   expect(runtimeErrors).toEqual([]);
 });
 
+test('terminal proof shows both exact eth_call results without a sticky action dock overlap at 1280x720', async ({ page }) => {
+  await installDeterministicUpstreams(page);
+  await page.setViewportSize({ width: 1280, height: 720 });
+
+  await page.goto('/judge');
+  await page.getByRole('button', { name: 'LOCK OMEN & SEAL REPLAY' }).click();
+  await page.getByRole('button', { name: /ATTACK/ }).click();
+  await page.getByRole('button', { name: '👑 ENTER FINAL BOSS' }).click();
+  await page.getByRole('button', { name: /ATTACK/ }).click();
+  await page.getByRole('button', { name: /ATTACK/ }).click();
+  await page.getByRole('button', { name: '🔮 REVEAL BOSS FATE' }).click();
+  await expect(page.getByText('JUDGE DEMO COMPLETE · ONCHAIN RESULT VERIFIED · BLESSED')).toBeVisible();
+
+  const proof = page.locator('.proof-revealed');
+  await proof.locator('summary').click();
+  const moduleResult = proof.getByRole('group', { name: 'MARKETS market ID eth_call raw result' });
+  const settlementResult = proof.getByRole('group', { name: 'getSettlement market key eth_call raw result' });
+  const exactResults = [
+    [moduleResult, onchainSettlement.calls.moduleMarket.result],
+    [settlementResult, onchainSettlement.calls.settlementRecord.result],
+  ] as const;
+
+  for (const [group, expectedResult] of exactResults) {
+    await group.scrollIntoViewIfNeeded();
+    await expect(group).toBeVisible();
+    const code = group.locator('code');
+    await expect(code).toHaveText(expectedResult);
+    const rendering = await code.evaluate((element) => {
+      const style = window.getComputedStyle(element);
+      return {
+        clientHeight: element.clientHeight,
+        scrollHeight: element.scrollHeight,
+        overflow: style.overflow,
+        textOverflow: style.textOverflow,
+        visibility: style.visibility,
+        whiteSpace: style.whiteSpace,
+      };
+    });
+    expect(rendering.clientHeight).toBeGreaterThan(0);
+    expect(rendering.scrollHeight).toBeLessThanOrEqual(rendering.clientHeight + 1);
+    expect(rendering.overflow).not.toBe('hidden');
+    expect(rendering.textOverflow).not.toBe('ellipsis');
+    expect(rendering.visibility).toBe('visible');
+    expect(rendering.whiteSpace).toBe('pre-wrap');
+  }
+
+  const terminalDock = page.locator('.action-dock-terminal');
+  await expect(terminalDock).toContainText('BEGIN NEW EXPEDITION');
+  await expect(terminalDock).toHaveCSS('position', 'static');
+  for (const [group] of exactResults) {
+    await group.scrollIntoViewIfNeeded();
+    const overlapsDock = await group.evaluate((proofRow, dock) => {
+      const proofBox = proofRow.getBoundingClientRect();
+      const dockBox = (dock as Element).getBoundingClientRect();
+      return proofBox.left < dockBox.right
+        && proofBox.right > dockBox.left
+        && proofBox.top < dockBox.bottom
+        && proofBox.bottom > dockBox.top;
+    }, await terminalDock.elementHandle());
+    expect(overlapsDock).toBe(false);
+  }
+});
+
 test('temporary browser RPC unavailability preserves the completed sealed run for retry', async ({ page }) => {
   let startCalls = 0;
   await installDeterministicUpstreams(page, {
