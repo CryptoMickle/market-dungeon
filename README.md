@@ -12,7 +12,7 @@ The current contest build is intentionally read-only. It reads live market metad
 
 **DoraHacks submission:** https://dorahacks.io/buidl/48083
 
-**Immutable submission release:** https://github.com/CryptoMickle/market-dungeon/releases/tag/hackathon-submission-2026-v5
+**Immutable submission release:** https://github.com/CryptoMickle/market-dungeon/releases/tag/hackathon-submission-2026-v6
 
 **Integration and SDK/docs feedback:** [docs/DREAMDEX_INTEGRATION_REPORT.md](docs/DREAMDEX_INTEGRATION_REPORT.md)
 
@@ -50,7 +50,7 @@ It is a fast replay, not a mocked settlement.
 3. Note the full SHA-256 commitment shown during combat, then defeat the wounded guard and boss.
 4. Press **Reveal Boss Fate**. The server first replays the combat transcript, then reads the BinaryModule market binding and BinarySettlement payout with both calls pinned to one canonical Somnia block hash.
 5. Confirm that the proof panel reports an EIP-1898 hash-pinned browser RPC re-fetch and exposes the block hash, payout vector, market key, deployed contracts, and reproducible `eth_call` inputs/results.
-6. Use **Share run + proof**, **Copy proof JSON**, or **Download proof JSON**. The portable artifact contains the canonical commitment input, complete combat transcript, digest, block hash, contracts, and both raw RPC calls/results.
+6. Inspect the generated 1200×675 run card, which summarizes dungeon depth, enemies defeated, gold, prediction and verified status. **Share result** sends the PNG through supported native share targets; **Share on X** downloads the card and opens a pre-filled post; **Download card** saves it directly. The separate **Copy proof JSON** and **Download proof JSON** actions preserve the complete technical artifact.
 7. Open the block and contract links in the Somnia explorer. No wallet, approval, order or other transaction is requested.
 
 ## Why Event Contracts fit the game
@@ -234,7 +234,7 @@ docs/
 - Two-minute judge path: complete
 - Salted pre-reveal commitment, working block/contract links, copyable market ID, and portable post-reveal proof JSON: complete
 - Stateless server-verified Judge combat transcript: complete
-- Share/copy/download verified post-reveal proof artifact: complete
+- Social-ready run card with progress, native image sharing, direct X composer, PNG download, and a separate copy/download proof artifact: complete
 - Implementation-specific dreamDEX integration report: complete
 - Desktop and 390 px mobile judge-flow QA: complete
 - Four-tier dual-condition progression: complete

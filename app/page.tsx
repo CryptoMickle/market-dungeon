@@ -41,9 +41,17 @@ import {
   type ReplayProof,
 } from './replay-proof';
 import {
+  MARKET_DUNGEON_PLAY_URL,
+  runShareCardDataUrl,
+  runShareCardFilename,
+  runShareCaption,
+  runShareClipboardText,
+  runShareXUrl,
+  type RunShareCardInput,
+} from './share-run-card';
+import {
   verifiedRunProofFilename,
   verifiedRunProofJson,
-  verifiedRunShareText,
   type VerifiedRunProofInput,
 } from './share-verified-run';
 
@@ -133,6 +141,39 @@ const bosses: Persona[] = [
 async function sha256Hex(value: string) {
   const digest = await window.crypto.subtle.digest('SHA-256', new TextEncoder().encode(value));
   return `0x${Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('')}`;
+}
+
+async function renderRunCardPng(input: RunShareCardInput) {
+  const image = new window.Image();
+  image.decoding = 'async';
+  image.src = runShareCardDataUrl(input);
+  await image.decode();
+
+  const canvas = document.createElement('canvas');
+  canvas.width = 1200;
+  canvas.height = 675;
+  const context = canvas.getContext('2d');
+  if (!context) throw new Error('Canvas rendering unavailable');
+  context.drawImage(image, 0, 0, canvas.width, canvas.height);
+
+  const blob = await new Promise<Blob>((resolve, reject) => {
+    canvas.toBlob((value) => {
+      if (value) resolve(value);
+      else reject(new Error('PNG export unavailable'));
+    }, 'image/png');
+  });
+  return new File([blob], runShareCardFilename(input), { type: 'image/png' });
+}
+
+function downloadFile(file: File) {
+  const url = URL.createObjectURL(file);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = file.name;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 0);
 }
 
 function getRegularTier(roomNumber: number) {
@@ -976,32 +1017,103 @@ export default function Home() {
     };
   }
 
-  async function shareVerifiedRun(preferShare: boolean) {
-    const proofInput = verifiedProofInput();
-    if (!proofInput) return;
-    const text = verifiedRunShareText(proofInput);
-    const json = verifiedRunProofJson(proofInput);
-    const filename = verifiedRunProofFilename(proofInput.replayProof.marketId);
-    const proofFile = new File([json], filename, { type: 'application/json' });
+  function currentRunShareInput(): RunShareCardInput | null {
+    if (!['VICTORY', 'DEAD'].includes(phase)) return null;
+    const totalDungeonRooms = TOTAL_TIERS * TOTAL_ROOMS;
+    const reachedRoom = Math.min(totalDungeonRooms, ((tier - 1) * TOTAL_ROOMS) + Math.min(TOTAL_ROOMS, room + 1));
+    const fullRunDefeated = Math.min(totalDungeonRooms, ((tier - 1) * TOTAL_ROOMS) + roomsCleared);
+    const replayEnemiesDefeated = Number(Boolean(market.combatProof?.guardDefeated))
+      + Number(Boolean(market.combatProof?.bossDefeated));
+    const committedOutcome = market.replayProof?.committedOutcome ?? market.winningOutcome;
+    const actualOutcome = market.voided
+      ? 'VOID' as const
+      : committedOutcome === 0
+        ? 'UP' as const
+        : committedOutcome === 1
+          ? 'DOWN' as const
+          : undefined;
+    const result = phase === 'DEAD' && deathCause === 'COMBAT'
+      ? 'DEFEATED' as const
+      : oracleResult ?? 'VOID';
 
-    if (preferShare && typeof navigator.share === 'function') {
+    return {
+      mode: judgeMode ? 'JUDGE_REPLAY' : 'FULL_RUN',
+      result,
+      tier,
+      totalTiers: TOTAL_TIERS,
+      reachedRoom,
+      totalRooms: totalDungeonRooms,
+      enemiesDefeated: judgeMode ? replayEnemiesDefeated : fullRunDefeated,
+      gold,
+      lockedDirection: direction,
+      actualOutcome,
+      verifiedOnchain: Boolean(judgeMode && verifiedProofInput()),
+      marketId: market.replayProof?.marketId ?? (/^0x[0-9a-f]{64}$/i.test(market.marketId) ? market.marketId : undefined),
+    };
+  }
+
+  async function shareRunCard(input: RunShareCardInput) {
+    let card: File | null = null;
+    try {
+      card = await renderRunCardPng(input);
+    } catch {
+      setShareStatus('CARD RENDERING UNAVAILABLE · SHARE TEXT STILL READY');
+    }
+
+    if (card && typeof navigator.share === 'function') {
+      let canShareCard = false;
       try {
-        const shareData: ShareData = { title: 'Market Dungeon — verified Judge run', text };
-        const canShareFile = typeof navigator.canShare === 'function' && navigator.canShare({ files: [proofFile] });
-        if (canShareFile) shareData.files = [proofFile];
-        await navigator.share(shareData);
-        setShareStatus(canShareFile ? 'VERIFIED RUN + PROOF JSON SHARED' : 'RUN SHARED · DOWNLOAD JSON FOR PORTABLE PROOF');
-        return;
-      } catch (error) {
-        if (error instanceof DOMException && error.name === 'AbortError') return;
+        canShareCard = typeof navigator.canShare === 'function' && navigator.canShare({ files: [card] });
+      } catch {
+        canShareCard = false;
+      }
+      if (canShareCard) {
+        try {
+          await navigator.share({
+            title: 'Market Dungeon — run result',
+            text: runShareCaption(input),
+            url: MARKET_DUNGEON_PLAY_URL,
+            files: [card],
+          });
+          setShareStatus('RUN CARD SHARED');
+          return;
+        } catch (error) {
+          if (error instanceof DOMException && error.name === 'AbortError') return;
+        }
       }
     }
 
+    if (card) downloadFile(card);
+    try {
+      await navigator.clipboard.writeText(runShareClipboardText(input));
+      setShareStatus(card
+        ? 'SHARING UNAVAILABLE · CARD DOWNLOADED + POST TEXT COPIED'
+        : 'SHARING UNAVAILABLE · POST TEXT COPIED');
+    } catch {
+      setShareStatus(card
+        ? 'SHARING UNAVAILABLE · CARD DOWNLOADED'
+        : 'SHARE FAILED · USE THE X LINK');
+    }
+  }
+
+  async function downloadRunCard(input: RunShareCardInput, forX = false) {
+    try {
+      downloadFile(await renderRunCardPng(input));
+      setShareStatus(forX ? 'CARD DOWNLOADED · ATTACH IT IN THE X COMPOSER' : 'RUN CARD DOWNLOADED');
+    } catch {
+      setShareStatus(forX ? 'X OPENED · CARD DOWNLOAD FAILED' : 'CARD DOWNLOAD FAILED');
+    }
+  }
+
+  async function copyVerifiedProof() {
+    const proofInput = verifiedProofInput();
+    if (!proofInput) return;
+    const json = verifiedRunProofJson(proofInput);
     try {
       await navigator.clipboard.writeText(json);
-      setShareStatus(preferShare ? 'SHARE UNAVAILABLE · PROOF JSON COPIED' : 'PORTABLE PROOF JSON COPIED');
+      setShareStatus('PORTABLE PROOF JSON COPIED');
     } catch {
-      setShareStatus(preferShare ? 'SHARE FAILED · USE DOWNLOAD PROOF JSON' : 'COPY FAILED · USE DOWNLOAD PROOF JSON');
+      setShareStatus('COPY FAILED · USE DOWNLOAD PROOF JSON');
     }
   }
 
@@ -1031,20 +1143,44 @@ export default function Home() {
     ));
   }
 
-  const verifiedSharePanel = judgeMode && market.replayProof && market.combatProof && market.onchainSettlement && oracleResult ? (
-    <div className="judge-verification verified-share">
-      <div>
-        <span>SHAREABLE VERIFIED RESULT</span>
-        <strong>LOCKED BTC {market.replayProof.lockedDirection} · OUTCOME BTC {market.replayProof.committedOutcome === 0 ? 'UP' : 'DOWN'}</strong>
-        <small>Exports the complete commitment input, combat transcript, block hash, both contracts, and reproducible raw RPC calls/results.</small>
+  const runShareInput = currentRunShareInput();
+  const portableProofAvailable = Boolean(verifiedProofInput());
+  const runSharePanel = runShareInput ? (
+    <section className="run-share-panel" aria-label="Share your Market Dungeon result">
+      <div className="run-share-heading">
+        <span>YOUR MARKET DUNGEON RUN CARD</span>
+        <strong>ROOM {runShareInput.reachedRoom}/{runShareInput.totalRooms} · {runShareInput.enemiesDefeated} ENEMIES DEFEATED</strong>
+        <small>{runShareInput.verifiedOnchain ? 'The card summarizes the run; the separate JSON carries the complete reproducible proof.' : 'A social-ready snapshot of how far this expedition reached.'}</small>
       </div>
-      <div className="between-actions verified-share-actions">
-        <button className="judge-action" type="button" onClick={() => void shareVerifiedRun(true)}>↗ SHARE RUN + PROOF</button>
-        <button className="heal-action" type="button" onClick={() => void shareVerifiedRun(false)}>COPY PROOF JSON</button>
-        <button className="heal-action" type="button" onClick={downloadVerifiedProof}>DOWNLOAD PROOF JSON</button>
+      <Image
+        className="run-share-card"
+        src={runShareCardDataUrl(runShareInput)}
+        alt={`Market Dungeon share card: room ${runShareInput.reachedRoom} of ${runShareInput.totalRooms}`}
+        width={1200}
+        height={675}
+        unoptimized
+      />
+      <div className="run-share-actions">
+        <button className="share-primary" type="button" onClick={() => void shareRunCard(runShareInput)}>↗ SHARE RESULT</button>
+        <a
+          className="share-x"
+          href={runShareXUrl(runShareInput)}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={() => void downloadRunCard(runShareInput, true)}
+        >SHARE ON X ↗</a>
+        <button type="button" onClick={() => void downloadRunCard(runShareInput)}>DOWNLOAD CARD</button>
       </div>
-      <small className="verified-share-status" aria-live="polite">{shareStatus}</small>
-    </div>
+      <small className="run-share-x-note">X opens with the post text filled in. Attach the downloaded PNG card before posting.</small>
+      {portableProofAvailable && (
+        <div className="portable-proof-actions">
+          <span>TECHNICAL VERIFICATION</span>
+          <button type="button" onClick={() => void copyVerifiedProof()}>COPY PROOF JSON</button>
+          <button type="button" onClick={downloadVerifiedProof}>DOWNLOAD PROOF JSON</button>
+        </div>
+      )}
+      <small className="run-share-status" aria-live="polite">{shareStatus}</small>
+    </section>
   ) : null;
 
   const dreamDexContinuePanel = (
@@ -1218,7 +1354,8 @@ export default function Home() {
               <div className="result-icon">{oracleResult === 'BLESSED' ? '✨' : oracleResult === 'CURSED' ? '📉' : '👑'}</div>
               <p className="section-kicker">{judgeMode ? 'JUDGE DEMO COMPLETE · ONCHAIN RESULT VERIFIED' : `TIER ${tier}/${TOTAL_TIERS} · FULL RUN COMPLETE`} · {oracleResult ?? 'SETTLED'}</p>
               <h2>{resultHeading}</h2><p className="muted">{resultCopy}</p>
-              {judgeMode && <><div className="judge-verification"><span>✓ COMBAT + COMMITMENT + INDEPENDENT RPC VERIFIED</span><strong>dreamDEX market #{marketCode}</strong><small>Server replayed {market.combatProof?.steps ?? 0} seeded actions and derived the payout from BinarySettlement; the browser independently re-fetched the block and both raw calls from Somnia, ABI-decoded them, and verified every exposed binding before applying the result.</small></div>{verifiedSharePanel}</>}
+              {judgeMode && <div className="judge-verification"><span>✓ COMBAT + COMMITMENT + INDEPENDENT RPC VERIFIED</span><strong>dreamDEX market #{marketCode}</strong><small>Server replayed {market.combatProof?.steps ?? 0} seeded actions and derived the payout from BinarySettlement; the browser independently re-fetched the block and both raw calls from Somnia, ABI-decoded them, and verified every exposed binding before applying the result.</small></div>}
+              {runSharePanel}
               {dreamDexContinuePanel}
               {judgeMode && <MarketProof market={market} mode="revealed" open />}
               <div className="victory-conditions resolved"><div><span>✓ CONDITION 1</span><strong>Boss defeated in combat</strong></div><div><span>{oracleResult === 'VOID' ? '○ VOID EXCEPTION' : '✓ CONDITION 2'}</span><strong>{oracleResult === 'VOID' ? 'Prediction voided · no loss' : 'BTC prediction correct'}</strong></div></div>
@@ -1229,7 +1366,8 @@ export default function Home() {
               <div className="result-icon">☠️</div><p className="section-kicker">{judgeMode ? 'JUDGE DEMO COMPLETE · ONCHAIN LOSS VERIFIED' : `TIER ${tier} · EXPEDITION ENDED`}</p>
               <h2>{deathCause === 'PREDICTION' ? 'The boss strikes back.' : 'You fell in combat.'}</h2><p className="muted">{deathCause === 'PREDICTION' ? resultCopy : 'The prediction cannot save a lost fight. Gold persists, potions return to at least the starting amount, and attack and defense reset for the next run.'}</p>
               {deathCause === 'PREDICTION' && <div className="victory-conditions failed"><div><span>✓ CONDITION 1</span><strong>Boss defeated in combat</strong></div><div><span>✕ CONDITION 2</span><strong>BTC prediction incorrect</strong></div></div>}
-              {judgeMode && deathCause === 'PREDICTION' && <><div className="judge-verification"><span>✓ COMBAT + COMMITMENT + INDEPENDENT RPC VERIFIED</span><strong>dreamDEX market #{marketCode}</strong><small>Server-verified combat preceded reveal; the browser independently re-fetched and ABI-decoded the proved Somnia block and both settlement calls before applying the losing payout hidden inside the commitment.</small></div>{verifiedSharePanel}</>}
+              {judgeMode && deathCause === 'PREDICTION' && <div className="judge-verification"><span>✓ COMBAT + COMMITMENT + INDEPENDENT RPC VERIFIED</span><strong>dreamDEX market #{marketCode}</strong><small>Server-verified combat preceded reveal; the browser independently re-fetched and ABI-decoded the proved Somnia block and both settlement calls before applying the losing payout hidden inside the commitment.</small></div>}
+              {runSharePanel}
               {deathCause === 'PREDICTION' && dreamDexContinuePanel}
               {judgeMode && deathCause === 'PREDICTION' && <MarketProof market={market} mode="revealed" open />}
               <div className="final-stats"><div><span>TIER / ROOMS</span><strong>{tier} · {roomsCleared}/{TOTAL_ROOMS}</strong></div><div><span>GOLD KEPT</span><strong><GoldIcon /> {gold}</strong></div></div>

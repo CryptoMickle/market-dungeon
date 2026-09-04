@@ -16,7 +16,7 @@ Combat victory is necessary but not sufficient. After the boss reaches zero HP, 
 - **Technical Implementation — 25%:** The build combines official Markets SDK CLOB data with EIP-1898 hash-pinned Somnia mainnet reads of `BinaryModule` and `BinarySettlement` at one RPC verification snapshot block, a salted commitment, an authenticated server seal, and deterministic server-side combat replay.
 - **User Experience & Design — 20%:** Judges can explore the full four-tier game or complete a focused five-step replay in under two minutes, with BTC 5m markets preferred so the market cadence fits a play session.
 - **Business & Ecosystem Impact — 20%:** Every tier introduces another dreamDEX Event Contract, turning market discovery into repeatable game content and creating a low-friction acquisition path toward a future opt-in trading mode.
-- **Presentation & Demo — 15%:** The 1:52 video, live production build, shareable verified result, and reproducible Somnia proof make the complete claim easy to understand and independently inspect.
+- **Presentation & Demo — 15%:** The 1:52 video, live production build, social-ready progress card, and reproducible Somnia proof make the complete claim easy to understand, share and independently inspect.
 
 ## Why Event Contracts matter here
 
@@ -52,7 +52,7 @@ After at least 30 human Judge starts, the next rolling seven-day window will be 
 5. Confirm that the exact market identity and outcome remain sealed after the boss reaches zero HP.
 6. Press **Reveal Boss Fate**. The server first replays the combat log and refuses reveal unless both enemies were defeated. It then calls BinaryModule and BinarySettlement with both reads pinned to one canonical Somnia block hash, derives the winner from the returned payout vector, and rejects any mismatch with the hidden commitment.
 7. Inspect the revealed block hash, payout vector, market key, contract links, and reproducible `eth_call` inputs/results. The browser independently re-fetches that exact block by hash and repeats both calls with EIP-1898 `{ blockHash, requireCanonical: true }`, requires exact byte matches, ABI-decodes them, and validates those bindings plus the combat digest and commitment before applying the result.
-8. Use **Share run + proof**, **Copy proof JSON**, or **Download proof JSON**. The portable artifact exports the canonical commitment input, full combat action transcript and digest, exact block hash, both contracts, and both raw RPC calls/results.
+8. Inspect the generated 1200×675 run card with room depth, enemies defeated, gold, locked choice, outcome and verified status. **Share result** uses native PNG sharing where supported; **Share on X** downloads the card and opens a pre-filled post; **Download card** saves it directly. The separate **Copy proof JSON** and **Download proof JSON** actions export the canonical commitment input, full combat action transcript and digest, exact block hash, both contracts, and both raw RPC calls/results.
 
 The replay is fast, but the settlement is not mocked.
 
@@ -82,16 +82,16 @@ The browser presents **Reveal Boss Fate** only after boss defeat, and the API in
 - dreamDEX GraphQL indexer for discovery, market metadata, reference question, and settlement consistency checks.
 - EIP-1898 hash-pinned Somnia mainnet RPC reads of `BinaryModule.markets(marketId)` and `BinarySettlement.getSettlement(marketKey)` at one RPC verification snapshot block, with payout-derived outcome and fail-closed indexer/commitment comparison.
 - `cache-control: private, no-store, max-age=0` for replay state.
-- Responsive desktop and mobile layouts with a focused five-step judge flow and a share/copy/download portable proof artifact.
+- Responsive desktop and mobile layouts with a focused five-step judge flow, social-ready result cards for full runs and Judge replays, and a separate copy/download portable proof artifact.
 
 ## Links
 
 - Live demo: https://market-dungeon.vercel.app
 - Demo video (1:52): https://youtu.be/mZb3t6-mydo
-- Immutable submission release: https://github.com/CryptoMickle/market-dungeon/releases/tag/hackathon-submission-2026-v5
+- Immutable submission release: https://github.com/CryptoMickle/market-dungeon/releases/tag/hackathon-submission-2026-v6
 - Source code: https://github.com/CryptoMickle/market-dungeon
 - Integration and SDK/docs feedback: https://github.com/CryptoMickle/market-dungeon/blob/main/docs/DREAMDEX_INTEGRATION_REPORT.md
 
 ## Current scope
 
-The contest build includes the full four-tier roguelite, 5m-first active-market integration with 15m fallback, official-SDK CLOB odds, EIP-1898 hash-pinned direct-RPC settlement verification at one RPC verification snapshot block, stateless server-verified Judge combat, portable proof JSON, the two-minute judge path, working block/contract links, a copyable market ID, and responsive presentation. Wallet writes are deliberately outside this submission's scope so judges can verify the complete integration without signing or risking assets. The repository also includes an implementation-specific [dreamDEX integration report](DREAMDEX_INTEGRATION_REPORT.md) covering fields, discovery, RPC verification, security boundaries, documentation gaps, and recommended improvements.
+The contest build includes the full four-tier roguelite, 5m-first active-market integration with 15m fallback, official-SDK CLOB odds, EIP-1898 hash-pinned direct-RPC settlement verification at one RPC verification snapshot block, stateless server-verified Judge combat, social-ready run cards, portable proof JSON, the two-minute judge path, working block/contract links, a copyable market ID, and responsive presentation. Wallet writes are deliberately outside this submission's scope so judges can verify the complete integration without signing or risking assets. The repository also includes an implementation-specific [dreamDEX integration report](DREAMDEX_INTEGRATION_REPORT.md) covering fields, discovery, RPC verification, security boundaries, documentation gaps, and recommended improvements.
