@@ -8,11 +8,11 @@ The current contest build is intentionally read-only. It reads live market metad
 
 **Play:** https://market-dungeon.vercel.app
 
-**Watch the 1:52 hackathon demo:** https://youtu.be/mZb3t6-mydo
+**Watch the 1:52 hackathon demo:** https://youtu.be/dOpVKgSWxWY
 
 **DoraHacks submission:** https://dorahacks.io/buidl/48083
 
-**Immutable submission release:** https://github.com/CryptoMickle/market-dungeon/releases/tag/hackathon-submission-2026-v6
+**Immutable submission release:** https://github.com/CryptoMickle/market-dungeon/releases/tag/hackathon-submission-2026-v7
 
 **Integration and SDK/docs feedback:** [docs/DREAMDEX_INTEGRATION_REPORT.md](docs/DREAMDEX_INTEGRATION_REPORT.md)
 
@@ -199,11 +199,11 @@ app/
   page.tsx              Complete ten-room game and Judge Demo state machine
 public/
   assets/                Canonical gold coin and Market Dungeon homepage hero
+  characters/            Travelling merchant artwork
+  monsters/              Four progression tiers for each enemy class
 tests/
   e2e/                   Deterministic Chromium Judge Demo regression test
   live/                  Scheduled read-only production smoke test
-  characters/            Travelling merchant artwork
-  monsters/              Four progression tiers for each enemy class
 docs/
   DORAHACKS_SUBMISSION.md Submission-ready project description and judge path
   DREAMDEX_INTEGRATION_REPORT.md Exact implemented integration surface and gaps

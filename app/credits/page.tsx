@@ -48,7 +48,7 @@ export default function CreditsPage() {
           <div className={styles.links}>
             <a href="https://pixabay.com/music/ambient-dark-fantasy-ambient-dungeon-synth-music-281592/" target="_blank" rel="noopener noreferrer">MUSIC SOURCE ↗</a>
             <a href="https://pixabay.com/service/license-summary/" target="_blank" rel="noopener noreferrer">PIXABAY LICENSE ↗</a>
-            <a href="https://youtu.be/mZb3t6-mydo" target="_blank" rel="noopener noreferrer">DEMO VIDEO ↗</a>
+            <a href="https://youtu.be/dOpVKgSWxWY" target="_blank" rel="noopener noreferrer">DEMO VIDEO ↗</a>
           </div>
         </section>
 
