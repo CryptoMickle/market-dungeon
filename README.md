@@ -146,7 +146,7 @@ Verified against Somnia mainnet on 2 September 2026:
 | Somnia chain ID | `5031` |
 | Somnia explorer | `https://explorer.somnia.network` |
 | dreamDEX indexer | `https://prd.smk.somnia.host/v1/graphql` |
-| dreamDEX Markets SDK | `@somnia-chain/markets-sdk` `^0.25.0` |
+| dreamDEX Markets SDK | `@somnia-chain/markets-sdk` `0.29.0` |
 | Somnia RPC | `https://api.infra.mainnet.somnia.network` |
 | BinaryModule | `0x3ecC694Cef705358864a646142ac17A90E29e388` |
 | BinarySettlement | `0xbF4a49e0Dfd092e5FBE8E5761064C49533e6Ed23` |
@@ -187,6 +187,9 @@ npm run build
 
 ```text
 app/
+  page.tsx              Homepage entry and judge/full-run choice
+  judge/page.tsx        Direct Judge Demo entry
+  market-dungeon.tsx    Shared ten-room game and Judge Demo state machine
   clob-odds.ts          Pure implied-odds derivation and formatting
   event-contract-interval.ts 5m-first selection, labeling, and 15m fallback
   onchain-settlement-proof.ts Browser-side direct-proof binding validation
@@ -196,7 +199,6 @@ app/
   api/judge-replay/     Encrypted replay start, reveal and commitment logic
   globals.css           Responsive game presentation
   layout.tsx            Metadata and social preview configuration
-  page.tsx              Complete ten-room game and Judge Demo state machine
 public/
   assets/                Canonical gold coin and Market Dungeon homepage hero
   characters/            Travelling merchant artwork
@@ -204,6 +206,9 @@ public/
 tests/
   e2e/                   Deterministic Chromium Judge Demo regression test
   live/                  Scheduled read-only production smoke test
+  shannon-spike/         Fail-closed Shannon proof-kernel tests
+scripts/
+  shannon-spike/         Read-only discovery, unsigned intent and proof evidence
 docs/
   DORAHACKS_SUBMISSION.md Submission-ready project description and judge path
   DREAMDEX_INTEGRATION_REPORT.md Exact implemented integration surface and gaps

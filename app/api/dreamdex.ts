@@ -14,7 +14,7 @@ const INDEXER_TIMEOUT_MS = 5_000;
 const RPC_TIMEOUT_MS = 5_000;
 const MAX_READ_ATTEMPTS = 2;
 
-// Sourced from @somnia-chain/markets-sdk 0.25.0 mainnet-production manifests.
+// Sourced from @somnia-chain/markets-sdk 0.29.0 mainnet-production manifests.
 export const DREAMDEX_MAINNET_CONTRACTS = DREAMDEX_SETTLEMENT_CONTRACTS;
 
 export class UpstreamReadError extends Error {

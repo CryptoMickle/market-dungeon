@@ -22,7 +22,7 @@ Market Dungeon uses the official dreamDEX Markets SDK plus two server-side data 
 | Source | Endpoint | Actual use |
 | --- | --- | --- |
 | dreamDEX GraphQL indexer | `https://prd.smk.somnia.host/v1/graphql` | Active-market discovery, finalized replay discovery, market metadata, indexed settlement, opening reference lookup |
-| dreamDEX Markets SDK | `@somnia-chain/markets-sdk` `^0.25.0` | Recycle-safe top-of-book lookup keyed by the exact active `marketId` |
+| dreamDEX Markets SDK | `@somnia-chain/markets-sdk` `0.29.0` | Recycle-safe top-of-book lookup keyed by the exact active `marketId` |
 | Somnia mainnet JSON-RPC | `https://api.infra.mainnet.somnia.network` | Server: chain verification, RPC verification snapshot block number/hash, pool parameters, and EIP-1898 hash-pinned `BinaryModule.markets` / `BinarySettlement.getSettlement` reads. Browser after reveal: independent block-by-hash and canonical hash-pinned call re-fetch with exact raw-result comparison. |
 
 The browser never calls the dreamDEX indexer or SDK upstream directly. It calls only the public Somnia RPC after reveal to reproduce the already exposed read-only proof. No wallet, approval, order, redemption, signature, or other write is implemented.
@@ -48,7 +48,7 @@ If `strike` is zero, `MarketReferenceLink.referenceQuestionId` is resolved and p
 
 ### Live CLOB implied odds
 
-For the exact active `marketId`, the server calls the official SDK's `getBookTops` helper. This query is keyed by market identity rather than pool address, so resting orders from a recycled pool's previous market cannot bleed into the displayed odds.
+For the exact active `marketId`, the server calls the official SDK client's `getBookTops` method. This query is keyed by market identity rather than pool address, so resting orders from a recycled pool's previous market cannot bleed into the displayed odds.
 
 - With both sides present, UP is the midpoint between the best YES bid and best YES ask.
 - With only one side present, that resting quote is shown as the best available order-book signal.
@@ -99,7 +99,7 @@ The stateless combat check proves that the submitted action sequence is valid un
 - Global response headers set a deny-by-default CSP, block framing and MIME sniffing, restrict referrers and unused browser capabilities, and enable HSTS in production. Client connections are limited to the same origin and the fixed Somnia mainnet RPC used for the independent browser proof. Next.js hydration and the UI's dynamic progress styles require the documented `unsafe-inline` script/style allowances; development alone additionally permits eval, WebSocket connections and Vercel's analytics debug-script origin for the local toolchain.
 - Reveal ingress is capped at 8 KiB measured as UTF-8 bytes rather than JavaScript characters. Oversize `Content-Length` is rejected without reading the request stream; an absent or understated length falls back to incremental reads that cancel the stream as soon as the cap is crossed.
 - Judge Replay candidate rows have a 15-second server-side cache with in-flight request sharing. The selected market remains random per start and is never exposed before reveal. The browser refreshes active discovery and CLOB odds every 15 seconds and polls live settlement every five seconds after expiry.
-- The SDK 0.25 top-of-book read uses its own aborting GraphQL timeout. The former outer four-second `Promise.race` was removed because it returned without cancelling the underlying SDK request. If the SDK read fails, market loading and gameplay continue using the existing verified metadata path; the odds module falls back to a valid last trade or displays an unavailable state.
+- The SDK 0.29 top-of-book read uses its own aborting GraphQL timeout. The former outer four-second `Promise.race` was removed because it returned without cancelling the underlying SDK request. If the SDK read fails, market loading and gameplay continue using the existing verified metadata path; the odds module falls back to a valid last trade or displays an unavailable state.
 - Application-level client guards allow six replay starts and twelve reveal attempts per fixed one-minute window. They derive the client identity from platform forwarding headers, return `429`, `Retry-After`, and `RateLimit-*` metadata, and run before any upstream settlement read.
 - A successfully verified combat transcript reserves its replay commitment before settlement verification starts. Concurrent identical reveals share one promise, later identical reveals use the same bounded result, and a different transcript for that commitment fails with `409`. Transient `503` results are shared only for their short retry window; successful or definitive results remain deduplicated until seal expiry.
 - Direct indexer and RPC reads use five-second `AbortSignal.timeout` budgets and at most one retry. Retries are limited to idempotent transport failures and retryable HTTP statuses; query errors, invalid JSON, RPC errors, and proof mismatches fail closed without retry.

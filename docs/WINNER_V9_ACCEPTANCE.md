@@ -1,6 +1,7 @@
 # Market Dungeon v9 — Winner Acceptance and Rollback Plan
 
-Status: **WB-00 complete; implementation has not started**  
+Status: **WB-00 and WB-01 complete; WB-02 read/verify path complete; Shannon write checkpoint awaits user action; v9 is not released**
+
 Baseline date: **4 September 2026**
 
 This document is the release contract for the post-v8 competition sprint. A v9
@@ -38,6 +39,29 @@ The three browser tests cover five-minute market rollover, direct access to
 privacy/provenance disclosures, and a complete Judge Demo with independently
 verified proof links.
 
+## Current v9 work-block status
+
+- **WB-01 — Judge-first entry: COMPLETE locally.** `/judge` is a direct,
+  prerendered entry into the existing wallet-free Judge Demo. The homepage now
+  makes the two-minute verified path the primary first-screen action while the
+  full four-tier expedition remains available. A plain-language proof summary
+  explains choice-before-draw, non-replaceable commitment, and independent
+  browser verification.
+- **WB-02 — Shannon feasibility: READ/BUILD/VERIFY GO; WRITE GATE NOT PASSED.**
+  SDK `0.29.0` is pinned, an active canonical BTC five-minute market passed 32
+  block-pinned discovery checks, exact buy-only IOC calldata can be built with
+  `autoApprove: false`, and the fail-closed verifier is exercised against a
+  public third-party fill. No Market Dungeon wallet has signed an approval or
+  order, and no Market Dungeon fill is being claimed.
+- **Release state: LOCAL CANDIDATE ONLY.** Production, DoraHacks, a v9 tag, and
+  the submission video have not been changed by these work blocks.
+
+Combined candidate checks after WB-01/WB-02: lint pass, 63/63 unit tests pass,
+7/7 Shannon spike tests pass, production build pass, and 7/7 Chromium tests
+pass. The browser suite includes prerendered `/judge`, mobile first-screen
+actionability, the full-run DOWN path, rollover, disclosures, and the complete
+Judge proof flow.
+
 ## Non-negotiable boundaries
 
 1. `/` and the mainnet Judge Demo remain wallet-free and read-only.
@@ -64,9 +88,9 @@ Timebox: **maximum 10 focused hours**.
 
 Every condition must pass before Shannon Arena implementation continues:
 
-- [ ] A pinned SDK version passes the complete v8 lint, unit, browser, and
+- [x] A pinned SDK version passes the complete v8 lint, unit, browser, and
       production-build baseline.
-- [ ] An active Shannon BTC Event Contract can be discovered and bound to its
+- [x] An active Shannon BTC Event Contract can be discovered and bound to its
       exact market, pool, collateral, and YES/NO outcome identifiers.
 - [ ] A dedicated low-value test wallet can place a buy-only IOC order with an
       exact allowance and `autoApprove: false`.
@@ -131,7 +155,7 @@ not present it as conversion, adoption, or product-market-fit evidence.
 - [ ] DoraHacks links directly to the short Judge entry point.
 - [ ] A first-time tester can understand the dual victory condition and start
       without scrolling within ten seconds.
-- [ ] The public proof summary says, in plain language, that the choice was
+- [x] The public proof summary says, in plain language, that the choice was
       locked before market selection, the committed market could not be
       replaced, and the browser independently reproduced the onchain result.
 - [ ] Technical call data remains inspectable without dominating the primary
@@ -173,4 +197,3 @@ The release owner must complete this sequence:
 Rollback is mandatory if the production candidate introduces a Judge Demo
 regression, an unverifiable trade or settlement claim, an unsafe approval or
 retry path, or an inconsistency between the public submission artifacts.
-

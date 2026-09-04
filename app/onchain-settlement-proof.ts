@@ -11,7 +11,7 @@ export type DirectSettlementCall = {
   result: string;
 };
 
-// @somnia-chain/markets-sdk 0.25.0 mainnet-production deployments.
+// @somnia-chain/markets-sdk 0.29.0 mainnet-production deployments.
 export const DREAMDEX_SETTLEMENT_CONTRACTS = {
   binaryModule: '0x3ecC694Cef705358864a646142ac17A90E29e388',
   binarySettlement: '0xbF4a49e0Dfd092e5FBE8E5761064C49533e6Ed23',

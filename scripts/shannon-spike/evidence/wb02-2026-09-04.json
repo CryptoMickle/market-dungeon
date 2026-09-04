@@ -1,0 +1,330 @@
+{
+  "schema": "market-dungeon-wb02-shannon-evidence/v1",
+  "capturedAt": "2026-09-04T15:05:39.390Z",
+  "lastUpdatedAt": "2026-09-04T15:41:18.000Z",
+  "repository": {
+    "branch": "phase1/winner-v9",
+    "commit": "3c868da",
+    "v8Baseline": "17d5714f328031c319fdd59777c841e432708806"
+  },
+  "sdk": {
+    "package": "@somnia-chain/markets-sdk",
+    "testedVersion": "0.29.0",
+    "npmIntegrity": "sha512-8qEtXIBh8/mdn/L6NGOZKRMyPxyATL/Rl6/TSQ2mZSJCVT5zGC4TwsRZnKTBlSgakQdAoeLCTdZdilcSaluUZg==",
+    "unmodifiedV8": {
+      "lint": "PASS",
+      "unit": "PASS 63/63",
+      "build": "FAIL: getBookTops is no longer a root export"
+    },
+    "temporaryClientScopedMigration": {
+      "change": "SomniaMarkets(...).client.getBookTops([marketId])",
+      "lint": "PASS",
+      "unit": "PASS 63/63",
+      "build": "PASS",
+      "browser": "PASS 3/3 Chromium",
+      "repositoryChanged": false
+    },
+    "rootMigration": {
+      "dependency": "0.29.0 (exact, no range)",
+      "lockfileIntegrityMatchesTestedArtifact": true,
+      "oddsApi": "SomniaMarkets(...).client.getBookTops([marketId])",
+      "shannonProductIntegration": false,
+      "currentCombinedWorktreeValidation": {
+        "lint": "PASS",
+        "unit": "PASS 63/63",
+        "buildWebpack": "PASS",
+        "browserChromium": "PASS 7/7",
+        "spike": "PASS 7/7",
+        "publicFillRpcEip1898": "PASS: 2 fills, 500000000 raw quantity"
+      }
+    }
+  },
+  "canonicalDiscoveryRun": {
+    "observedAt": "2026-09-04T15:32:08.883Z",
+    "safety": "READ_ONLY; NO WALLET; NO SIGNATURE; NO TRANSACTION",
+    "serverSideFilter": {
+      "operatorId": 2,
+      "venueId": "0x679795a0195a1b76cdebb7c51d74e058aee92919b8c3389af86ef24535e8a28c",
+      "asset": "BTC",
+      "intervalSec": 300
+    },
+    "block": {
+      "number": "479628136",
+      "hash": "0x5b7bf3a53a2d55f41f227ca6ac8b72961862673ee9b1293b979e329f54dd9674",
+      "timestamp": "1788535928"
+    },
+    "market": {
+      "marketId": "0x000000000000000000000000000000000000000000000000000000000001368a",
+      "market": "0x2A7CbA558005737fB4f0a438CA243f841fdeB61C",
+      "pool": "0xC6416611C8C3Ce2cCC4cDb23090893311828EA61",
+      "collateral": "0x70a86D8842FB63C4Ad2b7cdddF530eBf1BB25d8E",
+      "originOperatorId": 2,
+      "originVenueId": "0x679795a0195a1b76cdebb7c51d74e058aee92919b8c3389af86ef24535e8a28c",
+      "oracleQuestionId": "50718",
+      "oracleAdapter": "0xe40db387cC98601Dd11bd634fF2f3AD5686dE32b",
+      "outcomeSlotCount": 2,
+      "voidPolicy": 0,
+      "nonce": "16",
+      "onchainStatus": 1,
+      "finalized": false,
+      "tradingStart": "1788535800",
+      "expiry": "1788536100",
+      "tradeCount": "2",
+      "bestBid": "340000",
+      "bestAsk": "369000"
+    },
+    "checks": {
+      "passed": 32,
+      "failed": 0,
+      "all": true
+    },
+    "explorer": {
+      "block": "https://shannon-explorer.somnia.network/block/479628136",
+      "market": "https://shannon-explorer.somnia.network/address/0x2A7CbA558005737fB4f0a438CA243f841fdeB61C",
+      "pool": "https://shannon-explorer.somnia.network/address/0xC6416611C8C3Ce2cCC4cDb23090893311828EA61"
+    }
+  },
+  "fiveMinuteDiscovery": {
+    "observedAt": "2026-09-04T15:03:00.567Z",
+    "sources": {
+      "indexer": "https://dev.smk.somnia.host/v1/graphql",
+      "rpc": "https://api.infra.testnet.somnia.network"
+    },
+    "chainId": 50312,
+    "originOperatorId": 2,
+    "originVenueId": "0x679795a0195a1b76cdebb7c51d74e058aee92919b8c3389af86ef24535e8a28c",
+    "block": {
+      "number": "479610657",
+      "hash": "0x0b3fcfc5f14927e23119d05309bf2e1ca011ba917a527bb743294080904b933b",
+      "timestamp": "1788534180"
+    },
+    "marketId": "0x0000000000000000000000000000000000000000000000000000000000013632",
+    "marketStatus": 1,
+    "module": "0x3ecC694Cef705358864a646142ac17A90E29e388",
+    "moduleRecord": {
+      "collateral": "0x70a86D8842FB63C4Ad2b7cdddF530eBf1BB25d8E",
+      "originOperatorId": 2,
+      "originVenueId": "0x679795a0195a1b76cdebb7c51d74e058aee92919b8c3389af86ef24535e8a28c",
+      "market": "0x0A7977be328f8aBDA5cE908E3c04098a716abEa2",
+      "pool": "0xA0a610D308Fb2617A3FaB37e4197645f7579ad0E",
+      "yesId": "4331080228299614448106791636015111621813030472831916556776178934877184",
+      "noId": "4331080228299614448106791636015111621813030472831916556776178934877185",
+      "tradingStart": "1788534000",
+      "expiry": "1788534300",
+      "nonce": "12"
+    },
+    "pool": {
+      "collateralToken": "0x70a86D8842FB63C4Ad2b7cdddF530eBf1BB25d8E",
+      "market": "0x0A7977be328f8aBDA5cE908E3c04098a716abEa2",
+      "outcomeToken": "0xB52c5934113Af5c0Bb20eb3C72290C8215f755b9",
+      "yesId": "4331080228299614448106791636015111621813030472831916556776178934877184",
+      "noId": "4331080228299614448106791636015111621813030472831916556776178934877185",
+      "oneCollateral": "1000000",
+      "setBacking": "1500000000",
+      "marketNonce": "12",
+      "finalized": false,
+      "tickSize": "1000",
+      "minQuantity": "1000",
+      "lotSize": "1000",
+      "bestBid": "585000",
+      "bestAsk": "613000"
+    },
+    "checks": {
+      "chain": true,
+      "indexerOperator": true,
+      "indexerVenue": true,
+      "moduleOperator": true,
+      "moduleVenue": true,
+      "indexerMarketAddress": true,
+      "marketStatusTrading": true,
+      "marketTradingAtBlock": true,
+      "fiveMinuteCadence": true,
+      "collateral": true,
+      "poolMarket": true,
+      "poolNonce": true,
+      "poolYes": true,
+      "poolNo": true,
+      "derivedYes": true,
+      "derivedNo": true,
+      "poolNotFinalized": true,
+      "twoSidedBook": true
+    },
+    "explorer": {
+      "block": "https://shannon-explorer.somnia.network/block/479610657",
+      "market": "https://shannon-explorer.somnia.network/address/0x0A7977be328f8aBDA5cE908E3c04098a716abEa2",
+      "pool": "https://shannon-explorer.somnia.network/address/0xA0a610D308Fb2617A3FaB37e4197645f7579ad0E"
+    }
+  },
+  "unsignedIntent": {
+    "safety": "NO SIGNER; HISTORICAL EXPIRY; NOT SUBMITTED",
+    "marketId": "0x0000000000000000000000000000000000000000000000000000000000013416",
+    "pool": "0x267FAf943806FfC2d3b4fE7130b559440Ca4BB57",
+    "collateral": "0x70a86D8842FB63C4Ad2b7cdddF530eBf1BB25d8E",
+    "side": "BUY_YES",
+    "yesPrice": "20000",
+    "quantity": "1000000",
+    "oneCollateral": "1000000",
+    "exactAllowance": "20000",
+    "autoApprove": false,
+    "orderType": 2,
+    "builder": "0x0000000000000000000000000000000000000000",
+    "builderFeeBpsTimes1k": "0",
+    "approvalCalldata": "0x095ea7b3000000000000000000000000267faf943806ffc2d3b4fe7130b559440ca4bb570000000000000000000000000000000000000000000000000000000000004e20",
+    "orderCalldata": "0x718c2d4d00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000004e2000000000000000000000000000000000000000000000000000000000000f424000000000000000000000000000000000000000000000000018d229789b6e000000000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+    "approvalSimulation": {
+      "account": "0x0000000000000000000000000000000000000001",
+      "priorAllowance": "0",
+      "priorBalance": "0",
+      "approveReturned": true,
+      "orderWithoutPersistedApproval": "REVERT 0xfb8f41b2 ERC20InsufficientAllowance(address,uint256,uint256)"
+    }
+  },
+  "publicIocFillFixture": {
+    "attribution": "Public third-party Shannon transaction used only to test the verifier; not a Market Dungeon transaction",
+    "chainId": 50312,
+    "explorer": "https://shannon-explorer.somnia.network/tx/0x4c5a1e82be4e837fbc5c440f290dc1f21ef7476dbdd1c4d8b49b56a224a4cc1f",
+    "block": {
+      "number": "479528428",
+      "hash": "0x4d4971fedc2586a4c3321f18d4986efde6f1e73126e846288ae8ea14d2f74d61",
+      "timestamp": "1788525955",
+      "transactions": [
+        "0x456e3cfcb264b94977b597d853928b0da565b4b66d4d394b994b4bb428d66110",
+        "0xc1287e737a5bc944d3e7a3d2d68e9da4eb36a12fae2c27d58e7f42322e51f0c0",
+        "0x4c5a1e82be4e837fbc5c440f290dc1f21ef7476dbdd1c4d8b49b56a224a4cc1f",
+        "0x5599097b4fa4e3f80403f0aac7e515579cad60d67661ec98e653fc047e9d5c00",
+        "0x9f56aacc67e831615985e85fd5fdca18650377a4db9b2d48432ba5ab6d50d13b",
+        "0x420bc8bda6608275a1f2d697bbe135bafac5f4b9b37eeb08b064b6c62b9d0242",
+        "0xb3be8459a84f68983ff263749b70d5ab7217aff30e2986c5511aa02c8737f12c",
+        "0x0ce06ae9806ad2719829dd75c7d83c54e6c48c4e0fdcc3afda717eac9f3d5c41"
+      ]
+    },
+    "binding": {
+      "moduleAddress": "0x3ecC694Cef705358864a646142ac17A90E29e388",
+      "blockNumber": "479528428",
+      "blockHash": "0x4d4971fedc2586a4c3321f18d4986efde6f1e73126e846288ae8ea14d2f74d61",
+      "marketId": "0x0000000000000000000000000000000000000000000000000000000000013416",
+      "oracleQuestionId": "50618",
+      "outcomeSlotCount": 2,
+      "voidPolicy": 0,
+      "originOperatorId": 2,
+      "originVenueId": "0x679795a0195a1b76cdebb7c51d74e058aee92919b8c3389af86ef24535e8a28c",
+      "oracleAdapter": "0xe40db387cC98601Dd11bd634fF2f3AD5686dE32b",
+      "market": "0xB63306b0ADf4af006F80056b8bd3a8b3e776CB54",
+      "pool": "0x267FAf943806FfC2d3b4fE7130b559440Ca4BB57",
+      "collateral": "0x70a86D8842FB63C4Ad2b7cdddF530eBf1BB25d8E",
+      "yesId": "1037924863396533741797574475610660037213747207591076529056845867783680",
+      "noId": "1037924863396533741797574475610660037213747207591076529056845867783681",
+      "tradingStart": "1788523200",
+      "expiry": "1788537600",
+      "nonce": "22"
+    },
+    "transaction": {
+      "hash": "0x4c5a1e82be4e837fbc5c440f290dc1f21ef7476dbdd1c4d8b49b56a224a4cc1f",
+      "from": "0x241b7f2cbf4d0eefa447670aa8c20f1431070e40",
+      "to": "0x267faf943806ffc2d3b4fe7130b559440ca4bb57",
+      "input": "0x718c2d4d00000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000020b70000000000000000000000000000000000000000000000000000000001dcd650000000000000000000000000000000000000000000000000018d21f26e9214c0000000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+      "value": "0",
+      "blockNumber": "479528428",
+      "blockHash": "0x4d4971fedc2586a4c3321f18d4986efde6f1e73126e846288ae8ea14d2f74d61",
+      "transactionIndex": 2
+    },
+    "decodedIntent": {
+      "side": "BUY_NO",
+      "kind": 2,
+      "yesPrice": "134000",
+      "quantity": "500000000",
+      "expireTimestampNs": "1788526254000000000",
+      "orderType": 2,
+      "selfMatchingOption": 0,
+      "builder": "0x0000000000000000000000000000000000000000",
+      "builderFeeBpsTimes1k": "0",
+      "userData": "0"
+    },
+    "receipt": {
+      "transactionHash": "0x4c5a1e82be4e837fbc5c440f290dc1f21ef7476dbdd1c4d8b49b56a224a4cc1f",
+      "status": "success",
+      "blockNumber": "479528428",
+      "blockHash": "0x4d4971fedc2586a4c3321f18d4986efde6f1e73126e846288ae8ea14d2f74d61",
+      "transactionIndex": 2,
+      "logs": [
+        {
+          "address": "0x267faf943806ffc2d3b4fe7130b559440ca4bb57",
+          "data": "0x0000000000000000000000000000000000000000000000000000000000000002",
+          "topics": [
+            "0x74d63d9f1c4826854a227aa41c4a51723497a608aa14aa50e8153744f081d4e6",
+            "0x00000000000000000000000000000000000000000000000200000000000074b6"
+          ],
+          "logIndex": 5,
+          "transactionIndex": 2,
+          "transactionHash": "0x4c5a1e82be4e837fbc5c440f290dc1f21ef7476dbdd1c4d8b49b56a224a4cc1f",
+          "blockNumber": "479528428",
+          "blockHash": "0x4d4971fedc2586a4c3321f18d4986efde6f1e73126e846288ae8ea14d2f74d61"
+        },
+        {
+          "address": "0x267faf943806ffc2d3b4fe7130b559440ca4bb57",
+          "data": "0x000000000000000000000000000000000000000000000000000000000bebc2000000000000000000000000000000000000000000000000000000000011e1a300000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000255a8",
+          "topics": [
+            "0xc87f4223e9e7c4e4f39f9b34fc9d64d78cdb95d9035b3748cbde59521261a399",
+            "0x00000000000000000000000000000000000000000000000200000000000074b6",
+            "0x00000000000000000000000000000000000000000000000600000000000074b0"
+          ],
+          "logIndex": 10,
+          "transactionIndex": 2,
+          "transactionHash": "0x4c5a1e82be4e837fbc5c440f290dc1f21ef7476dbdd1c4d8b49b56a224a4cc1f",
+          "blockNumber": "479528428",
+          "blockHash": "0x4d4971fedc2586a4c3321f18d4986efde6f1e73126e846288ae8ea14d2f74d61"
+        },
+        {
+          "address": "0x267faf943806ffc2d3b4fe7130b559440ca4bb57",
+          "data": "0x0000000000000000000000000000000000000000000000000000000011e1a30000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001c9c3800000000000000000000000000000000000000000000000000000000000023280",
+          "topics": [
+            "0xc87f4223e9e7c4e4f39f9b34fc9d64d78cdb95d9035b3748cbde59521261a399",
+            "0x00000000000000000000000000000000000000000000000200000000000074b6",
+            "0x00000000000000000000000000000000000000000000000500000000000074b2"
+          ],
+          "logIndex": 15,
+          "transactionIndex": 2,
+          "transactionHash": "0x4c5a1e82be4e837fbc5c440f290dc1f21ef7476dbdd1c4d8b49b56a224a4cc1f",
+          "blockNumber": "479528428",
+          "blockHash": "0x4d4971fedc2586a4c3321f18d4986efde6f1e73126e846288ae8ea14d2f74d61"
+        },
+        {
+          "address": "0x267faf943806ffc2d3b4fe7130b559440ca4bb57",
+          "data": "0x00000000000000000000000000000000000000000000000200000000000074b60000000000000000000000000000000000000000000000000000000000000000000000000000000000000000241b7f2cbf4d0eefa447670aa8c20f1431070e4000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000020b70000000000000000000000000000000000000000000000000000000001dcd6500000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000018d21f26e9214c00",
+          "topics": [
+            "0xd90f62f61ee2f606b132cfdfd883ddd079228b6fd6bffd9d7cf848daf824639d",
+            "0x00000000000000000000000000000000000000000000000200000000000074b6"
+          ],
+          "logIndex": 16,
+          "transactionIndex": 2,
+          "transactionHash": "0x4c5a1e82be4e837fbc5c440f290dc1f21ef7476dbdd1c4d8b49b56a224a4cc1f",
+          "blockNumber": "479528428",
+          "blockHash": "0x4d4971fedc2586a4c3321f18d4986efde6f1e73126e846288ae8ea14d2f74d61"
+        }
+      ]
+    },
+    "expectedFill": {
+      "count": 2,
+      "totalQuantity": "500000000",
+      "prices": ["153000", "144000"]
+    }
+  },
+  "gate1": {
+    "status": "USER ACTION REQUIRED — NOT PASS",
+    "passed": [
+      "SDK 0.29 migration shape identified and temporary migrated build passed",
+      "root dependency pinned to 0.29.0 and the read-only odds call migrated",
+      "active Shannon BTC 5m discovery",
+      "block-locked market/pool/collateral/outcome/nonce binding",
+      "buy-only IOC calldata with autoApprove:false and exact approval calldata",
+      "independent receipt/fill decoder proven against a public IOC fill",
+      "approval verifier independently fetches EIP-1898 allowance and pool scale; mocked adversarial path passed"
+    ],
+    "notPassed": [
+      "no dedicated Market Dungeon wallet exact-approval transaction",
+      "no Market Dungeon signed IOC transaction",
+      "no Market Dungeon real non-zero fill",
+      "no retained Market Dungeon transaction explorer proof"
+    ]
+  }
+}

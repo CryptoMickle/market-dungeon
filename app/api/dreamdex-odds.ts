@@ -1,16 +1,22 @@
-import { getBookTops } from '@somnia-chain/markets-sdk';
+import { SomniaMarkets, SOMNIA_MAINNET_ADDRESSES } from '@somnia-chain/markets-sdk';
+import { somniaMainnet } from '@somnia-chain/markets-sdk/chains';
 
 import { deriveDreamDexClobOdds, type DreamDexClobOdds } from '../clob-odds';
 
 const INDEXER = 'https://prd.smk.somnia.host/v1/graphql';
+const exchange = new SomniaMarkets({
+  indexerUrl: INDEXER,
+  chain: somniaMainnet,
+  addresses: SOMNIA_MAINNET_ADDRESSES,
+});
 
 type OddsMarket = Record<string, unknown>;
 
 async function sdkBookTop(marketId: string) {
-  // SDK 0.25 routes typed reads through its GraphQL boundary, which uses
+  // SDK 0.29 routes typed reads through its GraphQL boundary, which uses
   // AbortSignal.timeout. Avoid an outer Promise.race that returns early while
   // leaving the SDK's underlying request running in the background.
-  return getBookTops([marketId], INDEXER);
+  return exchange.client.getBookTops([marketId]);
 }
 
 export async function fetchDreamDexClobOdds(market: OddsMarket): Promise<DreamDexClobOdds> {
