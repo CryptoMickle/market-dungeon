@@ -53,8 +53,9 @@ verified proof links.
   `autoApprove: false`, and the fail-closed verifier is exercised against a
   public third-party fill. No Market Dungeon wallet has signed an approval or
   order, and no Market Dungeon fill is being claimed.
-- **Release state: LOCAL CANDIDATE ONLY.** Production, DoraHacks, a v9 tag, and
-  the submission video have not been changed by these work blocks.
+- **Release state: UNRELEASED CANDIDATE ONLY.** The work branch is backed up on
+  GitHub, but production, DoraHacks, a v9 tag, and the submission video have not
+  been changed by these work blocks.
 
 Combined candidate checks after WB-01/WB-02: lint pass, 63/63 unit tests pass,
 7/7 Shannon spike tests pass, production build pass, and 7/7 Chromium tests
