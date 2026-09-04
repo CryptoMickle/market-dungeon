@@ -1,12 +1,7 @@
 import { expect, test, type APIRequestContext, type Locator } from '@playwright/test';
 
 import type { JudgeCombatAction } from '../../app/judge-combat';
-
-const VALID_ACTIONS: JudgeCombatAction[] = [
-  { room: 8, action: 'attack' },
-  { room: 9, action: 'attack' },
-  { room: 9, action: 'attack' },
-];
+import { validLiveJudgeActions } from '../judge-live-actions';
 
 async function expectLiveLink(link: Locator, pattern: RegExp) {
   const href = await link.getAttribute('href');
@@ -25,9 +20,10 @@ async function reveal(
 test('production start, anti-peek, combat validation, reveal, proof rendering, and links', async ({ page, request }) => {
   const started = await request.post('/api/judge-replay/start', { data: { direction: 'UP' } });
   expect(started.status()).toBe(200);
-  const startedBody = await started.json() as { replay: { seal: string; revealAfter: number } };
+  const startedBody = await started.json() as { replay: { seal: string; revealAfter: number; gameSeed: string } };
+  const validActions = validLiveJudgeActions(startedBody.replay.gameSeed);
 
-  const sealed = await reveal(request, startedBody.replay.seal, VALID_ACTIONS);
+  const sealed = await reveal(request, startedBody.replay.seal, validActions);
   expect(sealed.status()).toBe(425);
   const sealedBody = await sealed.json() as { retryAfter: number };
   const waitSeconds = Math.max(1, sealedBody.retryAfter ?? startedBody.replay.revealAfter - Math.floor(Date.now() / 1_000));
@@ -35,7 +31,7 @@ test('production start, anti-peek, combat validation, reveal, proof rendering, a
 
   const invalid = await reveal(request, startedBody.replay.seal, [{ room: 8, action: 'attack' }]);
   expect(invalid.status()).toBe(422);
-  const valid = await reveal(request, startedBody.replay.seal, VALID_ACTIONS);
+  const valid = await reveal(request, startedBody.replay.seal, validActions);
   expect(valid.status()).toBe(200);
   const validBody = await valid.json() as {
     replayProof: { verified: boolean };
