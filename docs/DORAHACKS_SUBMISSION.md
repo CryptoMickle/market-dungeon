@@ -87,8 +87,8 @@ The browser presents **Reveal Boss Fate** only after boss defeat, and the API in
 ## Links
 
 - Live demo: https://market-dungeon.vercel.app
-- Demo video (1:52): https://youtu.be/dOpVKgSWxWY
-- Immutable submission release: https://github.com/CryptoMickle/market-dungeon/releases/tag/hackathon-submission-2026-v7
+- Demo video (1:52): https://youtu.be/6IviQrMweZ4
+- Immutable submission release: https://github.com/CryptoMickle/market-dungeon/releases/tag/hackathon-submission-2026-v8
 - Source code: https://github.com/CryptoMickle/market-dungeon
 - Integration and SDK/docs feedback: https://github.com/CryptoMickle/market-dungeon/blob/main/docs/DREAMDEX_INTEGRATION_REPORT.md
 
