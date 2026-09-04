@@ -91,6 +91,24 @@ disclosures, a complete Judge proof flow, mobile terminal-result and verifier
 coverage, verifier acceptance plus tamper rejection, and zero-RPC rejection of
 tampered receipt, algorithm, ruleset, and final-HP data.
 
+### Recorded v9 candidate evidence
+
+| Evidence | Result |
+| --- | --- |
+| Candidate code commit | `c49c562e10fcdc4708599c1d5e5abfa6b95537b3` |
+| Local static checks | lint pass; TypeScript pass; clean diff check |
+| Unit and spike checks | 80/80 application tests; 7/7 read-only Shannon proof-kernel tests |
+| Deterministic browser regression | 18/18 Chromium tests; the two-test mobile proof/verifier chain additionally passed 10/10 consecutive repetitions (20 tests) |
+| Optimized build | pass; static `/`, `/judge`, `/verify`, and `/credits`; dynamic API routes |
+| Live stability window | 4 September 2026, 17:13–17:25 UTC; 11.5 minutes |
+| Live target | The exact optimized local production build of the candidate commit, using the real dreamDEX indexer/Markets SDK and public Somnia mainnet RPC |
+| Live result | 20/20 consecutive clean-browser Judge runs passed with `retries: 0` |
+| Live coverage per run | fresh sealed replay; `425` anti-peek; invalid-combat rejection; public Ed25519 key; signed and byte-identical start/reveal lock receipt; valid combat/reveal; server and browser Somnia proof; truthful 2/2 Judge result; `/verify`, explorer, contract, and dreamDEX link targets |
+
+These runs are release engineering evidence, not human pilot activity. They used
+the fixed `automation=1` marker and WebDriver, so the v2 analytics contract
+excludes them from pilot counts.
+
 ## Non-negotiable boundaries
 
 1. `/` and the mainnet Judge Demo remain wallet-free and read-only.
@@ -143,7 +161,7 @@ the successful read/build/verify spike remains feasibility evidence only.
 Feature freeze occurs no later than **48 hours before the DoraHacks deadline**.
 A candidate reaches freeze only when:
 
-- [ ] The original mainnet experience passes 20 consecutive clean-browser
+- [x] The original mainnet experience passes 20 consecutive clean-browser
       Judge runs.
 - **N/A — Shannon Arena is excluded from v9:** no wallet-to-fill run is claimed
       or required for this candidate.
