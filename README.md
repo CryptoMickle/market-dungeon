@@ -8,13 +8,13 @@ The current contest build is intentionally read-only. It reads live market metad
 
 **Play:** https://market-dungeon.vercel.app
 
-**V9 candidate proof verifier:** `/verify` (publish at the production URL only with the atomic v9 release)
+**V9 proof verifier:** https://market-dungeon.vercel.app/verify (available when Production serves v9)
 
-**Current public v8 demo (1:52):** https://youtu.be/6IviQrMweZ4
+**Baseline v8 demo (1:52):** https://youtu.be/6IviQrMweZ4
 
 **DoraHacks submission:** https://dorahacks.io/buidl/48083
 
-**Immutable submission release:** https://github.com/CryptoMickle/market-dungeon/releases/tag/hackathon-submission-2026-v8
+**Immutable v9 submission release:** https://github.com/CryptoMickle/market-dungeon/releases/tag/hackathon-submission-2026-v9 (created only after every applicable gate passes)
 
 **Integration and SDK/docs feedback:** [docs/DREAMDEX_INTEGRATION_REPORT.md](docs/DREAMDEX_INTEGRATION_REPORT.md)
 
@@ -188,15 +188,40 @@ Then open the local URL printed by the development server.
 
 ### Validation
 
+Install the pinned dependencies and Chromium once in a fresh clone, then run
+the complete local release gate:
+
 ```bash
-npm run lint
-npm test
+npm ci
 npx playwright install chromium
-npm run test:e2e
-npm run build
+npm run release:verify
 ```
 
-`npm run test:e2e` runs the complete Judge Demo client state machine in Chromium against deterministic, cryptographically consistent upstream fixtures. The separate read-only live-target smoke is available as `npm run test:smoke:live`; GitHub Actions also runs it against production every Monday and Thursday at 06:17 UTC and on manual dispatch. It verifies replay start, the `425` anti-peek boundary, rejection of incomplete combat, a valid reveal, the public receipt key, Ed25519 lock authentication, byte-identical start/reveal receipts, truthful 2/2 Judge progress, browser-rendered proof, and external explorer/dreamDEX links. It then downloads the exact new proof, imports those same bytes into standalone `/verify`, and requires visible `PASS` with matching receipt, market, block and live Somnia re-fetch checks.
+`release:verify` runs these gates in order: lint, explicit TypeScript checking,
+the application unit suite, the separate seven-test read-only Shannon proof
+kernel, the optimized webpack production build, and the complete deterministic
+Chromium suite. The equivalent individual commands are:
+
+```bash
+npm run lint
+npm run typecheck
+npm test
+npm run test:shannon
+npm run build -- --webpack
+npm run test:e2e
+```
+
+`npm run test:e2e` runs the complete Judge Demo client state machine in Chromium against deterministic, cryptographically consistent upstream fixtures. The separate read-only live-target smoke is available as `npm run test:smoke:live`; GitHub Actions also runs it against production every Monday and Thursday at 06:17 UTC. Manual dispatch accepts an exact Market Dungeon Vercel Preview or Production origin, then requires its public `/api/build` identity to match the exact workflow commit before testing it. This deployment check requires Vercel's system environment variables to be exposed so the server can read `VERCEL_GIT_COMMIT_SHA`.
+
+For the zero-retry release gate, run the complete proof round trip twenty
+consecutive times against the exact deployment under review:
+
+```bash
+LIVE_SMOKE_BASE_URL=https://market-dungeon.vercel.app npm run test:smoke:live -- --repeat-each=20 --workers=1 --retries=0
+```
+
+For Preview, replace only the value of `LIVE_SMOKE_BASE_URL` with the exact
+Preview deployment origin. The smoke verifies replay start, the `425` anti-peek boundary, rejection of incomplete combat, a valid reveal, the public receipt key, Ed25519 lock authentication, byte-identical start/reveal receipts, truthful 2/2 Judge progress, browser-rendered proof, and external explorer/dreamDEX links. It then downloads the exact new proof, imports those same bytes into standalone `/verify`, and requires visible `PASS` with matching receipt, market, block and live Somnia re-fetch checks.
 
 ## Project structure
 
@@ -263,7 +288,7 @@ docs/
 - Implementation-specific dreamDEX integration report: complete
 - Desktop and 390 px mobile judge-flow QA: complete
 - Four-tier dual-condition progression: complete
-- Current public v8 demo video (1:52): complete; synchronized 2–3 minute v9 presentation video: pending release gate
+- Baseline v8 demo video (1:52): complete; the synchronized 2–3 minute v9 Production video, caption QA, and final URL are recorded as external immutable-release evidence after their release gates pass
 - Wallet writes: intentionally disabled
 
 ## License

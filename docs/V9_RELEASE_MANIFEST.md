@@ -1,6 +1,6 @@
 # Market Dungeon v9 — atomic release manifest
 
-Status: **UNRELEASED — do not publish these placeholders**
+Status: **UNRELEASED — do not publish before every applicable gate passes**
 
 This is the single release checklist for the v9 competition candidate. The
 immutable v8 release remains the public rollback target until every applicable
@@ -8,23 +8,37 @@ item below is complete.
 
 ## Frozen identity
 
-- Final release commit: `TO_BE_SET_AFTER_THE_LAST_CONTENT_COMMIT`
+- Frozen source identity: the immutable tag below must resolve to the exact
+  release commit. The commit SHA is deliberately not embedded in this tracked
+  file because doing so would create a new, different commit.
 - Immutable tag: `hackathon-submission-2026-v9`
 - Immutable release URL:
   `https://github.com/CryptoMickle/market-dungeon/releases/tag/hackathon-submission-2026-v9`
 - Rollback commit: `17d5714f328031c319fdd59777c841e432708806`
 - Rollback tag: `hackathon-submission-2026-v8`
-- Preview deployment: `TO_BE_RECORDED`
-- Production deployment: `TO_BE_RECORDED`
-- Production public receipt key ID / SHA-256 fingerprint: `TO_BE_RECORDED`
-- Final live-test UTC window and result: `TO_BE_RECORDED`
-- Final proof SHA-256: `TO_BE_RECORDED`
-- Final video SHA-256: `TO_BE_RECORDED`
-- Final YouTube URL: `TO_BE_RECORDED`
 
-Never move or reuse a published tag. Replace the commit placeholder only after
-all source and public-copy changes are committed, then make every public
-surface reference that same commit and tag.
+Never move or reuse a published tag. Finish all tracked source and tracked
+public-copy templates before freezing the commit. Deployment-derived evidence
+and external surfaces may then reference that exact tag and release without
+changing the tagged tree.
+
+### Non-video post-release evidence
+
+Do not commit deployment-derived metadata back into the frozen source tree.
+Record the following in the GitHub release notes or in a separately attached,
+checksummed post-release evidence artifact:
+
+- the tag target's full commit SHA;
+- the exact Preview and Production deployment origins;
+- the Production public receipt key ID / SHA-256 fingerprint;
+- the final live-test UTC window, target, repeat count, retry count, and result;
+  and
+- the exact exported Production proof SHA-256; and
+- when video work resumes, the final video SHA-256, YouTube URL, and caption-QA
+  result.
+
+This preserves one immutable source identity while allowing evidence produced
+after Preview and Production deployment to name that identity exactly.
 
 ## Latest local pre-freeze checkpoint
 
@@ -44,6 +58,8 @@ submission synchronization.
 
 ## Deployment prerequisites
 
+- [ ] Vercel's system environment variables are exposed so the server-only
+      `/api/build` route can report `VERCEL_GIT_COMMIT_SHA`.
 - [ ] Preview has a unique, valid `JUDGE_REPLAY_SEAL_KEY` containing exactly
       64 hexadecimal characters.
 - [ ] Production has its own valid 64-hex key, stored only in the deployment
@@ -52,7 +68,8 @@ submission synchronization.
       previously issued v9 receipts `NOT PROVABLE` unless the old public key is
       retained.
 - [ ] Preview serves the frozen commit and
-      `/api/judge-replay/public-key` returns `200`, the expected Ed25519
+      `/api/build` reports that exact full commit SHA before the live workflow
+      runs. `/api/judge-replay/public-key` returns `200`, the expected Ed25519
       algorithm, and `private, no-store` caching.
 - [ ] The complete Preview Judge flow exports its own proof and the standalone
       Preview `/verify` page loads that exact local file and ends at `PASS`.
@@ -79,15 +96,25 @@ must stay excluded from human pilot totals.
 ## Freeze and immutable release
 
 - [ ] Freeze one exact release commit after the final content changes.
-- [ ] Record all applicable Preview checks against that commit.
+- [ ] Record the functional Preview checks against that commit. Before the tag
+      exists, do not count its versioned GitHub disclosure links as passing.
 - [ ] Create the immutable `hackathon-submission-2026-v9` tag and GitHub
       release at the frozen commit. Never move or reuse the tag.
+- [ ] Verify the tag target independently, then record its full SHA and the
+      Preview evidence in the GitHub release notes or attached post-release
+      evidence artifact without committing it back into the tagged tree.
+- [ ] Re-check the deployed Preview's v9-tagged disclosure and integration-report
+      links after the immutable tag exists, before promoting the same commit to
+      Production.
 
 ## Production evidence and presentation
 
 - [ ] Deploy the exact frozen commit to Production.
 - [ ] Re-run the complete live Judge → exported proof → standalone verifier
       flow against Production.
+- [ ] Append the exact Production origin, stable receipt-key fingerprint,
+      live-test UTC window/result, and exported-proof SHA-256 to the same
+      post-release evidence record.
 - [ ] Record the final uninterrupted Production run. Its proof must be signed
       by the stable Production key; a local test-key proof is not a public
       production-verifiable artifact.
@@ -100,8 +127,10 @@ must stay excluded from human pilot totals.
 
 ## Atomic public update
 
-- [ ] Update README and the DoraHacks copy to the v9 release, `/judge`,
-      `/verify`, and final video.
+- [ ] Confirm the tagged README and tracked DoraHacks template already need no
+      source changes; never patch the tagged tree with deployment evidence.
+- [ ] Update the external DoraHacks page to the v9 release, `/judge`, `/verify`,
+      and final video.
 - [ ] Replace every placeholder in the YouTube description with the exact v9
       release URL and frozen commit.
 - [ ] Publish the final YouTube video and update both DoraHacks video fields.

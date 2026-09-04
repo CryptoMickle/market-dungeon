@@ -26,3 +26,17 @@ test('GitHub workflows use least privilege and immutable external action referen
 
   assert.ok(externalActions > 0, 'expected at least one external action reference');
 });
+
+test('manual live smoke binds a Market Dungeon deployment to the workflow commit', () => {
+  const workflow = readFileSync(new URL('live-smoke.yml', workflowsDirectory), 'utf8');
+
+  assert.match(workflow, /EXPECTED_COMMIT: \$\{\{ github\.sha \}\}/);
+  assert.match(workflow, /node --experimental-strip-types scripts\/validate-live-target\.ts/);
+
+  const validator = readFileSync(new URL('../scripts/validate-live-target.ts', import.meta.url), 'utf8');
+  assert.match(validator, /new URL\('\/api\/build', origin\)/);
+  assert.match(validator, /market-dungeon\/build-identity\/v1/);
+  assert.match(validator, /host\.startsWith\('market-dungeon-'\)/);
+  assert.match(validator, /identity\.commit !== expectedCommit\.toLowerCase\(\)/);
+  assert.match(validator, /url\.port/);
+});

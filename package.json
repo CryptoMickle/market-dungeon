@@ -10,9 +10,12 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next",
+    "typecheck": "tsc --noEmit",
     "test": "node --experimental-strip-types --test tests/*.test.ts",
+    "test:shannon": "node --test tests/shannon-spike/proof-kernel.test.mjs",
     "test:e2e": "playwright test",
-    "test:smoke:live": "playwright test --config=playwright.live.config.ts"
+    "test:smoke:live": "playwright test --config=playwright.live.config.ts",
+    "release:verify": "npm run lint && npm run typecheck && npm test && npm run test:shannon && npm run build -- --webpack && npm run test:e2e"
   },
   "dependencies": {
     "@somnia-chain/markets-sdk": "0.29.0",
