@@ -52,6 +52,104 @@ async function expectOptimizedImageLoaded(image: Locator) {
   ))).toBe(true);
 }
 
+test('homepage makes the short Judge Demo the primary first-screen action', async ({ page }) => {
+  const expirySeconds = Math.floor(Date.now() / 1_000) + 300;
+  const activeMarket = {
+    ...market,
+    expiry: String(expirySeconds),
+    expiryIso: new Date(expirySeconds * 1_000).toISOString(),
+    status: 'Active',
+    finalized: false,
+    winningOutcome: undefined,
+  };
+  await page.route('**/api/market**', async (route) => {
+    await route.fulfill({ json: { market: activeMarket, odds: null } });
+  });
+
+  await page.goto('/');
+  const judgeEntry = page.getByRole('region', { name: 'Judge-first entry' });
+  await expect(judgeEntry).toBeVisible();
+  const judgeButton = page.getByRole('button', { name: /START 2-MIN JUDGE DEMO/ });
+  await expect(judgeButton).toBeVisible();
+  await expect(judgeButton).toHaveClass(/judge-entry-primary/);
+  await expect(page.getByRole('link', { name: /PLAY THE FULL FOUR-TIER EXPEDITION/ })).toHaveAttribute('href', '#full-expedition');
+
+  const fullRunButton = page.getByRole('button', { name: /BEGIN FULL EXPEDITION/ });
+  await expect(fullRunButton).toBeEnabled();
+  await expect(fullRunButton).toHaveClass(/full-run-action/);
+  expect(await judgeButton.evaluate((element) => element.getBoundingClientRect().bottom <= window.innerHeight)).toBe(true);
+  expect(await page.evaluate(() => window.scrollY)).toBe(0);
+});
+
+test('homepage and /judge prerender their primary Judge actions before client hydration', async ({ request }) => {
+  const homepageResponse = await request.get('/');
+  expect(homepageResponse.ok()).toBe(true);
+  const homepageHtml = await homepageResponse.text();
+  expect(homepageHtml).toContain('JUDGES · START HERE');
+  expect(homepageHtml).toContain('START 2-MIN JUDGE DEMO · VERIFIED RUN');
+  expect(homepageHtml).not.toContain('PREPARING MARKET DUNGEON');
+
+  const judgeResponse = await request.get('/judge');
+  expect(judgeResponse.ok()).toBe(true);
+  const judgeHtml = await judgeResponse.text();
+  expect(judgeHtml).toContain('LOCK OMEN &amp; SEAL REPLAY');
+  expect(judgeHtml).not.toContain('PREPARING MARKET DUNGEON');
+});
+
+test('mobile Full Expedition can select and lock BTC DOWN', async ({ page }) => {
+  const expirySeconds = Math.floor(Date.now() / 1_000) + 300;
+  const activeMarket = {
+    ...market,
+    expiry: String(expirySeconds),
+    expiryIso: new Date(expirySeconds * 1_000).toISOString(),
+    status: 'Active',
+    finalized: false,
+    winningOutcome: undefined,
+  };
+  await page.route('**/api/market**', async (route) => {
+    await route.fulfill({ json: { market: activeMarket, odds: null } });
+  });
+  await page.setViewportSize({ width: 390, height: 844 });
+
+  await page.goto('/');
+  const fullRunChoices = page.locator('.setup-intro .prediction-buttons');
+  const up = fullRunChoices.getByRole('button', { name: /GOLD AWAKENS/ });
+  const down = fullRunChoices.getByRole('button', { name: /SHADOWS RISE/ });
+  await expect(down).toBeVisible();
+  await expect(up).toHaveAttribute('aria-pressed', 'true');
+  await expect(down).toHaveAttribute('aria-pressed', 'false');
+
+  await down.click();
+  await expect(up).toHaveAttribute('aria-pressed', 'false');
+  await expect(down).toHaveAttribute('aria-pressed', 'true');
+  const begin = page.getByRole('button', { name: /BEGIN FULL EXPEDITION.*SHADOWS RISE/ });
+  await expect(begin).toBeEnabled();
+  await begin.click();
+  await expect(page.getByLabel('Expedition status')).toContainText('T1 · R1');
+});
+
+test('direct /judge entry lands on actionable Judge Setup without scrolling', async ({ page }) => {
+  await installDeterministicUpstreams(page);
+  await page.setViewportSize({ width: 390, height: 844 });
+
+  await page.goto('/judge');
+  await expect(page).toHaveURL(/\/judge$/);
+  await expect(page.getByRole('heading', { name: 'Lock your omen before the replay is drawn.' })).toBeVisible();
+  await expect(page.getByRole('region', { name: 'Judge Demo progress' })).toBeVisible();
+  await expect(page.getByRole('region', { name: 'Plain-language proof summary' })).toContainText('Choice first.');
+  await expect(page.getByRole('region', { name: 'Plain-language proof summary' })).toContainText('No replacement.');
+  await expect(page.getByRole('region', { name: 'Plain-language proof summary' })).toContainText('Independent result.');
+
+  const lockButton = page.getByRole('button', { name: 'LOCK OMEN & SEAL REPLAY' });
+  await expect(page.getByRole('button', { name: /GOLD AWAKENS/ })).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByRole('button', { name: /SHADOWS RISE/ })).toHaveAttribute('aria-pressed', 'false');
+  await expect(lockButton).toBeVisible();
+  expect(await lockButton.evaluate((element) => element.getBoundingClientRect().bottom <= window.innerHeight)).toBe(true);
+  expect(await page.evaluate(() => window.scrollY)).toBe(0);
+  await lockButton.click();
+  await expect(page.getByLabel('Judge Demo progress').locator('span').filter({ hasText: 'DEFEAT GUARD' })).toHaveClass(/active/);
+});
+
 test('full-run setup fetches the next market at the exact five-minute rollover', async ({ page }) => {
   const rolloverSeconds = Math.floor(Date.now() / 1_000) + 3;
   const expiringMarket = {
@@ -85,7 +183,7 @@ test('full-run setup fetches the next market at the exact five-minute rollover',
   expect(marketRequestTimes.some((time) => (
     time >= rolloverSeconds * 1_000 && time < rolloverSeconds * 1_000 + 1_000
   ))).toBe(true);
-  await expect(page.getByRole('button', { name: /BEGIN TIER 1/ })).toBeEnabled();
+  await expect(page.getByRole('button', { name: /BEGIN FULL EXPEDITION/ })).toBeEnabled();
 });
 
 test('privacy, asset provenance, AI disclosure, and music credits are reachable from the game', async ({ page }) => {
@@ -136,6 +234,10 @@ test('Judge Demo completes in Chromium and renders independently verified proof 
   await reveal.click();
 
   await expect(page.getByText('JUDGE DEMO COMPLETE · ONCHAIN RESULT VERIFIED · BLESSED')).toBeVisible();
+  const plainProof = page.getByRole('region', { name: 'Plain-language proof summary' });
+  await expect(plainProof).toContainText('was locked before market selection');
+  await expect(plainProof).toContainText('could not be replaced');
+  await expect(plainProof).toContainText('independently reproduced the onchain result');
   await expect(page.getByText('✓ COMBAT + COMMITMENT + INDEPENDENT RPC VERIFIED')).toBeVisible();
   await expect(page.getByText('✓ BROWSER REFETCHED + ABI-DECODED SOMNIA STATE')).toBeVisible();
   await expect(page.getByText('BROWSER RPC REFETCH + ABI + DIGESTS VERIFIED')).toBeVisible();

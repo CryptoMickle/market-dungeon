@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
-const page = readFileSync(new URL('../app/page.tsx', import.meta.url), 'utf8');
+const page = readFileSync(new URL('../app/market-dungeon.tsx', import.meta.url), 'utf8');
 const credits = readFileSync(new URL('../app/credits/page.tsx', import.meta.url), 'utf8');
 const disclosure = readFileSync(new URL('../docs/PROVENANCE_AND_PRIVACY.md', import.meta.url), 'utf8');
 
