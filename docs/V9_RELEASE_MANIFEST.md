@@ -26,6 +26,22 @@ Never move or reuse a published tag. Replace the commit placeholder only after
 all source and public-copy changes are committed, then make every public
 surface reference that same commit and tag.
 
+## Latest local pre-freeze checkpoint
+
+- Implemented-code checkpoint:
+  `378129db0f76fc65d1013670de29cf7017afb6d5`
+- Local checks: lint pass; TypeScript pass; 80/80 unit tests; 7/7 Shannon
+  proof-kernel tests; optimized webpack production build pass.
+- Deterministic Chromium checks: 20/20 pass, including complete raw RPC-result
+  visibility and no terminal-action overlap at 1280×720.
+- Most recent complete real-upstream proof round trip: 20/20 with zero retries
+  on superseded checkpoint `9705c23aff77128603f135c0480bd9912dad81d6`,
+  4 September 2026 18:34:19–18:47:06 UTC.
+
+These results are pre-freeze evidence only. They do not check any box below for
+the final release commit, Preview, Production, video, captions, or public
+submission synchronization.
+
 ## Deployment prerequisites
 
 - [ ] Preview has a unique, valid `JUDGE_REPLAY_SEAL_KEY` containing exactly

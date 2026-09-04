@@ -81,13 +81,17 @@ verified proof links.
   production, DoraHacks, a v9 tag, and the submission video have not been
   released by these work blocks.
 
-Current implemented-code checkpoint `542cc4700097fb1fd9af03f22074c7815a7ccd3e`
-passes lint, TypeScript, 80/80 unit tests, 7/7 Shannon spike tests, the optimized
-production build with static `/judge` and `/verify`, and 19/19 Chromium tests.
-This is not yet the frozen release commit. The browser suite includes
-prerendered `/judge`, the visible pre-reveal receipt evidence row, the identifier-free
-challenge entry, mobile first-screen actionability, strict start-response
-validation, temporary-RPC retry preservation, the full-run DOWN path, rollover,
+Current implemented-code checkpoint `378129db0f76fc65d1013670de29cf7017afb6d5`
+passes lint, TypeScript, 80/80 unit tests, 7/7 Shannon spike tests, and the
+optimized production build with static `/judge` and `/verify`. Its focused
+Judge plus mobile browser suite passes 18/18 tests, including the visible
+pre-reveal receipt evidence row and both complete raw `eth_call` results at
+1280×720 without terminal-action overlap. The complete deterministic Chromium
+suite also passes 20/20 tests. This is not yet the frozen release commit, and
+the final 20-run live gate is not inferred from deterministic fixtures. The
+browser coverage includes prerendered `/judge`, the identifier-free challenge
+entry, mobile first-screen actionability, strict start-response validation,
+temporary-RPC retry preservation, the full-run DOWN path, rollover,
 disclosures, a complete Judge proof flow, mobile terminal-result and verifier
 coverage, verifier acceptance plus tamper rejection, and zero-RPC rejection of
 tampered receipt, algorithm, ruleset, and final-HP data.
@@ -115,8 +119,17 @@ At commit `8cdf2918079da64832495bd8080117b376ddab5a`, the live smoke was
 upgraded to download the exact new proof, import the same bytes into standalone
 `/verify`, and require its visible `PASS` plus receipt, market, block and
 Somnia re-fetch checks. That checkpoint passed 20/20 real-upstream runs with
-zero retries. Commit `542cc47` then added the visible pre-reveal receipt row, so
-the 20-run gate must be repeated on the eventual frozen release commit before
+zero retries.
+
+The same complete proof-round-trip gate was repeated against
+`9705c23aff77128603f135c0480bd9912dad81d6` from 4 September 2026
+18:34:19–18:47:06 UTC. All 20/20 real-upstream runs passed with zero retries.
+Each run downloaded its newly generated proof, loaded those exact bytes into
+the standalone verifier, required visible `PASS`, and checked the receipt,
+market, block and Somnia re-fetch results. Commit `378129d` then changed the
+terminal evidence presentation and added exact raw-result rows, so this remains
+a superseded pre-freeze checkpoint rather than the final-SHA release gate. The
+20-run gate must still be repeated on the eventual frozen release commit before
 it can be checked below.
 
 ## Non-negotiable boundaries
