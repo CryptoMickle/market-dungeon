@@ -1,3 +1,5 @@
+import { readFile } from 'node:fs/promises';
+
 import { expect, test, type APIRequestContext, type Locator } from '@playwright/test';
 
 import type { JudgeCombatAction } from '../../app/judge-combat';
@@ -26,7 +28,11 @@ async function reveal(
   return request.post('/api/judge-replay/reveal', { data: { seal, actions } });
 }
 
-test('live target start, anti-peek, combat validation, reveal, proof rendering, and links', async ({ page, request }) => {
+test('live target start, anti-peek, combat validation, reveal, proof export, and verifier round-trip', async ({ page, request }) => {
+  // Keep scheduled/live WebDriver evidence out of both the Judge pilot funnel
+  // and ordinary Vercel pageview counts.
+  await page.route('**/_vercel/insights/**', async (route) => route.abort());
+
   const started = await request.post('/api/judge-replay/start', { data: { direction: 'UP' } });
   expect(started.status()).toBe(200);
   const startedBody = await started.json() as {
@@ -112,4 +118,66 @@ test('live target start, anti-peek, combat validation, reveal, proof rendering, 
     await expect(link).toHaveAttribute('target', '_blank');
   }
   await expectLiveLink(page.getByRole('link', { name: /continue on dreamdex/i }), /^https:\/\/app\.dreamdex\.io\/event-contracts\/WBTC:USDso\/(?:5m|15m)$/);
+
+  const [proofDownload] = await Promise.all([
+    page.waitForEvent('download'),
+    page.getByRole('button', { name: '1 · DOWNLOAD PROOF JSON' }).click(),
+  ]);
+  const proofPath = await proofDownload.path();
+  expect(proofPath).not.toBeNull();
+  const proofBytes = await readFile(proofPath!);
+  const proofText = proofBytes.toString('utf8');
+  const exportedProof = JSON.parse(proofText) as {
+    schema: string;
+    summary: {
+      market: string;
+      result: 'BLESSED' | 'CURSED' | 'VOID';
+      lockedDirection: 'UP' | 'DOWN';
+      winningOutcome: 'UP' | 'DOWN';
+      marketId: string;
+    };
+    replayProof: { marketId: string };
+    onchainProof: { blockNumber: string; blockHash: string };
+  };
+  expect(exportedProof).toMatchObject({
+    schema: 'market-dungeon/verified-judge-run/v2',
+    summary: { lockedDirection: 'UP' },
+  });
+  expect(exportedProof.summary.marketId).toBe(exportedProof.replayProof.marketId);
+  expect(proofDownload.suggestedFilename()).toBe(
+    `market-dungeon-proof-${exportedProof.summary.marketId.slice(-8).toLowerCase()}.json`,
+  );
+
+  await page.goto('/verify?automation=1');
+  expect(new URL(page.url()).searchParams.get('automation')).toBe('1');
+  await expect(page.getByLabel('Verification privacy and safety')).toContainText('proof file is not uploaded');
+  const fileInput = page.locator('input[type="file"]');
+  await expect(fileInput).toBeEnabled();
+  await fileInput.setInputFiles({
+    name: proofDownload.suggestedFilename(),
+    mimeType: 'application/json',
+    buffer: proofBytes,
+  });
+  await expect(page.getByLabel('OR PASTE PROOF JSON')).toHaveValue(proofText);
+  const verifyButton = page.getByRole('button', { name: 'VERIFY PROOF' });
+  await expect(verifyButton).toBeEnabled();
+  await verifyButton.click();
+
+  const verifierResult = page.getByRole('region', { name: 'Proof verification result' });
+  await expect(verifierResult.locator('strong').first()).toHaveText('PASS', { timeout: 30_000 });
+  await expect(verifierResult.getByText(exportedProof.summary.result, { exact: true })).toBeVisible();
+  await expect(verifierResult.getByText(
+    `BTC ${exportedProof.summary.lockedDirection} → BTC ${exportedProof.summary.winningOutcome}`,
+    { exact: true },
+  )).toBeVisible();
+  await expect(verifierResult.getByText(exportedProof.summary.market, { exact: true })).toBeVisible();
+  await expect(verifierResult.locator('article').filter({ hasText: 'Server lock receipt' })).toContainText('PASS');
+  await expect(verifierResult.locator('article').filter({ hasText: 'Live Somnia re-fetch' })).toContainText('PASS');
+
+  const technicalReferences = verifierResult.locator('details');
+  await expect(technicalReferences).not.toHaveAttribute('open', '');
+  await technicalReferences.locator('summary').click();
+  await expect(technicalReferences).toContainText(exportedProof.summary.marketId);
+  await expect(technicalReferences).toContainText(`BLOCK #${exportedProof.onchainProof.blockNumber}`);
+  await expect(technicalReferences).toContainText(exportedProof.onchainProof.blockHash);
 });
