@@ -150,5 +150,29 @@ test('Judge Demo completes in Chromium and renders independently verified proof 
   const dreamDexLink = page.getByRole('link', { name: /continue on dreamdex/i });
   await expect(dreamDexLink).toHaveAttribute('href', 'https://app.dreamdex.io/event-contracts/WBTC:USDso/5m');
   await expect(dreamDexLink).toHaveAttribute('target', '_blank');
+
+  await page.evaluate(() => {
+    Object.defineProperty(navigator, 'share', {
+      configurable: true,
+      value: async () => { throw new DOMException('Native sharing unavailable', 'NotAllowedError'); },
+    });
+    Object.defineProperty(navigator, 'canShare', {
+      configurable: true,
+      value: () => false,
+    });
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: {
+        writeText: async (value: string) => { Reflect.set(globalThis, '__marketDungeonCopiedProof', value); },
+      },
+    });
+  });
+  await page.getByRole('button', { name: '↗ SHARE RUN + PROOF' }).click();
+  await expect(page.getByText('SHARE UNAVAILABLE · PROOF JSON COPIED')).toBeVisible();
+  const copiedProof = await page.evaluate(() => Reflect.get(globalThis, '__marketDungeonCopiedProof'));
+  expect(JSON.parse(copiedProof as string)).toMatchObject({
+    schema: 'market-dungeon/verified-judge-run/v1',
+    summary: { result: 'BLESSED', lockedDirection: 'UP', winningOutcome: 'UP' },
+  });
   expect(runtimeErrors).toEqual([]);
 });
