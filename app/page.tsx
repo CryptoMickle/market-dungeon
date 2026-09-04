@@ -984,20 +984,24 @@ export default function Home() {
     const filename = verifiedRunProofFilename(proofInput.replayProof.marketId);
     const proofFile = new File([json], filename, { type: 'application/json' });
 
-    try {
-      if (preferShare && typeof navigator.share === 'function') {
+    if (preferShare && typeof navigator.share === 'function') {
+      try {
         const shareData: ShareData = { title: 'Market Dungeon — verified Judge run', text };
         const canShareFile = typeof navigator.canShare === 'function' && navigator.canShare({ files: [proofFile] });
         if (canShareFile) shareData.files = [proofFile];
         await navigator.share(shareData);
         setShareStatus(canShareFile ? 'VERIFIED RUN + PROOF JSON SHARED' : 'RUN SHARED · DOWNLOAD JSON FOR PORTABLE PROOF');
-      } else {
-        await navigator.clipboard.writeText(json);
-        setShareStatus('PORTABLE PROOF JSON COPIED');
+        return;
+      } catch (error) {
+        if (error instanceof DOMException && error.name === 'AbortError') return;
       }
-    } catch (error) {
-      if (error instanceof DOMException && error.name === 'AbortError') return;
-      setShareStatus('SHARE FAILED · COPY THE PROOF BELOW');
+    }
+
+    try {
+      await navigator.clipboard.writeText(json);
+      setShareStatus(preferShare ? 'SHARE UNAVAILABLE · PROOF JSON COPIED' : 'PORTABLE PROOF JSON COPIED');
+    } catch {
+      setShareStatus(preferShare ? 'SHARE FAILED · USE DOWNLOAD PROOF JSON' : 'COPY FAILED · USE DOWNLOAD PROOF JSON');
     }
   }
 
