@@ -2,7 +2,8 @@ import { pageview } from '@vercel/analytics';
 
 import { eventContractIntervalLabel } from './event-contract-interval.ts';
 
-export type JudgeDemoResult = 'blessed' | 'cursed' | 'void';
+export type JudgeDemoResult = 'blessed' | 'cursed';
+export type MarketSettlementResult = JudgeDemoResult | 'void';
 export type MarketDungeonMode = 'judge_demo' | 'full_run';
 export type JudgeEntrySource = 'home' | 'direct' | 'challenge';
 export type JudgeDurationBucket = 'under-60s' | '60-119s' | '120-179s' | '180s-plus' | 'unknown';
@@ -74,7 +75,7 @@ export function judgeDemoVerificationNotProvableEvent(
 export function dreamDexCtaClickedEvent(
   mode: MarketDungeonMode,
   direction: 'UP' | 'DOWN',
-  result: JudgeDemoResult,
+  result: MarketSettlementResult,
   intervalSec: unknown,
 ): AnalyticsPageview {
   return {

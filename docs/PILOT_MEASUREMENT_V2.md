@@ -56,7 +56,9 @@ Allowed values are:
 
 - `interval`: `5m` or `15m`;
 - `duration`: `under-60s`, `60-119s`, `120-179s`, `180s-plus`, or `unknown`;
-- `result`: `blessed`, `cursed`, or `void`;
+- Judge `verified` result: `blessed` or `cursed`; the Judge replay pool is
+  explicitly non-void. Full-run `dreamdex/continue` results may additionally be
+  `void`;
 - `direction`: `up` or `down`;
 - `mode`: `judge-demo` or `full-run`;
 - terminal `fail` reason: `server-rejected` or `browser-mismatch`;
@@ -84,8 +86,11 @@ The following rules are mandatory:
 3. Reveal retries share one `reveal-attempted` event.
 4. Each run emits at most one terminal classification: `verified`, `fail`, or
    `not-provable`.
-5. `blessed`, `cursed`, and `void` are all successful proof completions when
+5. `blessed` and `cursed` are successful Judge proof completions when
    verification passes. Winning the prediction is not required for `PASS`.
+   Judge Replay excludes voided markets, while the separate full-run settlement
+   path continues to support voids without exporting a `verified-judge-run/v2`
+   artifact.
 6. A reset clears the previous in-memory event flags. It must not retroactively
    emit an event for an abandoned run.
 7. Analytics errors must never interrupt gameplay, proof verification, or

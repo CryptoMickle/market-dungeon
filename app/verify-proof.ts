@@ -20,6 +20,10 @@ import {
   type ReplayLockPublicKey,
   type ReplayProof,
 } from './replay-proof.ts';
+import {
+  isPortableVerifiedRunSettlement,
+  type PortableVerifiedRunSettlementProof,
+} from './share-verified-run.ts';
 
 export const VERIFIED_PROOF_SCHEMA = 'market-dungeon/verified-judge-run/v2';
 export const VERIFIED_PROOF_MAX_BYTES = 128 * 1024;
@@ -38,9 +42,9 @@ export type ProofVerificationCheck = {
 
 export type VerifiedProofSummary = {
   market: string;
-  result: 'BLESSED' | 'CURSED' | 'VOID';
+  result: 'BLESSED' | 'CURSED';
   lockedDirection: 'UP' | 'DOWN';
-  winningOutcome: 'UP' | 'DOWN' | 'VOID';
+  winningOutcome: 'UP' | 'DOWN';
   marketId: string;
   blockNumber: string;
   blockHash: string;
@@ -58,7 +62,7 @@ type PortableProofArtifact = {
   app: typeof VERIFIED_PROOF_APP;
   summary: {
     market: string;
-    result: 'BLESSED' | 'CURSED' | 'VOID';
+    result: 'BLESSED' | 'CURSED';
     lockedDirection: 'UP' | 'DOWN';
     winningOutcome: 'UP' | 'DOWN';
     marketId: string;
@@ -70,7 +74,7 @@ type PortableProofArtifact = {
     actions: JudgeCombatAction[];
     canonicalTranscript: string;
   };
-  onchainProof: DirectOnchainSettlementProof;
+  onchainProof: PortableVerifiedRunSettlementProof;
   independentRpcVerification: Record<string, unknown>;
   explorer: Record<string, unknown>;
   verificationSteps: string[];
@@ -128,7 +132,7 @@ const VERIFICATION_STEPS = [
   'Run the four independentRpcVerification requests against the listed RPC.',
   'Require the returned chain, block hash, module result, and settlement result to match exactly.',
   'Require both eth_call requests to use the recorded EIP-1898 blockHash with requireCanonical=true.',
-  'ABI-decode both results and compare market, pool, collateral, token IDs, nonce, payout, and finalized/void state with onchainProof.',
+  'ABI-decode both results and compare market, pool, collateral, token IDs, nonce, payout, and finalized non-void state with onchainProof.',
 ];
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -278,8 +282,7 @@ function expectedExplorer(proof: DirectOnchainSettlementProof) {
   };
 }
 
-function expectedResult(replayProof: ReplayProof, onchainProof: DirectOnchainSettlementProof) {
-  if (onchainProof.voided) return 'VOID' as const;
+function expectedResult(replayProof: ReplayProof, onchainProof: PortableVerifiedRunSettlementProof) {
   return replayProof.lockedDirection === (onchainProof.winningOutcome === 0 ? 'UP' : 'DOWN')
     ? 'BLESSED' as const
     : 'CURSED' as const;
@@ -307,10 +310,14 @@ export function parseVerifiedProofArtifact(text: string): ProofParseResult {
 
   const replayProof = parseReplayProof(value.replayProof);
   const combat = parseCombat(value.combat);
-  const onchainProof = parseOnchainProof(value.onchainProof);
-  if (!replayProof || !combat || !onchainProof) {
+  const parsedOnchainProof = parseOnchainProof(value.onchainProof);
+  if (!replayProof || !combat || !parsedOnchainProof) {
     return { ok: false, error: 'The proof structure is incomplete or contains invalid fields.' };
   }
+  if (!isPortableVerifiedRunSettlement(parsedOnchainProof)) {
+    return { ok: false, error: 'Portable Judge proofs require a finalized non-void settlement with a binary outcome.' };
+  }
+  const onchainProof = parsedOnchainProof;
 
   if (!isReplayLockAttestation(value.lockAttestation)
     || !replayLockAttestationMatchesProof(value.lockAttestation, replayProof)) {
@@ -508,9 +515,7 @@ export async function verifyProofArtifact(
       market: artifact.summary.market,
       result: artifact.summary.result,
       lockedDirection: artifact.summary.lockedDirection,
-      winningOutcome: artifact.onchainProof.voided
-        ? 'VOID'
-        : artifact.onchainProof.winningOutcome === 0 ? 'UP' : 'DOWN',
+      winningOutcome: artifact.onchainProof.winningOutcome === 0 ? 'UP' : 'DOWN',
       marketId: artifact.replayProof.marketId,
       blockNumber: artifact.onchainProof.blockNumber,
       blockHash: artifact.onchainProof.blockHash,

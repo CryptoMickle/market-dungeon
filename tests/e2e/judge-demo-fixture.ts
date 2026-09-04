@@ -11,13 +11,13 @@ import {
   BINARY_SETTLEMENT_ABI,
   DREAMDEX_SETTLEMENT_CONTRACTS,
   MODULE_MARKETS_ABI,
-  type DirectOnchainSettlementProof,
 } from '../../app/onchain-settlement-proof';
 import {
   canonicalReplayProof,
   REPLAY_MARKET_QUESTION,
   type ReplayCommitmentPayload,
 } from '../../app/replay-proof';
+import type { PortableVerifiedRunSettlementProof } from '../../app/share-verified-run';
 
 export const MARKET_ID = `0x${'12'.repeat(32)}`;
 export const MARKET_ADDRESS = `0x${'34'.repeat(20)}`;
@@ -120,7 +120,7 @@ const settlementResult = encodeFunctionResult({
   ] as never,
 });
 
-export const onchainSettlement: DirectOnchainSettlementProof = {
+export const onchainSettlement: PortableVerifiedRunSettlementProof = {
   verified: true,
   source: 'SOMNIA_RPC_ETH_CALL',
   chainId: 5031,

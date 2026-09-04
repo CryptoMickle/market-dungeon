@@ -64,6 +64,7 @@ test('verification outcomes use a closed PASS, FAIL, and NOT PROVABLE taxonomy',
 
 test('dreamDEX v2 analytics distinguishes judge and full runs without identifiers', () => {
   const event = dreamDexCtaClickedEvent('judge_demo', 'UP', 'cursed', 300);
+  const voidedFullRun = dreamDexCtaClickedEvent('full_run', 'DOWN', 'void', 900);
 
   assert.deepEqual(event, {
     path: '/funnel/v2/dreamdex/continue/5m/judge-demo/cursed/up',
@@ -71,6 +72,9 @@ test('dreamDEX v2 analytics distinguishes judge and full runs without identifier
   assert.equal(event.path.includes('market'), false);
   assert.equal(event.path.includes('commitment'), false);
   assert.equal(event.path.includes('wallet'), false);
+  assert.deepEqual(voidedFullRun, {
+    path: '/funnel/v2/dreamdex/continue/15m/full-run/void/down',
+  });
 });
 
 test('share and challenge v2 analytics measures actions without claiming a post', () => {

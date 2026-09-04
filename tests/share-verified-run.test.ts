@@ -181,6 +181,38 @@ test('portable JSON contains every input needed to reproduce commitment, combat,
   assert.doesNotMatch(JSON.stringify(parsed.explorer), /\/search\?q=/);
 });
 
+test('portable Judge proof generation fails closed for void or inconsistent results', () => {
+  const input = proofInput();
+  const voidSettlement = {
+    ...input.onchainSettlement,
+    voided: true,
+    winningOutcome: null,
+  } as unknown as VerifiedRunProofInput['onchainSettlement'];
+
+  assert.throws(
+    () => verifiedRunProofArtifact({ ...input, onchainSettlement: voidSettlement }),
+    /require a non-void BLESSED or CURSED settlement/,
+  );
+
+  const voidResult = { ...input, result: 'VOID' } as unknown as VerifiedRunProofInput;
+  assert.throws(
+    () => verifiedRunProofArtifact(voidResult),
+    /require a non-void BLESSED or CURSED settlement/,
+  );
+
+  assert.throws(
+    () => verifiedRunProofArtifact({ ...input, result: 'BLESSED' }),
+    /result must match the committed onchain outcome/,
+  );
+  assert.throws(
+    () => verifiedRunProofArtifact({
+      ...input,
+      replayProof: { ...input.replayProof, committedOutcome: 1 },
+    }),
+    /result must match the committed onchain outcome/,
+  );
+});
+
 test('proof filename is deterministic and does not trust malformed market IDs', () => {
   assert.equal(verifiedRunProofFilename(MARKET_ID), 'market-dungeon-proof-abababab.json');
   assert.equal(verifiedRunProofFilename('not-a-market'), 'market-dungeon-proof-unknown.json');

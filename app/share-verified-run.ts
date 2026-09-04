@@ -9,7 +9,20 @@ import type { ReplayCombatProof, ReplayLockAttestation, ReplayProof } from './re
 export const MARKET_DUNGEON_URL = 'https://market-dungeon.vercel.app';
 export const SOMNIA_EXPLORER_URL = 'https://explorer.somnia.network';
 
-export type VerifiedRunResult = 'BLESSED' | 'CURSED' | 'VOID';
+export type VerifiedRunResult = 'BLESSED' | 'CURSED';
+
+export type PortableVerifiedRunSettlementProof = DirectOnchainSettlementProof & {
+  voided: false;
+  winningOutcome: 0 | 1;
+};
+
+export function isPortableVerifiedRunSettlement(
+  proof: DirectOnchainSettlementProof | null | undefined,
+): proof is PortableVerifiedRunSettlementProof {
+  return proof?.finalized === true
+    && proof.voided === false
+    && (proof.winningOutcome === 0 || proof.winningOutcome === 1);
+}
 
 export type VerifiedRunProofInput = {
   result: VerifiedRunResult;
@@ -17,7 +30,7 @@ export type VerifiedRunProofInput = {
   replayProof: ReplayProof;
   combatProof: ReplayCombatProof;
   combatActions: JudgeCombatAction[];
-  onchainSettlement: DirectOnchainSettlementProof;
+  onchainSettlement: PortableVerifiedRunSettlementProof;
   lockAttestation: ReplayLockAttestation;
 };
 
@@ -28,6 +41,15 @@ export function verifiedRunProofFilename(marketId: string) {
 
 export function verifiedRunProofArtifact(input: VerifiedRunProofInput, generatedAt = new Date().toISOString()) {
   const { replayProof, combatProof, combatActions, onchainSettlement } = input;
+  if ((input.result !== 'BLESSED' && input.result !== 'CURSED')
+    || !isPortableVerifiedRunSettlement(onchainSettlement)) {
+    throw new Error('Portable Judge proofs require a non-void BLESSED or CURSED settlement.');
+  }
+  const winningDirection = onchainSettlement.winningOutcome === 0 ? 'UP' : 'DOWN';
+  const expectedResult = replayProof.lockedDirection === winningDirection ? 'BLESSED' : 'CURSED';
+  if (replayProof.committedOutcome !== onchainSettlement.winningOutcome || input.result !== expectedResult) {
+    throw new Error('Portable Judge proof result must match the committed onchain outcome.');
+  }
   const blockUrl = `${SOMNIA_EXPLORER_URL}/block/${encodeURIComponent(onchainSettlement.blockNumber)}`;
   const moduleUrl = `${SOMNIA_EXPLORER_URL}/address/${encodeURIComponent(onchainSettlement.moduleAddress)}`;
   const settlementUrl = `${SOMNIA_EXPLORER_URL}/address/${encodeURIComponent(onchainSettlement.settlementAddress)}`;
@@ -80,7 +102,7 @@ export function verifiedRunProofArtifact(input: VerifiedRunProofInput, generated
       'Run the four independentRpcVerification requests against the listed RPC.',
       'Require the returned chain, block hash, module result, and settlement result to match exactly.',
       'Require both eth_call requests to use the recorded EIP-1898 blockHash with requireCanonical=true.',
-      'ABI-decode both results and compare market, pool, collateral, token IDs, nonce, payout, and finalized/void state with onchainProof.',
+      'ABI-decode both results and compare market, pool, collateral, token IDs, nonce, payout, and finalized non-void state with onchainProof.',
     ],
   } as const;
 }
@@ -94,9 +116,7 @@ export function verifiedRunShareText(input: VerifiedRunProofInput) {
   const actualOutcome = replayProof.committedOutcome === 0 ? 'UP' : 'DOWN';
   const result = input.result === 'BLESSED'
     ? 'VICTORY — prediction correct'
-    : input.result === 'CURSED'
-      ? 'BOSS LAST STAND — prediction incorrect'
-      : 'VOID — no prediction loss';
+    : 'BOSS LAST STAND — prediction incorrect';
   const blockUrl = `${SOMNIA_EXPLORER_URL}/block/${encodeURIComponent(onchainSettlement.blockNumber)}`;
   const moduleUrl = `${SOMNIA_EXPLORER_URL}/address/${encodeURIComponent(onchainSettlement.moduleAddress)}`;
   const settlementUrl = `${SOMNIA_EXPLORER_URL}/address/${encodeURIComponent(onchainSettlement.settlementAddress)}`;

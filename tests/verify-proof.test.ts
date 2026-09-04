@@ -23,7 +23,11 @@ import {
   type ReplayCombatProof,
   type ReplayProof,
 } from '../app/replay-proof.ts';
-import { verifiedRunProofJson, type VerifiedRunProofInput } from '../app/share-verified-run.ts';
+import {
+  verifiedRunProofJson,
+  type PortableVerifiedRunSettlementProof,
+  type VerifiedRunProofInput,
+} from '../app/share-verified-run.ts';
 import {
   VERIFIED_PROOF_MAX_BYTES,
   parseVerifiedProofArtifact,
@@ -121,7 +125,7 @@ const settlementResult = encodeFunctionResult({
     [10_000_000n, 0n],
   ] as never,
 });
-const onchainSettlement: DirectOnchainSettlementProof = {
+const onchainSettlement: PortableVerifiedRunSettlementProof = {
   verified: true,
   source: 'SOMNIA_RPC_ETH_CALL',
   chainId: 5031,
@@ -254,6 +258,29 @@ test('local tampering fails before any public RPC request is attempted', async (
 
   assert.equal(result.status, 'FAIL');
   assert.equal(result.checks.find((check) => check.id === 'combat')?.status, 'FAIL');
+  assert.equal(rpcCalls, 0);
+});
+
+test('portable Judge verifier rejects a void settlement before public RPC', async () => {
+  const artifact = JSON.parse(proofJson()) as {
+    summary: { result: string };
+    onchainProof: DirectOnchainSettlementProof;
+  };
+  artifact.summary.result = 'VOID';
+  artifact.onchainProof.voided = true;
+  artifact.onchainProof.winningOutcome = null;
+
+  let rpcCalls = 0;
+  const result = await verifyProofArtifact(JSON.stringify(artifact), async () => {
+    rpcCalls += 1;
+    throw new Error('RPC should not be reached');
+  }, async () => {
+    throw new Error('Public key should not be reached');
+  });
+
+  assert.equal(result.status, 'FAIL');
+  assert.equal(result.checks[0]?.id, 'artifact');
+  assert.match(result.checks[0]?.detail ?? '', /non-void settlement/);
   assert.equal(rpcCalls, 0);
 });
 

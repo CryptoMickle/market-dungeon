@@ -19,7 +19,7 @@ async function installDeterministicUpstreams(
   options: {
     rpcUnavailable?: boolean;
     rpcFailuresBeforeSuccess?: number;
-    tamperRevealField?: 'attestation' | 'algorithm' | 'ruleset' | 'finalHp';
+    tamperRevealField?: 'attestation' | 'algorithm' | 'ruleset' | 'finalHp' | 'void';
     onStartCall?: () => void;
     onRpcCall?: () => void;
   } = {},
@@ -52,6 +52,10 @@ async function installDeterministicUpstreams(
       payload.combatProof.ruleset = 'market-dungeon/judge-combat/v2';
     } else if (options.tamperRevealField === 'finalHp') {
       payload.combatProof.finalHp += 1;
+    } else if (options.tamperRevealField === 'void') {
+      const unexpectedVoid = payload.market as unknown as { voided: boolean; winningOutcome: number | null };
+      unexpectedVoid.voided = true;
+      unexpectedVoid.winningOutcome = null;
     }
     await route.fulfill({ json: payload });
   });
@@ -507,7 +511,7 @@ test('temporary browser RPC unavailability preserves the completed sealed run fo
   expect(startCalls).toBe(1);
 });
 
-for (const tamperRevealField of ['attestation', 'algorithm', 'ruleset', 'finalHp'] as const) {
+for (const tamperRevealField of ['attestation', 'algorithm', 'ruleset', 'finalHp', 'void'] as const) {
   test(`Judge Demo rejects changed reveal ${tamperRevealField} locally before any Somnia RPC call`, async ({ page }) => {
     let rpcCalls = 0;
     await installDeterministicUpstreams(page, {

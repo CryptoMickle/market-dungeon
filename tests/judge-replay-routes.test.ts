@@ -426,6 +426,7 @@ test('reveal route revalidates all sealed market provenance before RPC settlemen
     { lastTradeAt: String(claims.lastTradeAt - 1) },
     { question: `${claims.question}?` },
     { venueId: `0x${'fe'.repeat(32)}` },
+    { voided: true, winningOutcome: null },
   ];
   let reads = 0;
   let activeMismatch: Record<string, unknown> = {};

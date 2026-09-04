@@ -21,6 +21,7 @@ import {
   shareEngagedEvent,
   type JudgeDemoResult,
   type MarketDungeonMode,
+  type MarketSettlementResult,
   type ShareAction,
 } from './analytics-events';
 import { formatClobPercent, type DreamDexClobOdds } from './clob-odds';
@@ -71,6 +72,7 @@ import {
   type RunShareCardInput,
 } from './share-run-card';
 import {
+  isPortableVerifiedRunSettlement,
   verifiedRunProofFilename,
   verifiedRunProofJson,
   type VerifiedRunProofInput,
@@ -1104,6 +1106,14 @@ export default function MarketDungeon({ directJudgeEntry = false }: { directJudg
       let localSettlementProofMatches = false;
       let resolvedDirection = direction;
       if (judgeMode) {
+        if (result.voided || (result.winningOutcome !== 0 && result.winningOutcome !== 1)) {
+          trackJudgeFailure('browser-mismatch');
+          setReplayRetryRemaining(0);
+          setMarket(sealedReplay); setPhase('JUDGE_SETUP'); setOracleResult(null);
+          setNotice('REPLAY PROOF MISMATCH · LOCK A NEW OMEN');
+          setCombatLog(['Judge Replay requires a finalized, non-void binary result. No outcome was applied; choose and lock a fresh omen.']);
+          return;
+        }
         const reconstructedCombat = market.replayGameSeed ? canonicalJudgeActionLog(market.replayGameSeed, judgeActionLog) : '';
         const replayCandidate: unknown = data.replayProof;
         const combatCandidate: unknown = data.combatProof;
@@ -1148,7 +1158,7 @@ export default function MarketDungeon({ directJudgeEntry = false }: { directJudg
           && replayProof.gameSeed === market.replayGameSeed
           && replayProof.lockedDirection === market.replayLockedDirection
           && replayProof.marketId.toLowerCase() === result.marketId.toLowerCase()
-          && replayProof.committedOutcome === Number(result.winningOutcome)
+          && replayProof.committedOutcome === result.winningOutcome
           && replayMarketProvenanceMatches(replayProof, result as unknown as Record<string, unknown>)
           && attestationMatches
           && localSettlementProofMatches;
@@ -1209,9 +1219,8 @@ export default function MarketDungeon({ directJudgeEntry = false }: { directJudg
         setMarket((previous) => ({ ...previous, ...result, onchainSettlement }));
       }
       if (result.voided) {
-        trackJudgeCompletion(resolvedDirection, 'void', result.intervalSec);
         setOracleResult('VOID'); setGold((value) => value + monster.reward);
-        setPhase(judgeMode || tier === TOTAL_TIERS ? 'VICTORY' : 'TIER_SETUP');
+        setPhase(tier === TOTAL_TIERS ? 'VICTORY' : 'TIER_SETUP');
         setNotice('MARKET VOIDED · NO PREDICTION LOSS · BOSS REWARD PRESERVED');
         addLog(`The Event Contract was voided. The boss stays down and its ${monster.reward} gold base reward is preserved.`);
         return;
@@ -1291,8 +1300,9 @@ export default function MarketDungeon({ directJudgeEntry = false }: { directJudg
       : 'The Event Contract was voided, so the defeated boss remained down without a prediction penalty.';
 
   function verifiedProofInput(): VerifiedRunProofInput | null {
-    if (!market.replayProof || !market.combatProof || !market.onchainSettlement
-      || !market.replayLockAttestation || !oracleResult) return null;
+    if (!judgeMode || !market.replayProof || !market.combatProof
+      || !isPortableVerifiedRunSettlement(market.onchainSettlement)
+      || !market.replayLockAttestation || !oracleResult || oracleResult === 'VOID') return null;
     return {
       result: oracleResult,
       intervalSec: market.intervalSec,
@@ -1462,7 +1472,7 @@ export default function MarketDungeon({ directJudgeEntry = false }: { directJudg
     emitAnalyticsEvent(dreamDexCtaClickedEvent(
       judgeMode ? 'judge_demo' : 'full_run',
       direction,
-      oracleResult.toLowerCase() as JudgeDemoResult,
+      oracleResult.toLowerCase() as MarketSettlementResult,
       market.intervalSec,
     ));
   }
