@@ -8,11 +8,11 @@ The current contest build is intentionally read-only. It reads live market metad
 
 **Play:** https://market-dungeon.vercel.app
 
-**Watch the 1:52 hackathon demo:** https://youtu.be/dOpVKgSWxWY
+**Watch the 1:52 hackathon demo:** https://youtu.be/6IviQrMweZ4
 
 **DoraHacks submission:** https://dorahacks.io/buidl/48083
 
-**Immutable submission release:** https://github.com/CryptoMickle/market-dungeon/releases/tag/hackathon-submission-2026-v7
+**Immutable submission release:** https://github.com/CryptoMickle/market-dungeon/releases/tag/hackathon-submission-2026-v8
 
 **Integration and SDK/docs feedback:** [docs/DREAMDEX_INTEGRATION_REPORT.md](docs/DREAMDEX_INTEGRATION_REPORT.md)
 
