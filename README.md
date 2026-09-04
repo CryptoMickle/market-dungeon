@@ -211,7 +211,7 @@ npm run build -- --webpack
 npm run test:e2e
 ```
 
-`npm run test:e2e` runs the complete Judge Demo client state machine in Chromium against deterministic, cryptographically consistent upstream fixtures. The separate read-only live-target smoke is available as `npm run test:smoke:live`; GitHub Actions also runs it against production every Monday and Thursday at 06:17 UTC. Manual dispatch accepts an exact Market Dungeon Vercel Preview or Production origin, then requires its public `/api/build` identity to match the exact workflow commit before testing it. This deployment check requires Vercel's system environment variables to be exposed so the server can read `VERCEL_GIT_COMMIT_SHA`.
+`npm run test:e2e` runs the complete Judge Demo client state machine in Chromium against deterministic, cryptographically consistent upstream fixtures. The separate read-only live-target smoke is available as `npm run test:smoke:live`; GitHub Actions runs a single Production canary every Monday and Thursday at 06:17 UTC. Manual dispatch runs the full twenty-pass, zero-retry release gate against either the canonical Production origin or a Preview under the fixed `crypto-mickle` Vercel scope, rejects redirects, and requires the deployment's public `/api/build` identity to match the exact workflow commit before testing it. This deployment check requires Vercel's system environment variables to be exposed so the server can read `VERCEL_GIT_COMMIT_SHA`.
 
 For the zero-retry release gate, run the complete proof round trip twenty
 consecutive times against the exact deployment under review:

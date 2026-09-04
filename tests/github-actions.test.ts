@@ -37,6 +37,10 @@ test('manual live smoke binds a Market Dungeon deployment to the workflow commit
   assert.match(validator, /new URL\('\/api\/build', origin\)/);
   assert.match(validator, /market-dungeon\/build-identity\/v1/);
   assert.match(validator, /host\.startsWith\('market-dungeon-'\)/);
+  assert.match(validator, /host\.endsWith\('-crypto-mickle\.vercel\.app'\)/);
   assert.match(validator, /identity\.commit !== expectedCommit\.toLowerCase\(\)/);
   assert.match(validator, /url\.port/);
+  assert.match(validator, /redirect: 'error'/);
+  assert.match(workflow, /github\.event_name == 'schedule'[\s\S]*npm run test:smoke:live/);
+  assert.match(workflow, /github\.event_name == 'workflow_dispatch'[\s\S]*--repeat-each=20 --workers=1 --retries=0/);
 });

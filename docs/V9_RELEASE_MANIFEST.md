@@ -86,7 +86,8 @@ submission synchronization.
 - [ ] Complete deterministic Chromium suite passes.
 - [ ] Twenty consecutive real-upstream Judge runs pass with zero retries; each
       run must carry its exact exported proof through standalone `/verify` to
-      `PASS`.
+      `PASS`. Use the manual live-smoke workflow; the scheduled single run is a
+      canary, not release evidence.
 - [ ] A clean-browser mobile Judge and verifier pass has no horizontal
       overflow or blocked primary action.
 

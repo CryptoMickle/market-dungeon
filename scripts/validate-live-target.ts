@@ -16,7 +16,7 @@ export function marketDungeonDeploymentOrigin(value: unknown) {
 
   const host = url.hostname.toLowerCase();
   const allowedHost = host === 'market-dungeon.vercel.app'
-    || (host.startsWith('market-dungeon-') && host.endsWith('.vercel.app'));
+    || (host.startsWith('market-dungeon-') && host.endsWith('-crypto-mickle.vercel.app'));
   if (url.protocol !== 'https:' || !allowedHost || url.port || url.pathname !== '/'
     || url.search || url.hash || url.username || url.password) {
     throw new Error('LIVE_SMOKE_BASE_URL must be an HTTPS Market Dungeon Vercel deployment origin.');
@@ -37,6 +37,7 @@ export async function validateLiveTarget(
   const response = await fetchIdentity(new URL('/api/build', origin), {
     headers: { accept: 'application/json' },
     cache: 'no-store',
+    redirect: 'error',
     signal: AbortSignal.timeout(10_000),
   });
   if (!response.ok) throw new Error('Deployment build identity is unavailable.');

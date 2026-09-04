@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       base_url:
-        description: Exact Vercel deployment origin to test (Preview or Production)
+        description: Exact Market Dungeon Vercel origin to test (Preview or Production)
         required: true
         default: https://market-dungeon.vercel.app
         type: string
@@ -17,7 +17,7 @@ permissions:
 jobs:
   judge-demo-production:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 35
     env:
       LIVE_SMOKE_BASE_URL: ${{ inputs.base_url || 'https://market-dungeon.vercel.app' }}
     steps:
@@ -32,4 +32,9 @@ jobs:
           EXPECTED_COMMIT: ${{ github.sha }}
         run: node --experimental-strip-types scripts/validate-live-target.ts
       - run: npx playwright install --with-deps chromium
-      - run: npm run test:smoke:live
+      - name: Scheduled single-run canary
+        if: github.event_name == 'schedule'
+        run: npm run test:smoke:live
+      - name: Manual 20-run zero-retry release gate
+        if: github.event_name == 'workflow_dispatch'
+        run: npm run test:smoke:live -- --repeat-each=20 --workers=1 --retries=0
