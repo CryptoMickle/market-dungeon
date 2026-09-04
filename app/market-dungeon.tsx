@@ -239,6 +239,15 @@ function gateTime(expiryIso: string) {
   return new Date(expiryIso).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hourCycle: 'h23', timeZone: 'UTC' });
 }
 
+function receiptUtc(timestamp: number) {
+  return new Date(timestamp * 1_000).toISOString().replace('T', ' ').slice(0, 19) + 'Z';
+}
+
+function receiptKeyFingerprint(keyId: string) {
+  const fingerprint = keyId.startsWith('ed25519:') ? keyId.slice('ed25519:'.length) : keyId;
+  return `ed25519:${fingerprint.slice(0, 8)}…${fingerprint.slice(-8)}`;
+}
+
 function GoldIcon() {
   return <span className="gold-icon" aria-hidden="true" />;
 }
@@ -410,6 +419,43 @@ function HumanProofSummary({ verified = false }: { verified?: boolean }) {
         <p><b>Signed lock.</b> Market Dungeon&apos;s environment {verified ? 'authenticated' : 'authenticates'} the commitment, direction, and lock window. This is a server receipt, not an external timestamp.</p>
         <p><b>No replacement.</b> The signed commitment {verified ? 'could not' : 'cannot'} be changed; reveal must match the original market and outcome.</p>
         <p><b>Independent result.</b> Your browser {verified ? 'independently reproduced' : 'independently reproduces'} the onchain result from one canonical Somnia block and both raw contract responses.</p>
+      </div>
+    </section>
+  );
+}
+
+function JudgeLockReceiptEvidence({
+  attestation,
+  publicKey,
+}: {
+  attestation?: ReplayLockAttestation;
+  publicKey?: ReplayLockPublicKey;
+}) {
+  if (!attestation || !publicKey || attestation.keyId !== publicKey.keyId) return null;
+
+  return (
+    <section className="judge-lock-receipt" aria-label="Server-authenticated lock receipt">
+      <div className="receipt-status">
+        <span>SERVER-AUTHENTICATED LOCK RECEIPT</span>
+        <strong>✓ VERIFIED IN THIS BROWSER</strong>
+        <small>Not an external timestamp or endorsement</small>
+      </div>
+      <div>
+        <span>ALGORITHM</span>
+        <strong>{attestation.algorithm}</strong>
+      </div>
+      <div>
+        <span>KEY ID · SHA-256 FINGERPRINT</span>
+        <code title={attestation.keyId}>{receiptKeyFingerprint(attestation.keyId)}</code>
+      </div>
+      <div>
+        <span>LOCKED DIRECTION</span>
+        <strong>BTC {attestation.lockedDirection}</strong>
+      </div>
+      <div className="receipt-window">
+        <span>LOCK / REVEAL WINDOW</span>
+        <strong><time dateTime={new Date(attestation.issuedAt * 1_000).toISOString()}>LOCK {receiptUtc(attestation.issuedAt)}</time></strong>
+        <small><time dateTime={new Date(attestation.revealAfter * 1_000).toISOString()}>REVEAL FROM {receiptUtc(attestation.revealAfter)}</time> · <time dateTime={new Date(attestation.expiresAt * 1_000).toISOString()}>EXPIRES {receiptUtc(attestation.expiresAt)}</time></small>
       </div>
     </section>
   );
@@ -1562,6 +1608,13 @@ export default function MarketDungeon({ directJudgeEntry = false }: { directJudg
               <span className={market.replayProof ? 'done' : judgeStep === 5 ? 'active' : ''}><b>5</b> REVEAL FATE</span>
             </div>
           </section>
+        )}
+
+        {judgeMode && !market.replayProof && (
+          <JudgeLockReceiptEvidence
+            attestation={market.replayLockAttestation}
+            publicKey={market.replayLockPublicKey}
+          />
         )}
 
         {!judgeMode && <TierTrack activeTier={phase === 'TIER_SETUP' ? tier + 1 : tier} complete={phase === 'VICTORY'} failed={phase === 'DEAD'} />}

@@ -184,6 +184,44 @@ test('direct /judge entry lands on actionable Judge Setup without scrolling', as
   await expect(page.getByLabel('Judge Demo progress').locator('span').filter({ hasText: 'DEFEAT GUARD' })).toHaveClass(/active/);
 });
 
+test('locked Judge view shows receipt evidence in a 1280x720 frame without revealing the market', async ({ page }) => {
+  await installDeterministicUpstreams(page);
+  await page.setViewportSize({ width: 1280, height: 720 });
+
+  await page.goto('/judge');
+  await page.getByRole('button', { name: 'LOCK OMEN & SEAL REPLAY' }).click();
+
+  const receipt = page.getByRole('region', { name: 'Server-authenticated lock receipt' });
+  await expect(receipt).toBeVisible();
+  await expect(receipt).toContainText('SERVER-AUTHENTICATED LOCK RECEIPT');
+  await expect(receipt).toContainText('✓ VERIFIED IN THIS BROWSER');
+  await expect(receipt).toContainText('Ed25519');
+  await expect(receipt).toContainText('KEY ID · SHA-256 FINGERPRINT');
+  await expect(receipt).toContainText(`ed25519:${LOCK_PUBLIC_KEY.keyId.slice(8, 16)}…${LOCK_PUBLIC_KEY.keyId.slice(-8)}`);
+  await expect(receipt).toContainText('BTC UP');
+  await expect(receipt).toContainText('LOCK 1970-01-01 00:08:20Z');
+  await expect(receipt).toContainText('REVEAL FROM 1970-01-01 00:08:21Z');
+  await expect(receipt).toContainText('EXPIRES 1970-01-01 01:23:20Z');
+  await expect(receipt).toContainText('Not an external timestamp or endorsement');
+  await expect(receipt).not.toContainText(market.marketId);
+  await expect(receipt).not.toContainText(market.strikeUsd);
+  const bounds = await receipt.boundingBox();
+  expect(bounds).not.toBeNull();
+  expect(bounds!.y).toBeGreaterThanOrEqual(0);
+  expect(bounds!.y + bounds!.height).toBeLessThanOrEqual(720);
+
+  await page.getByRole('button', { name: /ATTACK/ }).click();
+  await expect(receipt).toBeVisible();
+  await page.getByRole('button', { name: '👑 ENTER FINAL BOSS' }).click();
+  await expect(receipt).toBeVisible();
+  await page.getByRole('button', { name: /ATTACK/ }).click();
+  await page.getByRole('button', { name: /ATTACK/ }).click();
+  await expect(receipt).toBeVisible();
+
+  await page.getByRole('button', { name: '🔮 REVEAL BOSS FATE' }).click();
+  await expect(receipt).toHaveCount(0);
+});
+
 test('challenge link opens a fresh Judge replay without exposing the prior run', async ({ page }) => {
   await installDeterministicUpstreams(page);
   await page.setViewportSize({ width: 390, height: 844 });

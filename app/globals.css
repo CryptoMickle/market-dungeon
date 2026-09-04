@@ -104,6 +104,19 @@ span.gold-icon { display: inline-block !important; }
 .judge-replay-steps span.done { color: #a7f3d0; }
 .judge-replay-steps span.done b { background: #047857; color: white; }
 
+.judge-lock-receipt { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); margin: -2px 0 12px; border: 1px solid rgba(52, 211, 153, .38); border-radius: 13px; background: linear-gradient(135deg, rgba(6, 78, 59, .2), rgba(9, 9, 11, .96)); overflow: hidden; box-shadow: inset 0 0 0 1px rgba(167, 243, 208, .04); }
+.judge-lock-receipt > div { min-width: 0; padding: 9px 10px; border-right: 1px solid rgba(52, 211, 153, .12); border-bottom: 1px solid rgba(52, 211, 153, .12); }
+.judge-lock-receipt > div:nth-of-type(even) { border-right: 0; }
+.judge-lock-receipt .receipt-status,
+.judge-lock-receipt .receipt-window { grid-column: 1 / -1; }
+.judge-lock-receipt span { display: block; color: #6ee7b7; font-size: 7px; font-weight: 950; letter-spacing: .11em; }
+.judge-lock-receipt strong,
+.judge-lock-receipt code { display: block; margin-top: 4px; color: #ecfdf5; font-size: 9px; line-height: 1.3; }
+.judge-lock-receipt code { color: #d8b4fe; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; overflow-wrap: anywhere; }
+.judge-lock-receipt .receipt-status small,
+.judge-lock-receipt .receipt-window small { display: block; margin-top: 3px; color: #a7f3d0; font-size: 7px; line-height: 1.35; }
+.judge-lock-receipt .receipt-status small { color: #8f8f99; }
+
 .tier-track { display: grid; grid-template-columns: 120px 1fr; align-items: center; gap: 12px; margin-bottom: 12px; padding: 11px 13px; border: 1px solid #3f3f46; border-radius: 14px; background: linear-gradient(135deg, rgba(39, 39, 42, .96), rgba(15, 15, 17, .96)); }
 .tier-track > div:first-child span, .tier-track > div:first-child strong { display: block; }
 .tier-track > div:first-child span { color: #71717a; font-size: 7px; font-weight: 950; letter-spacing: .15em; }
@@ -506,6 +519,18 @@ footer a:focus-visible { outline: 2px solid #c4b5fd; outline-offset: 3px; }
   .judge-replay-commitment { font-size: 10px; }
   .judge-replay-steps span { padding: 10px 9px; font-size: 9px; }
   .judge-replay-steps span b { flex-basis: 21px; height: 21px; font-size: 9px; }
+
+  .judge-lock-receipt { grid-template-columns: 1.2fr .45fr 1fr .6fr 2.2fr; }
+  .judge-lock-receipt > div { padding: 6px 10px; border-right: 1px solid rgba(52, 211, 153, .12); border-bottom: 0; }
+  .judge-lock-receipt > div:nth-of-type(even) { border-right: 1px solid rgba(52, 211, 153, .12); }
+  .judge-lock-receipt > div:nth-of-type(5) { border-right: 0; }
+  .judge-lock-receipt .receipt-status,
+  .judge-lock-receipt .receipt-window { grid-column: auto; }
+  .judge-lock-receipt span { font-size: 8px; line-height: 1.1; }
+  .judge-lock-receipt strong,
+  .judge-lock-receipt code { margin-top: 3px; font-size: 10px; line-height: 1.15; }
+  .judge-lock-receipt .receipt-status small,
+  .judge-lock-receipt .receipt-window small { margin-top: 2px; font-size: 8px; line-height: 1.15; }
 
   .setup-view {
     display: grid;
