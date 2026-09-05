@@ -1,6 +1,6 @@
 # Market Dungeon v10 — game-first Judge presentation
 
-Status: **release candidate**
+Status: **released at `hackathon-submission-2026-v10`; retained as the stable behavioral baseline**
 
 v10 is a presentation-focused release built on the released v9 trust and
 verification architecture. It changes hierarchy, density, and responsive
@@ -44,6 +44,6 @@ Production. Deployment origins, commit identity, receipt-key fingerprint,
 test windows, and an exported-proof checksum belong in the GitHub release
 evidence rather than in this frozen source file.
 
-The replacement competition video remains paused and is not a v10 source
-release gate. The published baseline video remains the public fallback until a
-new Production capture, captions, and embed have been separately verified.
+The final competition video is deliberately produced only after the final
+release freeze. The published baseline video remains the public fallback until
+one new Production capture, captions, and embed have been separately verified.

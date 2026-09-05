@@ -1,5 +1,9 @@
 # Market Dungeon v9 — Winner Acceptance and Rollback Plan
 
+Historical record: **superseded by the released v10 baseline. Unchecked items
+below describe the earlier v9 planning process and are not the current release
+status.**
+
 Status: **WB-00, WB-01, WB-03, WB-04, and WB-05 complete locally; WB-02 read/verify feasibility complete and the unapproved Shannon write path is stopped/excluded from v9; v9 is not released**
 
 Baseline date: **4 September 2026**

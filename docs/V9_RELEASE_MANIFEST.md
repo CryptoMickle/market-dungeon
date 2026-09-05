@@ -1,5 +1,9 @@
 # Market Dungeon v9 — atomic release manifest
 
+Historical record: **superseded by the released v10 baseline. This file is
+retained for provenance and must not be interpreted as the current release
+checklist.**
+
 Status: **UNRELEASED — do not publish before every applicable gate passes**
 
 This is the single release checklist for the v9 competition candidate. The

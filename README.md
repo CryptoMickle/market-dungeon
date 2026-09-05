@@ -10,11 +10,11 @@ The current contest build is intentionally read-only. It reads live market metad
 
 **Independent proof verifier:** https://market-dungeon.vercel.app/verify
 
-**Baseline v8 demo (1:52):** https://youtu.be/6IviQrMweZ4
+**Current public baseline demo (1:52):** https://youtu.be/6IviQrMweZ4
 
 **DoraHacks submission:** https://dorahacks.io/buidl/48083
 
-**Immutable v10 submission release:** https://github.com/CryptoMickle/market-dungeon/releases/tag/hackathon-submission-2026-v10
+**Frozen v10 submission release:** https://github.com/CryptoMickle/market-dungeon/releases/tag/hackathon-submission-2026-v10
 
 **Integration and SDK/docs feedback:** [docs/DREAMDEX_INTEGRATION_REPORT.md](docs/DREAMDEX_INTEGRATION_REPORT.md)
 
@@ -288,7 +288,7 @@ docs/
 - Implementation-specific dreamDEX integration report: complete
 - Desktop and 390 px mobile judge-flow QA: complete
 - Four-tier dual-condition progression: complete
-- Baseline v8 demo video (1:52): complete; the replacement competition video and caption QA remain paused and are not part of the v10 source release
+- Final competition video: deliberately scheduled after the final release freeze; the public 1:52 v8 baseline remains available until that single replacement passes caption and embed QA
 - Wallet writes: intentionally disabled
 
 ## License

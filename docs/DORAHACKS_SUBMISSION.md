@@ -1,6 +1,14 @@
 # Market Dungeon — DoraHacks Submission Copy
 
-Status: **v10 release copy — publish with the immutable v10 release**
+Status: **v10 release copy — publish with the frozen v10 release**
+
+Judge positioning and scope are frozen in
+[Market Dungeon — frozen winner positioning](WINNER_POSITIONING.md). This copy
+must preserve those claim boundaries through final publication.
+
+The compact source for release, proof, pilot, and ecosystem claims is
+[Market Dungeon — judge evidence pack](JUDGE_EVIDENCE_PACK.md). Its pending
+gates must be replaced with real evidence or reported as unmet, never inferred.
 
 ## One-line pitch
 
@@ -16,9 +24,9 @@ Combat victory is necessary but not sufficient. After the boss reaches zero HP, 
 
 - **Innovation & Originality — 20%:** Event Contract settlement is not a price widget or side bet; it is the second victory condition of a complete fantasy roguelite.
 - **Technical Implementation — 25%:** The build combines official Markets SDK CLOB data with EIP-1898 hash-pinned Somnia mainnet reads of `BinaryModule` and `BinarySettlement` at one RPC verification snapshot block, a salted commitment, an authenticated server seal, a publicly verifiable Ed25519 lock receipt, and deterministic server-side combat replay.
-- **User Experience & Design — 20%:** Judges can explore the full four-tier game or use a focused five-step replay designed for an approximately two-minute walkthrough, with BTC 5m markets preferred so the market cadence fits a play session.
-- **Business & Ecosystem Impact — 20%:** Every tier introduces another dreamDEX Event Contract, turning market discovery into repeatable game content and creating a low-friction acquisition path toward a future opt-in trading mode.
-- **Presentation & Demo — 15%:** The game-first v10 Judge path, social-ready progress card, portable proof, and browser-local verifier make the complete claim easy to understand, share, and independently reproduce.
+- **User Experience & Design — 20%:** A wallet-free judge can complete the focused replay in about two minutes and independently verify the result, while the separate full expedition demonstrates four tiers, progression, merchants, inventory, and repeated markets.
+- **Business & Ecosystem Impact — 20%:** Market Dungeon is a measurable consumer acquisition and education layer for Event Contracts: entry, prediction lock, verified completion, share or challenge, challenge completion, and Continue on dreamDEX. Human conversion remains a target until the clean-v2 pilot is published.
+- **Presentation & Demo — 15%:** One final game-first film and one concise evidence hierarchy will show the same frozen release: the complete product, one uninterrupted Judge run, the Somnia result, independent verification, and the ecosystem loop.
 
 ## Why Event Contracts matter here
 
@@ -91,9 +99,9 @@ The browser presents **Reveal Boss Fate** only after boss defeat, and the API in
 
 - Live demo: https://market-dungeon.vercel.app
 - Independent proof verifier: https://market-dungeon.vercel.app/verify
-- Baseline v8 demo video (1:52): https://youtu.be/6IviQrMweZ4
-- Replacement competition video: paused; the published baseline remains valid until a separately verified replacement is ready
-- Immutable v10 submission release: https://github.com/CryptoMickle/market-dungeon/releases/tag/hackathon-submission-2026-v10
+- Current public baseline video (1:52): https://youtu.be/6IviQrMweZ4
+- Final competition video: produced once, after the final release freeze; pending capture, captions, and embed QA
+- Frozen v10 submission release: https://github.com/CryptoMickle/market-dungeon/releases/tag/hackathon-submission-2026-v10
 - Source code: https://github.com/CryptoMickle/market-dungeon
 - Integration and SDK/docs feedback: https://github.com/CryptoMickle/market-dungeon/blob/hackathon-submission-2026-v10/docs/DREAMDEX_INTEGRATION_REPORT.md
 

@@ -30,7 +30,7 @@ Generative AI assisted artwork production, software implementation, copy develop
 
 ## Demo-video music
 
-The live web app contains no music. The baseline 1:52 [v8 hackathon demo video](https://youtu.be/6IviQrMweZ4) uses **“Dark Fantasy Ambient (Dungeon Synth music)”**, created by **DeusLower / Vlad Bakutov** and licensed under the **Pixabay Content License**. A replacement competition video remains paused until its Production capture and captions can be verified separately; it is not part of the v10 source release.
+The live web app contains no music. The baseline 1:52 [v8 hackathon demo video](https://youtu.be/6IviQrMweZ4) uses **“Dark Fantasy Ambient (Dungeon Synth music)”**, created by **DeusLower / Vlad Bakutov** and licensed under the **Pixabay Content License**. The final competition video is deliberately produced once, after the final release freeze, so its Production capture, music credit, captions, and embed can be verified together. It is not part of the v10 source release.
 
 - [Music source](https://pixabay.com/music/ambient-dark-fantasy-ambient-dungeon-synth-music-281592/)
 - [Pixabay Content License summary](https://pixabay.com/service/license-summary/)
