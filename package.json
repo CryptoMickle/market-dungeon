@@ -15,6 +15,7 @@
     "test:shannon": "node --test tests/shannon-spike/proof-kernel.test.mjs",
     "test:e2e": "playwright test",
     "test:smoke:live": "playwright test --config=playwright.live.config.ts",
+    "pilot:summarize": "node --experimental-strip-types scripts/summarize-pilot.ts",
     "release:verify": "npm run lint && npm run typecheck && npm test && npm run test:shannon && npm run build -- --webpack && npm run test:e2e"
   },
   "dependencies": {

@@ -27,7 +27,8 @@ release-identity change is still possible.
   human analytics and is not counted as a pilot participant.
 - Lint: PASS.
 - TypeScript: PASS.
-- Unit tests: 88/88 PASS.
+- Unit tests: 90/90 PASS on the pre-video branch, including two pilot-summary
+  validation tests. The frozen v10 release evidence remains 88/88.
 - Shannon proof-kernel tests: 7/7 PASS.
 - Optimized production build: PASS.
 - Deterministic Chromium tests: 21/21 PASS after rerunning outside the restricted
