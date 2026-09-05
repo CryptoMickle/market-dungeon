@@ -5,6 +5,7 @@ import {
   isChallengeEntry,
   MARKET_DUNGEON_CHALLENGE_URL,
   MARKET_DUNGEON_PLAY_URL,
+  runShareCardArtworkPath,
   runShareCardDataUrl,
   runShareCardFilename,
   runShareCardSvg,
@@ -86,6 +87,14 @@ test('Judge Replay card renders replay progress without claiming all 40 rooms', 
   assert.doesNotMatch(svg, /<script|<image|<foreignObject|href=/);
   assert.match(runShareCardDataUrl(input()), /^data:image\/svg\+xml;charset=utf-8,/);
   assert.equal(runShareCardFilename(input()), 'market-dungeon-run-abababab.png');
+  assert.equal(runShareCardArtworkPath(input()), '/monsters/boss-4-chairman-below.webp');
+});
+
+test('share card artwork follows the bounded dungeon tier', () => {
+  assert.equal(runShareCardArtworkPath(input({ tier: 1 })), '/monsters/boss-1-dungeon-lord.webp');
+  assert.equal(runShareCardArtworkPath(input({ tier: 2 })), '/monsters/boss-2-senior-dungeon-lord.webp');
+  assert.equal(runShareCardArtworkPath(input({ tier: 3 })), '/monsters/boss-3-executive-overlord.webp');
+  assert.equal(runShareCardArtworkPath(input({ tier: 99 })), '/monsters/boss-4-chairman-below.webp');
 });
 
 test('every Judge Replay outcome stays replay-specific and clamps progress to two encounters', () => {

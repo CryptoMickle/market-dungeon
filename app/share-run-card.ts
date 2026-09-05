@@ -19,6 +19,13 @@ export type RunShareCardInput = {
   marketId?: string;
 };
 
+const RUN_CARD_BOSS_ART = [
+  '/monsters/boss-1-dungeon-lord.webp',
+  '/monsters/boss-2-senior-dungeon-lord.webp',
+  '/monsters/boss-3-executive-overlord.webp',
+  '/monsters/boss-4-chairman-below.webp',
+] as const;
+
 function boundedInteger(value: number, minimum: number, maximum: number) {
   return Math.min(maximum, Math.max(minimum, Math.floor(Number.isFinite(value) ? value : minimum)));
 }
@@ -43,6 +50,11 @@ function resultPresentation(result: RunShareResult, mode: RunShareCardInput['mod
   if (result === 'CURSED') return { headline: 'BOSS LAST STAND', accent: '#fb7185', icon: 'PREDICTION LOST' };
   if (result === 'VOID') return { headline: 'DUNGEON CONQUERED', accent: '#c084fc', icon: 'MARKET VOID' };
   return { headline: 'EXPEDITION ENDED', accent: '#fb923c', icon: 'FELL IN COMBAT' };
+}
+
+export function runShareCardArtworkPath(input: RunShareCardInput) {
+  const tier = boundedInteger(input.tier, 1, RUN_CARD_BOSS_ART.length);
+  return RUN_CARD_BOSS_ART[tier - 1];
 }
 
 export function runShareCardFilename(input: RunShareCardInput) {
@@ -119,6 +131,11 @@ export function runShareCardSvg(input: RunShareCardInput) {
   const progressWidth = Math.round(1000 * progress);
   const presentation = resultPresentation(input.result, input.mode);
   const mode = judgeReplay ? 'FINAL-TIER JUDGE REPLAY' : 'FULL EXPEDITION';
+  const trophy = input.result === 'BLESSED' || input.result === 'VOID'
+    ? 'FINAL BOSS · DEFEATED'
+    : input.result === 'CURSED'
+      ? 'FINAL BOSS · LAST STAND'
+      : 'EXPEDITION · ENDED';
   const primaryLabel = judgeReplay ? 'REPLAY PROGRESS' : 'DUNGEON DEPTH';
   const primaryValue = judgeReplay ? `${enemies} OF 2` : `ROOM ${room}/${totalRooms}`;
   const primaryNote = judgeReplay ? 'REPLAY ENCOUNTERS' : `TIER ${tier} OF ${totalTiers}`;
@@ -135,14 +152,21 @@ export function runShareCardSvg(input: RunShareCardInput) {
 
   return `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="675" viewBox="0 0 1200 675" role="img" aria-label="Market Dungeon run result">
   <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#09090b"/>
-      <stop offset="0.56" stop-color="#170d25"/>
-      <stop offset="1" stop-color="#0b0710"/>
+    <linearGradient id="sceneScrim" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#09090b" stop-opacity="0.96"/>
+      <stop offset="0.42" stop-color="#09090b" stop-opacity="0.82"/>
+      <stop offset="0.62" stop-color="#09090b" stop-opacity="0.4"/>
+      <stop offset="0.78" stop-color="#09090b" stop-opacity="0.12"/>
+      <stop offset="1" stop-color="#09090b" stop-opacity="0.25"/>
+    </linearGradient>
+    <linearGradient id="floorScrim" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#09090b" stop-opacity="0"/>
+      <stop offset="0.58" stop-color="#09090b" stop-opacity="0.28"/>
+      <stop offset="1" stop-color="#09090b" stop-opacity="0.94"/>
     </linearGradient>
     <radialGradient id="glow" cx="82%" cy="16%" r="72%">
-      <stop offset="0" stop-color="#7c3aed" stop-opacity="0.58"/>
-      <stop offset="0.5" stop-color="#4c1d95" stop-opacity="0.12"/>
+      <stop offset="0" stop-color="#7c3aed" stop-opacity="0.28"/>
+      <stop offset="0.5" stop-color="#4c1d95" stop-opacity="0.08"/>
       <stop offset="1" stop-color="#09090b" stop-opacity="0"/>
     </radialGradient>
     <pattern id="grid" width="34" height="34" patternUnits="userSpaceOnUse">
@@ -152,7 +176,9 @@ export function runShareCardSvg(input: RunShareCardInput) {
       <feDropShadow dx="0" dy="12" stdDeviation="20" flood-color="#000" flood-opacity="0.55"/>
     </filter>
   </defs>
-  <rect width="1200" height="675" rx="32" fill="url(#bg)"/>
+  <rect width="1200" height="675" rx="32" fill="#09090b" fill-opacity="0.08"/>
+  <rect width="1200" height="675" rx="32" fill="url(#sceneScrim)"/>
+  <rect width="1200" height="675" rx="32" fill="url(#floorScrim)"/>
   <rect width="1200" height="675" rx="32" fill="url(#glow)"/>
   <rect width="1200" height="675" rx="32" fill="url(#grid)"/>
   <rect x="2" y="2" width="1196" height="671" rx="30" fill="none" stroke="#a855f7" stroke-opacity="0.65" stroke-width="4"/>
@@ -172,23 +198,29 @@ export function runShareCardSvg(input: RunShareCardInput) {
     </g>
 
     <text x="58" y="190" fill="${presentation.accent}" font-size="18" font-weight="900" letter-spacing="4">${escapeXml(presentation.icon)}</text>
-    <text x="58" y="260" fill="#fff" font-size="62" font-weight="950" letter-spacing="-2">${escapeXml(presentation.headline)}</text>
+    <text x="58" y="260" fill="#fff" font-size="58" font-weight="950" letter-spacing="-2">${escapeXml(presentation.headline)}</text>
     <text x="58" y="305" fill="#d8b4fe" font-size="24" font-weight="800">${escapeXml(outcome)}</text>
 
+    <g transform="translate(846 274)" filter="url(#shadow)">
+      <rect width="296" height="48" rx="24" fill="#09090b" fill-opacity="0.86" stroke="${presentation.accent}" stroke-opacity="0.8"/>
+      <path d="M22 28l7-12 7 12 7-12 7 12v6H22z" fill="${presentation.accent}"/>
+      <text x="62" y="30" fill="#fff" font-size="13" font-weight="900" letter-spacing="1.1">${escapeXml(trophy)}</text>
+    </g>
+
     <g transform="translate(58 350)" filter="url(#shadow)">
-      <rect width="318" height="142" rx="20" fill="#111114" stroke="#3f3f46"/>
+      <rect width="318" height="142" rx="20" fill="#09090b" fill-opacity="0.88" stroke="#52525b"/>
       <text x="24" y="35" fill="#71717a" font-size="13" font-weight="900" letter-spacing="2">${primaryLabel}</text>
       <text x="24" y="88" fill="#fff" font-size="38" font-weight="950">${primaryValue}</text>
       <text x="24" y="119" fill="#a78bfa" font-size="16" font-weight="800">${primaryNote}</text>
     </g>
     <g transform="translate(399 350)" filter="url(#shadow)">
-      <rect width="318" height="142" rx="20" fill="#111114" stroke="#3f3f46"/>
+      <rect width="318" height="142" rx="20" fill="#09090b" fill-opacity="0.88" stroke="#52525b"/>
       <text x="24" y="35" fill="#71717a" font-size="13" font-weight="900" letter-spacing="2">${secondaryLabel}</text>
       <text x="24" y="94" fill="#fff" font-size="${judgeReplay ? 36 : 48}" font-weight="950">${secondaryValue}</text>
       <text x="24" y="119" fill="#a1a1aa" font-size="14" font-weight="700">${secondaryNote}</text>
     </g>
     <g transform="translate(740 350)" filter="url(#shadow)">
-      <rect width="402" height="142" rx="20" fill="#111114" stroke="#3f3f46"/>
+      <rect width="402" height="142" rx="20" fill="#09090b" fill-opacity="0.88" stroke="#52525b"/>
       <text x="24" y="35" fill="#71717a" font-size="13" font-weight="900" letter-spacing="2">GOLD KEPT</text>
       <circle cx="50" cy="85" r="22" fill="#f59e0b" stroke="#fde68a" stroke-width="3"/>
       <text x="50" y="93" text-anchor="middle" fill="#78350f" font-size="22" font-weight="950">G</text>
