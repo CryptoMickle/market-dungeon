@@ -64,6 +64,7 @@ import {
 import {
   isChallengeEntry,
   MARKET_DUNGEON_CHALLENGE_URL,
+  MARKET_DUNGEON_SLOGAN,
   runShareCardArtworkPath,
   runShareCardDataUrl,
   runShareCardFilename,
@@ -749,7 +750,7 @@ export default function MarketDungeon({ directJudgeEntry = false }: { directJudg
             : 3;
 
   const subtitle = phase === 'SETUP'
-    ? 'The complete Delveworn loop, powered by a live Event Contract.'
+    ? MARKET_DUNGEON_SLOGAN
     : phase === 'JUDGE_SETUP'
       ? 'Beat the guard and boss. Only a correct locked BTC prediction keeps the boss down.'
     : phase === 'TIER_SETUP'

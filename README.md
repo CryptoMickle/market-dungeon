@@ -1,5 +1,7 @@
 # Market Dungeon
 
+**Defeat the boss. Predict the market. Survive both.**
+
 Market Dungeon is a playable fantasy roguelite built for the **Somnia × dreamDEX Event Contracts Hackathon**. A live BTC 5-minute Event Contract becomes a dungeon omen: choose **Gold Awakens (UP)** or **Shadows Rise (DOWN)**, clear ten rooms, defeat the tier boss, and survive the finalized onchain outcome. Permanent victory requires both combat success and a correct prediction. If the 5-minute market is unavailable, discovery falls back safely to 15 minutes.
 
 The current contest build is intentionally read-only. It reads live market metadata, shows live UP/DOWN implied odds from the dreamDEX CLOB through the official Markets SDK, and independently derives finalized payouts through hash-pinned Somnia RPC calls to the deployed BinaryModule and BinarySettlement contracts at one RPC verification snapshot block. It never requests a wallet signature, token approval, or trade.

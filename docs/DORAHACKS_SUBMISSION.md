@@ -12,7 +12,9 @@ gates must be replaced with real evidence or reported as unmet, never inferred.
 
 ## One-line pitch
 
-Market Dungeon turns a live dreamDEX BTC Event Contract into the second victory condition of a complete fantasy roguelite: defeat the boss, predict the market correctly, and survive both.
+**Defeat the boss. Predict the market. Survive both.**
+
+Market Dungeon turns a live dreamDEX BTC Event Contract into the second victory condition of a complete fantasy roguelite. Combat skill wins the fight; a correct market prediction makes the victory permanent.
 
 ## Project description
 

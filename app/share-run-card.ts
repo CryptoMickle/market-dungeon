@@ -1,6 +1,7 @@
 export const MARKET_DUNGEON_PLAY_URL = 'https://market-dungeon.vercel.app';
 export const MARKET_DUNGEON_CHALLENGE_URL = `${MARKET_DUNGEON_PLAY_URL}/judge?challenge=1`;
 export const X_SHARE_INTENT_URL = 'https://twitter.com/intent/tweet';
+export const MARKET_DUNGEON_SLOGAN = 'DEFEAT THE BOSS. PREDICT THE MARKET. SURVIVE BOTH.';
 
 export type RunShareResult = 'BLESSED' | 'CURSED' | 'VOID' | 'DEFEATED';
 
@@ -233,7 +234,7 @@ export function runShareCardSvg(input: RunShareCardInput) {
 
     <text x="58" y="592" fill="#a1a1aa" font-size="14" font-weight="800" letter-spacing="1.5">${escapeXml(runId)}</text>
     <text x="1142" y="592" text-anchor="end" fill="#fff" font-size="16" font-weight="900">MARKET-DUNGEON.VERCEL.APP</text>
-    <text x="58" y="632" fill="#71717a" font-size="13" font-weight="700">COMBAT MEETS PREDICTION MARKETS · READ-ONLY GAMEPLAY</text>
+    <text x="58" y="632" fill="#d8b4fe" font-size="13" font-weight="900" letter-spacing="0.45">${MARKET_DUNGEON_SLOGAN}</text>
     <text x="1142" y="632" text-anchor="end" fill="#a78bfa" font-size="13" font-weight="900">#SOMNIA · #DREAMDEX</text>
   </g>
 </svg>`;

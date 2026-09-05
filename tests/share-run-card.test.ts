@@ -5,6 +5,7 @@ import {
   isChallengeEntry,
   MARKET_DUNGEON_CHALLENGE_URL,
   MARKET_DUNGEON_PLAY_URL,
+  MARKET_DUNGEON_SLOGAN,
   runShareCardArtworkPath,
   runShareCardDataUrl,
   runShareCardFilename,
@@ -83,11 +84,17 @@ test('Judge Replay card renders replay progress without claiming all 40 rooms', 
   assert.match(svg, /BTC UP  →  BTC UP/);
   assert.match(svg, /ONCHAIN VERIFIED · SOMNIA/);
   assert.match(svg, /FINAL-TIER JUDGE REPLAY/);
+  assert.match(svg, /DEFEAT THE BOSS\. PREDICT THE MARKET\. SURVIVE BOTH\./);
   assert.match(svg, /RUN 0XABABAB…ABABAB/);
   assert.doesNotMatch(svg, /<script|<image|<foreignObject|href=/);
   assert.match(runShareCardDataUrl(input()), /^data:image\/svg\+xml;charset=utf-8,/);
   assert.equal(runShareCardFilename(input()), 'market-dungeon-run-abababab.png');
   assert.equal(runShareCardArtworkPath(input()), '/monsters/boss-4-chairman-below.webp');
+});
+
+test('the product slogan describes the full game rather than the Judge-only verifier', () => {
+  assert.equal(MARKET_DUNGEON_SLOGAN, 'DEFEAT THE BOSS. PREDICT THE MARKET. SURVIVE BOTH.');
+  assert.doesNotMatch(MARKET_DUNGEON_SLOGAN, /verif/i);
 });
 
 test('share card artwork follows the bounded dungeon tier', () => {
