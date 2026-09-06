@@ -9,6 +9,7 @@ import {
   type ReplayClaims,
 } from '../app/api/judge-replay/crypto.ts';
 import { canonicalJudgeActionLog, replayJudgeCombat, type JudgeCombatAction } from '../app/judge-combat.ts';
+import { SHANNON_TESTNET_PROFILE } from '../app/judge-network.ts';
 import {
   BINARY_SETTLEMENT_ABI,
   DREAMDEX_SETTLEMENT_CONTRACTS,
@@ -227,12 +228,139 @@ async function matchingPublicKey() {
   return replayLockAttestationPublicKey();
 }
 
+function shannonProofFixture() {
+  const profile = SHANNON_TESTNET_PROFILE;
+  const replayPayload: ReplayCommitmentPayload = {
+    ...commitmentPayload,
+    operatorId: profile.originOperatorId,
+    venueId: profile.originVenueId,
+    profileId: profile.id,
+    chainId: profile.chainId,
+  };
+  const canonical = canonicalReplayProof(replayPayload);
+  const shannonCommitment = `0x${createHash('sha256').update(canonical, 'utf8').digest('hex')}`;
+  const { committedOutcome: outcome, lockedDirection: locked, ...claimsPayload } = replayPayload;
+  const claims: ReplayClaims = {
+    version: 3,
+    purpose: 'judge-replay',
+    environment: 'preview',
+    winningOutcome: outcome,
+    direction: locked,
+    ...claimsPayload,
+  };
+  const moduleRaw = encodeFunctionResult({
+    abi: MODULE_MARKETS_ABI,
+    functionName: 'markets',
+    result: [
+      1n, 2, 0, profile.collateral as `0x${string}`, profile.originOperatorId,
+      profile.originVenueId as `0x${string}`, `0x${'78'.repeat(20)}` as `0x${string}`,
+      CREATOR as `0x${string}`, MARKET_ADDRESS as `0x${string}`, POOL_ADDRESS as `0x${string}`,
+      YES_ID, YES_ID + 1n, 100n, 400n,
+    ],
+  });
+  const settlementRaw = encodeFunctionResult({
+    abi: BINARY_SETTLEMENT_ABI,
+    functionName: 'getSettlement',
+    result: [profile.collateral, 0n, true, false, 0n, `0x${'ab'.repeat(20)}`, POOL_ADDRESS, NONCE, [10_000_000n, 0n]] as never,
+  });
+  const shannonSettlement: PortableVerifiedRunSettlementProof = {
+    ...onchainSettlement,
+    chainId: profile.chainId,
+    collateralToken: profile.collateral,
+    originOperatorId: String(profile.originOperatorId),
+    originVenueId: profile.originVenueId,
+    calls: {
+      moduleMarket: { ...onchainSettlement.calls.moduleMarket, result: moduleRaw },
+      settlementRecord: { ...onchainSettlement.calls.settlementRecord, result: settlementRaw },
+    },
+  };
+  const input: VerifiedRunProofInput = {
+    ...proofInput(),
+    replayProof: {
+      ...replayPayload,
+      verified: true,
+      algorithm: 'SHA-256',
+      canonical,
+      commitment: shannonCommitment,
+    },
+    onchainSettlement: shannonSettlement,
+    lockAttestation: replayLockAttestation(claims),
+  };
+  const json = verifiedRunProofJson(input, '2026-09-07T00:00:00.000Z', profile);
+  const rpc: SettlementProofRpc = async (method, params) => {
+    if (method === 'eth_chainId') return `0x${profile.chainId.toString(16)}`;
+    if (method === 'eth_getBlockByHash') return { number: shannonSettlement.blockTag, hash: shannonSettlement.blockHash };
+    if (method === 'eth_call') {
+      const call = params[0] as { to?: string };
+      return call.to?.toLowerCase() === shannonSettlement.moduleAddress.toLowerCase()
+        ? shannonSettlement.calls.moduleMarket.result
+        : shannonSettlement.calls.settlementRecord.result;
+    }
+    throw new Error(`Unexpected RPC method: ${method}`);
+  };
+  return { json, rpc, key: async () => replayLockAttestationPublicKey(profile) };
+}
+
 test('strict parser accepts a canonical exported Judge proof', () => {
   const parsed = parseVerifiedProofArtifact(proofJson());
   assert.equal(parsed.ok, true);
   if (parsed.ok) {
     assert.equal(parsed.artifact.schema, 'market-dungeon/verified-judge-run/v2');
     assert.equal(parsed.artifact.summary.result, 'BLESSED');
+  }
+});
+
+test('Shannon verifier accepts only its fixed v3 profile and rejects cross-network use', async () => {
+  const fixture = shannonProofFixture();
+  assert.equal(parseVerifiedProofArtifact(fixture.json).ok, false);
+  const parsed = parseVerifiedProofArtifact(fixture.json, SHANNON_TESTNET_PROFILE);
+  assert.equal(parsed.ok, true);
+  if (parsed.ok) {
+    assert.equal(parsed.artifact.schema, 'market-dungeon/verified-judge-run/v3');
+    assert.equal(parsed.artifact.networkProfile?.profileId, SHANNON_TESTNET_PROFILE.id);
+  }
+  const verified = await verifyProofArtifact(
+    fixture.json,
+    fixture.rpc,
+    fixture.key,
+    SHANNON_TESTNET_PROFILE,
+  );
+  assert.equal(verified.status, 'PASS');
+
+  const tampered = JSON.parse(fixture.json) as Record<string, unknown>;
+  tampered.networkProfile = {
+    ...(tampered.networkProfile as Record<string, unknown>),
+    chainId: 5031,
+  };
+  const rejected = await verifyProofArtifact(
+    JSON.stringify(tampered),
+    async () => { throw new Error('RPC must not be reached'); },
+    fixture.key,
+    SHANNON_TESTNET_PROFILE,
+  );
+  assert.equal(rejected.status, 'FAIL');
+  assert.equal(rejected.checks[0]?.id, 'artifact');
+
+  const coercionMutations: Array<(artifact: Record<string, unknown>) => void> = [
+    (artifact) => { (artifact.networkProfile as Record<string, unknown>).collateral = [SHANNON_TESTNET_PROFILE.collateral]; },
+    (artifact) => { (artifact.networkProfile as Record<string, unknown>).binaryModule = [SHANNON_TESTNET_PROFILE.contracts.binaryModule]; },
+    (artifact) => { (artifact.replayProof as Record<string, unknown>).gameSeed = [GAME_SEED]; },
+    (artifact) => { (artifact.replayProof as Record<string, unknown>).salt = ['s'.repeat(43)]; },
+    (artifact) => { (artifact.replayProof as Record<string, unknown>).marketContext = ['0x']; },
+  ];
+  for (const mutate of coercionMutations) {
+    const artifact = JSON.parse(fixture.json) as Record<string, unknown>;
+    mutate(artifact);
+    let rpcCalls = 0;
+    const result = await verifyProofArtifact(
+      JSON.stringify(artifact),
+      async () => { rpcCalls += 1; throw new Error('RPC must not be reached'); },
+      fixture.key,
+      SHANNON_TESTNET_PROFILE,
+    );
+    assert.equal(result.status, 'FAIL');
+    assert.equal(result.checks[0]?.id, 'artifact');
+    assert.equal(rpcCalls, 0);
   }
 });
 

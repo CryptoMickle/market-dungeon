@@ -1,5 +1,10 @@
 export type ReplayDirection = 'UP' | 'DOWN';
 
+export type ShannonReplayBinding = {
+  profileId: 'shannon-testnet';
+  chainId: 50312;
+};
+
 export const REPLAY_MARKET_QUESTION = 'BTC closes at or above its opening price';
 export const MAX_REPLAY_MARKET_AGE_SECONDS = 7 * 24 * 60 * 60;
 
@@ -30,7 +35,7 @@ export type ReplayCommitmentPayload = {
   revealAfter: number;
   expiresAt: number;
   salt: string;
-} & ReplayMarketProvenance;
+} & ReplayMarketProvenance & Partial<ShannonReplayBinding>;
 
 export type ReplayProof = ReplayCommitmentPayload & {
   verified: boolean;
@@ -51,13 +56,18 @@ export type ReplayCombatProof = {
 };
 
 export const REPLAY_COMMITMENT_DOMAIN = 'market-dungeon/judge-replay/v2';
+export const SHANNON_REPLAY_COMMITMENT_DOMAIN = 'market-dungeon/judge-replay/v3';
 export const REPLAY_LOCK_ATTESTATION_DOMAIN = 'market-dungeon/judge-lock-attestation/v1';
 export const REPLAY_LOCK_ATTESTATION_SCHEMA = 'market-dungeon/judge-lock-attestation/v1';
 export const REPLAY_LOCK_PUBLIC_KEY_SCHEMA = 'market-dungeon/judge-lock-attestation-key/v1';
 export const REPLAY_LOCK_PUBLIC_KEY_ENDPOINT = '/api/judge-replay/public-key';
+export const SHANNON_REPLAY_LOCK_ATTESTATION_DOMAIN = 'market-dungeon/judge-lock-attestation/v2';
+export const SHANNON_REPLAY_LOCK_ATTESTATION_SCHEMA = 'market-dungeon/judge-lock-attestation/v2';
+export const SHANNON_REPLAY_LOCK_PUBLIC_KEY_SCHEMA = 'market-dungeon/judge-lock-attestation-key/v2';
+export const SHANNON_REPLAY_LOCK_PUBLIC_KEY_ENDPOINT = '/api/shannon/judge-replay/public-key';
 
 export type ReplayLockAttestation = {
-  schema: typeof REPLAY_LOCK_ATTESTATION_SCHEMA;
+  schema: typeof REPLAY_LOCK_ATTESTATION_SCHEMA | typeof SHANNON_REPLAY_LOCK_ATTESTATION_SCHEMA;
   algorithm: 'Ed25519';
   keyId: string;
   environment: string;
@@ -67,14 +77,18 @@ export type ReplayLockAttestation = {
   revealAfter: number;
   expiresAt: number;
   signature: string;
+  profileId?: 'shannon-testnet';
+  chainId?: 50312;
 };
 
 export type ReplayLockPublicKey = {
-  schema: typeof REPLAY_LOCK_PUBLIC_KEY_SCHEMA;
+  schema: typeof REPLAY_LOCK_PUBLIC_KEY_SCHEMA | typeof SHANNON_REPLAY_LOCK_PUBLIC_KEY_SCHEMA;
   algorithm: 'Ed25519';
   keyId: string;
   environment: string;
   publicKey: string;
+  profileId?: 'shannon-testnet';
+  chainId?: 50312;
 };
 
 const MARKET_ID = /^0x[0-9a-f]{64}$/;
@@ -102,11 +116,17 @@ function isPositiveSafeInteger(value: unknown): value is number {
 }
 
 export function isReplayLockAttestation(value: unknown): value is ReplayLockAttestation {
-  if (!isRecord(value) || !hasExactKeys(value, [
+  if (!isRecord(value)) return false;
+  const v1 = value.schema === REPLAY_LOCK_ATTESTATION_SCHEMA && hasExactKeys(value, [
     'algorithm', 'commitment', 'environment', 'expiresAt', 'issuedAt', 'keyId',
     'lockedDirection', 'revealAfter', 'schema', 'signature',
-  ])) return false;
-  return value.schema === REPLAY_LOCK_ATTESTATION_SCHEMA
+  ]);
+  const v2 = value.schema === SHANNON_REPLAY_LOCK_ATTESTATION_SCHEMA && hasExactKeys(value, [
+    'algorithm', 'chainId', 'commitment', 'environment', 'expiresAt', 'issuedAt', 'keyId',
+    'lockedDirection', 'profileId', 'revealAfter', 'schema', 'signature',
+  ]);
+  if (!v1 && !v2) return false;
+  return (v1 || (value.profileId === 'shannon-testnet' && value.chainId === 50312))
     && value.algorithm === 'Ed25519'
     && typeof value.keyId === 'string' && ED25519_KEY_ID.test(value.keyId)
     && typeof value.environment === 'string' && ENVIRONMENT.test(value.environment)
@@ -121,10 +141,15 @@ export function isReplayLockAttestation(value: unknown): value is ReplayLockAtte
 }
 
 export function isReplayLockPublicKey(value: unknown): value is ReplayLockPublicKey {
-  if (!isRecord(value) || !hasExactKeys(value, [
+  if (!isRecord(value)) return false;
+  const v1 = value.schema === REPLAY_LOCK_PUBLIC_KEY_SCHEMA && hasExactKeys(value, [
     'algorithm', 'environment', 'keyId', 'publicKey', 'schema',
-  ])) return false;
-  return value.schema === REPLAY_LOCK_PUBLIC_KEY_SCHEMA
+  ]);
+  const v2 = value.schema === SHANNON_REPLAY_LOCK_PUBLIC_KEY_SCHEMA && hasExactKeys(value, [
+    'algorithm', 'chainId', 'environment', 'keyId', 'profileId', 'publicKey', 'schema',
+  ]);
+  if (!v1 && !v2) return false;
+  return (v1 || (value.profileId === 'shannon-testnet' && value.chainId === 50312))
     && value.algorithm === 'Ed25519'
     && typeof value.keyId === 'string' && ED25519_KEY_ID.test(value.keyId)
     && typeof value.environment === 'string' && ENVIRONMENT.test(value.environment)
@@ -134,6 +159,20 @@ export function isReplayLockPublicKey(value: unknown): value is ReplayLockPublic
 export function canonicalReplayLockAttestation(
   attestation: Omit<ReplayLockAttestation, 'signature'>,
 ) {
+  if (attestation.schema === SHANNON_REPLAY_LOCK_ATTESTATION_SCHEMA) {
+    return [
+      SHANNON_REPLAY_LOCK_ATTESTATION_DOMAIN,
+      `environment=${attestation.environment}`,
+      `profileId=${attestation.profileId}`,
+      `chainId=${attestation.chainId}`,
+      `keyId=${attestation.keyId}`,
+      `commitment=${attestation.commitment.toLowerCase()}`,
+      `direction=${attestation.lockedDirection}`,
+      `issuedAt=${attestation.issuedAt}`,
+      `revealAfter=${attestation.revealAfter}`,
+      `expiresAt=${attestation.expiresAt}`,
+    ].join('\n');
+  }
   return [
     REPLAY_LOCK_ATTESTATION_DOMAIN,
     `environment=${attestation.environment}`,
@@ -148,9 +187,14 @@ export function canonicalReplayLockAttestation(
 
 export function replayLockAttestationMatchesProof(
   attestation: ReplayLockAttestation,
-  proof: Pick<ReplayCommitmentPayload, 'lockedDirection' | 'issuedAt' | 'revealAfter' | 'expiresAt'> & { commitment: string },
+  proof: Pick<ReplayCommitmentPayload, 'lockedDirection' | 'issuedAt' | 'revealAfter' | 'expiresAt'>
+    & Partial<ShannonReplayBinding> & { commitment: string },
 ) {
-  return attestation.commitment.toLowerCase() === proof.commitment.toLowerCase()
+  const networkMatches = attestation.schema === SHANNON_REPLAY_LOCK_ATTESTATION_SCHEMA
+    ? proof.profileId === attestation.profileId && proof.chainId === attestation.chainId
+    : proof.profileId === undefined && proof.chainId === undefined;
+  return networkMatches
+    && attestation.commitment.toLowerCase() === proof.commitment.toLowerCase()
     && attestation.lockedDirection === proof.lockedDirection
     && attestation.issuedAt === proof.issuedAt
     && attestation.revealAfter === proof.revealAfter
@@ -166,6 +210,9 @@ export function sameReplayLockAttestation(
     && left.algorithm === right.algorithm
     && left.keyId === right.keyId
     && left.environment === right.environment
+    && (left.schema !== SHANNON_REPLAY_LOCK_ATTESTATION_SCHEMA
+      || (right.schema === SHANNON_REPLAY_LOCK_ATTESTATION_SCHEMA
+        && left.profileId === right.profileId && left.chainId === right.chainId))
     && left.commitment.toLowerCase() === right.commitment.toLowerCase()
     && left.lockedDirection === right.lockedDirection
     && left.issuedAt === right.issuedAt
@@ -186,6 +233,10 @@ export async function verifyReplayLockAttestation(
   trustedKey: ReplayLockPublicKey,
 ) {
   if (!isReplayLockAttestation(attestation) || !isReplayLockPublicKey(trustedKey)
+    || (attestation.schema === SHANNON_REPLAY_LOCK_ATTESTATION_SCHEMA
+      ? trustedKey.schema !== SHANNON_REPLAY_LOCK_PUBLIC_KEY_SCHEMA
+        || attestation.profileId !== trustedKey.profileId || attestation.chainId !== trustedKey.chainId
+      : trustedKey.schema !== REPLAY_LOCK_PUBLIC_KEY_SCHEMA)
     || attestation.keyId !== trustedKey.keyId
     || attestation.environment !== trustedKey.environment) return false;
   try {
@@ -279,8 +330,12 @@ export function secondsUntilReplayReveal(revealAfter: number | undefined, nowSec
 }
 
 export function canonicalReplayProof(proof: ReplayCommitmentPayload) {
+  const shannon = proof.profileId === 'shannon-testnet' && proof.chainId === 50312;
+  const prefix = shannon
+    ? [SHANNON_REPLAY_COMMITMENT_DOMAIN, `profileId=${proof.profileId}`, `chainId=${proof.chainId}`]
+    : [REPLAY_COMMITMENT_DOMAIN];
   return [
-    REPLAY_COMMITMENT_DOMAIN,
+    ...prefix,
     `marketId=${proof.marketId.toLowerCase()}`,
     `marketType=${proof.marketType}`,
     `asset=${proof.asset}`,

@@ -103,14 +103,14 @@ export function runShareCaption(input: RunShareCardInput) {
   ].join('\n');
 }
 
-export function runShareClipboardText(input: RunShareCardInput) {
-  return `${runShareCaption(input)}\n${MARKET_DUNGEON_CHALLENGE_URL}`;
+export function runShareClipboardText(input: RunShareCardInput, challengeUrl = MARKET_DUNGEON_CHALLENGE_URL) {
+  return `${runShareCaption(input)}\n${challengeUrl}`;
 }
 
-export function runShareXUrl(input: RunShareCardInput) {
+export function runShareXUrl(input: RunShareCardInput, challengeUrl = MARKET_DUNGEON_CHALLENGE_URL) {
   const url = new URL(X_SHARE_INTENT_URL);
   url.searchParams.set('text', runShareCaption(input));
-  url.searchParams.set('url', MARKET_DUNGEON_CHALLENGE_URL);
+  url.searchParams.set('url', challengeUrl);
   return url.toString();
 }
 

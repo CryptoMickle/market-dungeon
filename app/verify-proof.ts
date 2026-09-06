@@ -1,7 +1,11 @@
 import { canonicalJudgeActionLog, replayJudgeCombat, type JudgeCombatAction } from './judge-combat.ts';
 import { eventContractIntervalLabel } from './event-contract-interval.ts';
 import {
-  SOMNIA_MAINNET_RPC,
+  SHANNON_TESTNET_PROFILE,
+  SOMNIA_MAINNET_PROFILE,
+  type JudgeNetworkProfile,
+} from './judge-network.ts';
+import {
   directSettlementProofMatchesMarket,
   directSettlementProofRpcOutcome,
   type DirectOnchainSettlementProof,
@@ -22,10 +26,13 @@ import {
 } from './replay-proof.ts';
 import {
   isPortableVerifiedRunSettlement,
+  VERIFIED_RUN_PROOF_SCHEMA_V2,
+  VERIFIED_RUN_PROOF_SCHEMA_V3,
   type PortableVerifiedRunSettlementProof,
 } from './share-verified-run.ts';
 
-export const VERIFIED_PROOF_SCHEMA = 'market-dungeon/verified-judge-run/v2';
+export const VERIFIED_PROOF_SCHEMA = VERIFIED_RUN_PROOF_SCHEMA_V2;
+export const SHANNON_VERIFIED_PROOF_SCHEMA = VERIFIED_RUN_PROOF_SCHEMA_V3;
 export const VERIFIED_PROOF_MAX_BYTES = 128 * 1024;
 export const VERIFIED_PROOF_APP = 'https://market-dungeon.vercel.app';
 export const VERIFIED_PROOF_EXPLORER = 'https://explorer.somnia.network';
@@ -57,9 +64,17 @@ export type ProofVerificationResult = {
 };
 
 type PortableProofArtifact = {
-  schema: typeof VERIFIED_PROOF_SCHEMA;
+  schema: typeof VERIFIED_PROOF_SCHEMA | typeof SHANNON_VERIFIED_PROOF_SCHEMA;
   generatedAt: string;
-  app: typeof VERIFIED_PROOF_APP;
+  app: string;
+  networkProfile?: {
+    profileId: 'shannon-testnet';
+    chainId: 50312;
+    network: string;
+    collateral: string;
+    binaryModule: string;
+    binarySettlement: string;
+  };
   summary: {
     market: string;
     result: 'BLESSED' | 'CURSED';
@@ -107,6 +122,8 @@ const TOP_LEVEL_KEYS = [
   'verificationSteps',
 ];
 
+const SHANNON_TOP_LEVEL_KEYS = [...TOP_LEVEL_KEYS, 'networkProfile'];
+
 const REPLAY_KEYS = [
   'algorithm', 'asset', 'canonical', 'commitment', 'committedOutcome', 'createdByTx',
   'creator', 'expiresAt', 'gameSeed', 'intervalSec', 'issuedAt', 'lastTradeAt',
@@ -114,6 +131,8 @@ const REPLAY_KEYS = [
   'marketType', 'operatorId', 'oracleQuestionId', 'question', 'revealAfter', 'salt',
   'tradeCount', 'tradingStart', 'venueId', 'verified',
 ];
+
+const SHANNON_REPLAY_KEYS = [...REPLAY_KEYS, 'chainId', 'profileId'];
 
 const ONCHAIN_KEYS = [
   'backing', 'blockHash', 'blockNumber', 'blockTag', 'calls', 'chainId', 'collateralToken',
@@ -157,30 +176,44 @@ function isBoundedString(value: unknown, maximum: number): value is string {
   return typeof value === 'string' && value.length > 0 && value.length <= maximum;
 }
 
+function matchesString(value: unknown, pattern: RegExp): value is string {
+  return typeof value === 'string' && pattern.test(value);
+}
+
+function sameCaseInsensitiveString(value: unknown, expected: string) {
+  return typeof value === 'string' && value.toLowerCase() === expected.toLowerCase();
+}
+
 function isJudgeCombatAction(value: unknown): value is JudgeCombatAction {
   if (!isRecord(value) || !hasExactKeys(value, ['action', 'room'])) return false;
   return (value.room === 8 || value.room === 9)
     && (value.action === 'attack' || value.action === 'storm' || value.action === 'potion');
 }
 
-function parseReplayProof(value: unknown): ReplayProof | null {
-  if (!isRecord(value) || !hasExactKeys(value, REPLAY_KEYS)) return null;
+function parseReplayProof(value: unknown, profile: JudgeNetworkProfile): ReplayProof | null {
+  const expectedKeys = profile.id === SHANNON_TESTNET_PROFILE.id ? SHANNON_REPLAY_KEYS : REPLAY_KEYS;
+  if (!isRecord(value) || !hasExactKeys(value, expectedKeys)) return null;
   if (value.verified !== true || value.algorithm !== 'SHA-256'
     || value.marketType !== 'BINARY' || value.asset !== 'BTC'
     || (value.intervalSec !== 300 && value.intervalSec !== 900)
     || value.question !== REPLAY_MARKET_QUESTION || value.marketStatus !== 'Finalized'
-    || !isBoundedString(value.canonical, 8_192) || !BYTES32.test(String(value.commitment))
-    || !BYTES32.test(String(value.marketId)) || !BYTES32.test(String(value.venueId))
-    || !HEX_BYTES.test(String(value.marketContext)) || !ADDRESS.test(String(value.creator))
-    || !BYTES32.test(String(value.createdByTx)) || !UNSIGNED_DECIMAL.test(String(value.oracleQuestionId))
-    || !BASE64URL_32_BYTES.test(String(value.gameSeed)) || !BASE64URL_32_BYTES.test(String(value.salt))
+    || !isBoundedString(value.canonical, 8_192) || !matchesString(value.commitment, BYTES32)
+    || !matchesString(value.marketId, BYTES32) || !matchesString(value.venueId, BYTES32)
+    || !matchesString(value.marketContext, HEX_BYTES) || !matchesString(value.creator, ADDRESS)
+    || !matchesString(value.createdByTx, BYTES32) || !matchesString(value.oracleQuestionId, UNSIGNED_DECIMAL)
+    || !matchesString(value.gameSeed, BASE64URL_32_BYTES) || !matchesString(value.salt, BASE64URL_32_BYTES)
     || (value.lockedDirection !== 'UP' && value.lockedDirection !== 'DOWN')
     || (value.committedOutcome !== 0 && value.committedOutcome !== 1)
     || !isSafePositiveInteger(value.tradingStart) || !isSafePositiveInteger(value.marketExpiry)
     || !isSafePositiveInteger(value.tradeCount) || !isSafePositiveInteger(value.lastTradeAt)
     || typeof value.operatorId !== 'number' || !Number.isSafeInteger(value.operatorId) || value.operatorId < 0
     || !isSafePositiveInteger(value.issuedAt) || !isSafePositiveInteger(value.revealAfter)
-    || !isSafePositiveInteger(value.expiresAt)) return null;
+    || !isSafePositiveInteger(value.expiresAt)
+    || (profile.id === SHANNON_TESTNET_PROFILE.id
+      ? value.profileId !== profile.id || value.chainId !== profile.chainId
+        || value.operatorId !== profile.originOperatorId
+        || !sameCaseInsensitiveString(value.venueId, profile.originVenueId)
+      : value.profileId !== undefined || value.chainId !== undefined)) return null;
 
   if (value.marketExpiry - value.tradingStart !== value.intervalSec
     || value.lastTradeAt < value.tradingStart || value.lastTradeAt > value.marketExpiry
@@ -200,7 +233,7 @@ function parseCombat(value: unknown): PortableProofArtifact['combat'] | null {
 
   const proof = value.proof;
   if (proof.verified !== true || proof.ruleset !== 'market-dungeon/judge-combat/v1'
-    || !BYTES32.test(String(proof.transcriptDigest))
+    || !matchesString(proof.transcriptDigest, BYTES32)
     || typeof proof.steps !== 'number' || !Number.isSafeInteger(proof.steps) || proof.steps !== value.actions.length
     || proof.guardDefeated !== true || proof.bossDefeated !== true || proof.playerSurvived !== true
     || typeof proof.finalHp !== 'number' || !Number.isSafeInteger(proof.finalHp)
@@ -210,37 +243,47 @@ function parseCombat(value: unknown): PortableProofArtifact['combat'] | null {
 
 function isDirectCall(value: unknown) {
   if (!isRecord(value) || !hasExactKeys(value, ['blockReference', 'blockTag', 'data', 'result', 'to'])
-    || !ADDRESS.test(String(value.to)) || !/^0x[0-9a-f]+$/i.test(String(value.blockTag))
-    || !HEX_BYTES.test(String(value.data)) || !ABI_WORDS.test(String(value.result))
+    || !matchesString(value.to, ADDRESS) || !matchesString(value.blockTag, /^0x[0-9a-f]+$/i)
+    || !matchesString(value.data, HEX_BYTES) || !matchesString(value.result, ABI_WORDS)
     || !isRecord(value.blockReference)
     || !hasExactKeys(value.blockReference, ['blockHash', 'requireCanonical'])) return false;
-  return BYTES32.test(String(value.blockReference.blockHash))
+  return matchesString(value.blockReference.blockHash, BYTES32)
     && value.blockReference.requireCanonical === true;
 }
 
-function parseOnchainProof(value: unknown): DirectOnchainSettlementProof | null {
+function parseOnchainProof(value: unknown, profile: JudgeNetworkProfile): DirectOnchainSettlementProof | null {
   if (!isRecord(value) || !hasExactKeys(value, ONCHAIN_KEYS)
-    || value.verified !== true || value.source !== 'SOMNIA_RPC_ETH_CALL' || value.chainId !== 5031
-    || !BYTES32.test(String(value.marketId)) || !BYTES32.test(String(value.blockHash))
-    || !/^0x[0-9a-f]+$/i.test(String(value.blockTag)) || !UNSIGNED_DECIMAL.test(String(value.blockNumber))
+    || value.verified !== true || value.source !== 'SOMNIA_RPC_ETH_CALL' || value.chainId !== profile.chainId
+    || !matchesString(value.marketId, BYTES32) || !matchesString(value.blockHash, BYTES32)
+    || !matchesString(value.blockTag, /^0x[0-9a-f]+$/i) || !matchesString(value.blockNumber, UNSIGNED_DECIMAL)
     || ![value.marketAddress, value.poolAddress, value.moduleAddress, value.settlementAddress,
-      value.collateralToken, value.creator].every((entry) => ADDRESS.test(String(entry)))
-    || !BYTES32.test(String(value.originVenueId))
+      value.collateralToken, value.creator].every((entry) => matchesString(entry, ADDRESS))
+    || !matchesString(value.originVenueId, BYTES32)
     || ![value.oracleQuestionId, value.originOperatorId, value.tradingStart, value.expiry,
       value.yesId, value.noId, value.marketKey, value.nonce, value.backing,
       value.payoutDenominator, value.settlementFeeBpsTimes1k]
-      .every((entry) => UNSIGNED_DECIMAL.test(String(entry)))
+      .every((entry) => matchesString(entry, UNSIGNED_DECIMAL))
     || value.finalized !== true || typeof value.voided !== 'boolean'
     || (value.winningOutcome !== 0 && value.winningOutcome !== 1 && value.winningOutcome !== null)
     || !Array.isArray(value.payoutNumerators) || value.payoutNumerators.length !== 2
-    || !value.payoutNumerators.every((entry) => UNSIGNED_DECIMAL.test(String(entry)))
+    || !value.payoutNumerators.every((entry) => matchesString(entry, UNSIGNED_DECIMAL))
     || !isRecord(value.calls) || !hasExactKeys(value.calls, ['moduleMarket', 'settlementRecord'])
     || !isDirectCall(value.calls.moduleMarket) || !isDirectCall(value.calls.settlementRecord)) return null;
+  if (profile.id === SHANNON_TESTNET_PROFILE.id && (
+    !sameCaseInsensitiveString(value.collateralToken, profile.collateral)
+    || !sameCaseInsensitiveString(value.moduleAddress, profile.contracts.binaryModule)
+    || !sameCaseInsensitiveString(value.settlementAddress, profile.contracts.binarySettlement)
+    || value.originOperatorId !== String(profile.originOperatorId)
+    || !sameCaseInsensitiveString(value.originVenueId, profile.originVenueId)
+  )) return null;
   return value as unknown as DirectOnchainSettlementProof;
 }
 
-export function isStrictReplayProof(value: unknown): value is ReplayProof {
-  return parseReplayProof(value) !== null;
+export function isStrictReplayProof(
+  value: unknown,
+  profile: JudgeNetworkProfile = SOMNIA_MAINNET_PROFILE,
+): value is ReplayProof {
+  return parseReplayProof(value, profile) !== null;
 }
 
 export function isStrictReplayCombatProof(
@@ -251,13 +294,16 @@ export function isStrictReplayCombatProof(
   return parseCombat({ proof: value, actions, canonicalTranscript }) !== null;
 }
 
-export function isStrictOnchainSettlementProof(value: unknown): value is DirectOnchainSettlementProof {
-  return parseOnchainProof(value) !== null;
+export function isStrictOnchainSettlementProof(
+  value: unknown,
+  profile: JudgeNetworkProfile = SOMNIA_MAINNET_PROFILE,
+): value is DirectOnchainSettlementProof {
+  return parseOnchainProof(value, profile) !== null;
 }
 
-function expectedIndependentRpc(proof: DirectOnchainSettlementProof) {
+function expectedIndependentRpc(proof: DirectOnchainSettlementProof, profile: JudgeNetworkProfile) {
   return {
-    rpc: SOMNIA_MAINNET_RPC,
+    rpc: profile.rpc,
     chainIdRequest: { method: 'eth_chainId', params: [] },
     blockRequest: { method: 'eth_getBlockByHash', params: [proof.blockHash, false] },
     moduleMarketRequest: {
@@ -274,11 +320,11 @@ function expectedIndependentRpc(proof: DirectOnchainSettlementProof) {
   };
 }
 
-function expectedExplorer(proof: DirectOnchainSettlementProof) {
+function expectedExplorer(proof: DirectOnchainSettlementProof, profile: JudgeNetworkProfile) {
   return {
-    block: `${VERIFIED_PROOF_EXPLORER}/block/${encodeURIComponent(proof.blockNumber)}`,
-    binaryModule: `${VERIFIED_PROOF_EXPLORER}/address/${encodeURIComponent(proof.moduleAddress)}`,
-    binarySettlement: `${VERIFIED_PROOF_EXPLORER}/address/${encodeURIComponent(proof.settlementAddress)}`,
+    block: `${profile.explorer}/block/${encodeURIComponent(proof.blockNumber)}`,
+    binaryModule: `${profile.explorer}/address/${encodeURIComponent(proof.moduleAddress)}`,
+    binarySettlement: `${profile.explorer}/address/${encodeURIComponent(proof.settlementAddress)}`,
   };
 }
 
@@ -288,7 +334,10 @@ function expectedResult(replayProof: ReplayProof, onchainProof: PortableVerified
     : 'CURSED' as const;
 }
 
-export function parseVerifiedProofArtifact(text: string): ProofParseResult {
+export function parseVerifiedProofArtifact(
+  text: string,
+  profile: JudgeNetworkProfile = SOMNIA_MAINNET_PROFILE,
+): ProofParseResult {
   const byteLength = new TextEncoder().encode(text).byteLength;
   if (byteLength === 0) return { ok: false, error: 'Paste or choose a proof JSON file first.' };
   if (byteLength > VERIFIED_PROOF_MAX_BYTES) {
@@ -302,19 +351,35 @@ export function parseVerifiedProofArtifact(text: string): ProofParseResult {
     return { ok: false, error: 'The file is not valid JSON.' };
   }
 
-  if (!isRecord(value) || !hasExactKeys(value, TOP_LEVEL_KEYS)
-    || value.schema !== VERIFIED_PROOF_SCHEMA || value.app !== VERIFIED_PROOF_APP
-    || !isBoundedString(value.generatedAt, 40) || Number.isNaN(Date.parse(String(value.generatedAt)))) {
-    return { ok: false, error: 'This is not a strict Market Dungeon verified-run v2 artifact.' };
+  const shannon = profile.id === SHANNON_TESTNET_PROFILE.id;
+  const expectedSchema = shannon ? SHANNON_VERIFIED_PROOF_SCHEMA : VERIFIED_PROOF_SCHEMA;
+  const expectedApp = shannon ? `${VERIFIED_PROOF_APP}${profile.judgePath}` : VERIFIED_PROOF_APP;
+  if (!isRecord(value) || !hasExactKeys(value, shannon ? SHANNON_TOP_LEVEL_KEYS : TOP_LEVEL_KEYS)
+    || value.schema !== expectedSchema || value.app !== expectedApp
+    || !isBoundedString(value.generatedAt, 40) || Number.isNaN(Date.parse(value.generatedAt))) {
+    return { ok: false, error: `This is not a strict Market Dungeon ${shannon ? 'Shannon v3' : 'mainnet v2'} artifact.` };
   }
 
-  const replayProof = parseReplayProof(value.replayProof);
+  if (shannon) {
+    const network = value.networkProfile;
+    if (!isRecord(network) || !hasExactKeys(network, [
+      'binaryModule', 'binarySettlement', 'chainId', 'collateral', 'network', 'profileId',
+    ]) || network.profileId !== profile.id || network.chainId !== profile.chainId
+      || network.network !== profile.name
+      || !sameCaseInsensitiveString(network.collateral, profile.collateral)
+      || !sameCaseInsensitiveString(network.binaryModule, profile.contracts.binaryModule)
+      || !sameCaseInsensitiveString(network.binarySettlement, profile.contracts.binarySettlement)) {
+      return { ok: false, error: 'The Shannon proof network profile was changed or is incomplete.' };
+    }
+  }
+
+  const replayProof = parseReplayProof(value.replayProof, profile);
   const combat = parseCombat(value.combat);
-  const parsedOnchainProof = parseOnchainProof(value.onchainProof);
+  const parsedOnchainProof = parseOnchainProof(value.onchainProof, profile);
   if (!replayProof || !combat || !parsedOnchainProof) {
     return { ok: false, error: 'The proof structure is incomplete or contains invalid fields.' };
   }
-  if (!isPortableVerifiedRunSettlement(parsedOnchainProof)) {
+  if (!isPortableVerifiedRunSettlement(parsedOnchainProof, profile)) {
     return { ok: false, error: 'Portable Judge proofs require a finalized non-void settlement with a binary outcome.' };
   }
   const onchainProof = parsedOnchainProof;
@@ -334,8 +399,8 @@ export function parseVerifiedProofArtifact(text: string): ProofParseResult {
     return { ok: false, error: 'The human-readable summary does not match the cryptographic proof.' };
   }
 
-  if (!sameJson(value.independentRpcVerification, expectedIndependentRpc(onchainProof))
-    || !sameJson(value.explorer, expectedExplorer(onchainProof))
+  if (!sameJson(value.independentRpcVerification, expectedIndependentRpc(onchainProof, profile))
+    || !sameJson(value.explorer, expectedExplorer(onchainProof, profile))
     || !sameJson(value.verificationSteps, VERIFICATION_STEPS)) {
     return { ok: false, error: 'The verification instructions or fixed public endpoints were changed.' };
   }
@@ -351,8 +416,11 @@ async function sha256Hex(value: string) {
   return `0x${Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('')}`;
 }
 
-async function fetchReplayLockPublicKey(): Promise<unknown> {
-  const response = await fetch(VERIFIED_PROOF_PUBLIC_KEY_ENDPOINT, {
+async function fetchReplayLockPublicKey(profile: JudgeNetworkProfile): Promise<unknown> {
+  const endpoint = profile.id === SHANNON_TESTNET_PROFILE.id
+    ? profile.apiPath + '/public-key'
+    : VERIFIED_PROOF_PUBLIC_KEY_ENDPOINT;
+  const response = await fetch(endpoint, {
     method: 'GET',
     cache: 'no-store',
     headers: { accept: 'application/json' },
@@ -395,9 +463,10 @@ function overallStatus(checks: ProofVerificationCheck[]): ProofVerificationStatu
 export async function verifyProofArtifact(
   text: string,
   rpc?: SettlementProofRpc,
-  publicKeyProvider: ReplayLockPublicKeyProvider = fetchReplayLockPublicKey,
+  publicKeyProvider?: ReplayLockPublicKeyProvider,
+  profile: JudgeNetworkProfile = SOMNIA_MAINNET_PROFILE,
 ): Promise<ProofVerificationResult> {
-  const parsed = parseVerifiedProofArtifact(text);
+  const parsed = parseVerifiedProofArtifact(text, profile);
   if (!parsed.ok) {
     return {
       status: 'FAIL',
@@ -430,7 +499,7 @@ export async function verifyProofArtifact(
   const market = settlementMarket(artifact);
   let settlementPasses = false;
   try {
-    settlementPasses = directSettlementProofMatchesMarket(artifact.onchainProof, market);
+    settlementPasses = directSettlementProofMatchesMarket(artifact.onchainProof, market, profile);
   } catch {
     settlementPasses = false;
   }
@@ -440,7 +509,7 @@ export async function verifyProofArtifact(
       id: 'artifact',
       label: 'Proof file',
       status: 'PASS',
-      detail: 'Strict verified-run v2 structure, fixed app, RPC instructions, and explorer links match.',
+      detail: `Strict ${profile.id === SHANNON_TESTNET_PROFILE.id ? 'Shannon v3' : 'mainnet v2'} structure, fixed app, RPC instructions, and explorer links match.`,
     },
     {
       id: 'commitment',
@@ -472,7 +541,9 @@ export async function verifyProofArtifact(
 
   let trustedKey: ReplayLockPublicKey | null = null;
   try {
-    const candidate = await publicKeyProvider();
+    const candidate = await (publicKeyProvider
+      ? publicKeyProvider()
+      : fetchReplayLockPublicKey(profile));
     if (isReplayLockPublicKey(candidate)) trustedKey = candidate;
   } catch {
     trustedKey = null;
@@ -500,7 +571,7 @@ export async function verifyProofArtifact(
   });
   if (attestationStatus === 'FAIL') return { status: 'FAIL', checks };
 
-  const rpcOutcome = await directSettlementProofRpcOutcome(artifact.onchainProof, market, rpc);
+  const rpcOutcome = await directSettlementProofRpcOutcome(artifact.onchainProof, market, rpc, profile);
   checks.push({
     id: 'rpc',
     label: 'Live Somnia re-fetch',

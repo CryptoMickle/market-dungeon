@@ -1,6 +1,10 @@
 import { decodeFunctionResult, encodeFunctionData } from 'viem';
 
 import {
+  SOMNIA_MAINNET_PROFILE,
+  type JudgeNetworkProfile,
+} from '../judge-network.ts';
+import {
   BINARY_SETTLEMENT_ABI,
   DREAMDEX_SETTLEMENT_CONTRACTS,
   MODULE_MARKETS_ABI,
@@ -8,8 +12,6 @@ import {
   type DirectOnchainSettlementProof,
 } from '../onchain-settlement-proof.ts';
 
-const INDEXER = 'https://prd.smk.somnia.host/v1/graphql';
-const RPC = 'https://api.infra.mainnet.somnia.network';
 const INDEXER_TIMEOUT_MS = 5_000;
 const RPC_TIMEOUT_MS = 5_000;
 const MAX_READ_ATTEMPTS = 2;
@@ -81,10 +83,14 @@ async function postJsonRead<T>(
   throw lastError ?? new UpstreamReadError(`${source} read failed`, { retryable: true });
 }
 
-export async function graphql(query: string, variables: Record<string, unknown> = {}) {
+export async function graphql(
+  query: string,
+  variables: Record<string, unknown> = {},
+  profile: JudgeNetworkProfile = SOMNIA_MAINNET_PROFILE,
+) {
   const payload = await postJsonRead<{ data?: Record<string, unknown>; errors?: unknown }>(
     'dreamDEX indexer',
-    INDEXER,
+    profile.indexer,
     { query, variables },
     INDEXER_TIMEOUT_MS,
   );
@@ -94,10 +100,10 @@ export async function graphql(query: string, variables: Record<string, unknown> 
   return payload.data as Record<string, unknown>;
 }
 
-async function rpc<T>(method: string, params: unknown[]) {
+async function rpc<T>(method: string, params: unknown[], profile: JudgeNetworkProfile) {
   const payload = await postJsonRead<{ result?: T; error?: unknown }>(
     'Somnia RPC',
-    RPC,
+    profile.rpc,
     { jsonrpc: '2.0', id: 1, method, params },
     RPC_TIMEOUT_MS,
   );
@@ -112,27 +118,31 @@ function words(hex: string) {
   return Array.from({ length: data.length / 64 }, (_, i) => BigInt(`0x${data.slice(i * 64, i * 64 + 64)}`));
 }
 
-export async function hydrateMarket(market: Record<string, unknown>, demoReplay = false) {
+export async function hydrateMarket(
+  market: Record<string, unknown>,
+  demoReplay = false,
+  profile: JudgeNetworkProfile = SOMNIA_MAINNET_PROFILE,
+) {
   let strikeRaw = String(market.strike ?? '0');
   if (BigInt(strikeRaw) === 0n) {
     const refs = await graphql(`query OpeningRefs($ids: [String!]) {
       MarketReferenceLink(where: {market_id: {_in: $ids}}) { referenceQuestionId }
-    }`, { ids: [String(market.marketId).toLowerCase()] });
+    }`, { ids: [String(market.marketId).toLowerCase()] }, profile);
     const qid = (refs.MarketReferenceLink as Array<{ referenceQuestionId: string }>)?.[0]?.referenceQuestionId;
     if (qid) {
       const answers = await graphql(`query OpeningAnswers($qids: [String!]) {
         OracleAnswer(where: {id: {_in: $qids}}) { numericValue }
-      }`, { qids: [String(qid)] });
+      }`, { qids: [String(qid)] }, profile);
       strikeRaw = (answers.OracleAnswer as Array<{ numericValue: string }>)?.[0]?.numericValue ?? strikeRaw;
     }
   }
 
-  const chainId = Number(BigInt(await rpc<string>('eth_chainId', [])));
-  if (chainId !== 5031) throw new Error('Unexpected Somnia chain');
-  const rawParams = await rpc<string>('eth_call', [{ to: market.poolAddress, data: '0x0765910c' }, 'latest']);
+  const chainId = Number(BigInt(await rpc<string>('eth_chainId', [], profile)));
+  if (chainId !== profile.chainId) throw new Error('Unexpected Somnia chain');
+  const rawParams = await rpc<string>('eth_call', [{ to: market.poolAddress, data: '0x0765910c' }, 'latest'], profile);
   const [tickSize, minQuantity, lotSize] = words(rawParams);
   const onchainSettlement = isTerminalSettlementMarket(market)
-    ? await verifyDirectSettlement(market, chainId)
+    ? await verifyDirectSettlement(market, chainId, profile)
     : undefined;
 
   return {
@@ -143,7 +153,9 @@ export async function hydrateMarket(market: Record<string, unknown>, demoReplay 
       expiryIso: new Date(Number(market.expiry) * 1000).toISOString(),
       demoReplay,
     },
-    network: { name: 'Somnia mainnet', chainId },
+    network: profile.id === SOMNIA_MAINNET_PROFILE.id
+      ? { name: profile.name, chainId }
+      : { name: profile.name, chainId, profileId: profile.id },
     book: { tickSize: tickSize.toString(), minQuantity: minQuantity.toString(), lotSize: lotSize.toString() },
     ...(onchainSettlement ? { onchainSettlement } : {}),
     safety: { mode: 'DRY_RUN', writesEnabled: false },
@@ -167,15 +179,16 @@ function outcomeFromPayouts(payouts: readonly bigint[], voided: boolean) {
 export async function verifyDirectSettlement(
   market: Record<string, unknown>,
   verifiedChainId?: number,
+  profile: JudgeNetworkProfile = SOMNIA_MAINNET_PROFILE,
 ): Promise<DirectOnchainSettlementProof> {
   const marketId = String(market.marketId ?? '').toLowerCase();
   if (!/^0x[0-9a-f]{64}$/.test(marketId) || !isTerminalSettlementMarket(market)) throw new Error('Terminal market required');
-  const chainId = verifiedChainId ?? Number(BigInt(await rpc<string>('eth_chainId', [])));
-  if (chainId !== 5031) throw new Error('Unexpected Somnia chain');
+  const chainId = verifiedChainId ?? Number(BigInt(await rpc<string>('eth_chainId', [], profile)));
+  if (chainId !== profile.chainId) throw new Error('Unexpected Somnia chain');
 
-  const blockTag = await rpc<string>('eth_blockNumber', []);
+  const blockTag = await rpc<string>('eth_blockNumber', [], profile);
   if (!/^0x[0-9a-f]+$/i.test(blockTag)) throw new Error('Invalid Somnia block tag');
-  const block = await rpc<{ hash?: string; number?: string }>('eth_getBlockByNumber', [blockTag, false]);
+  const block = await rpc<{ hash?: string; number?: string }>('eth_getBlockByNumber', [blockTag, false], profile);
   if (!/^0x[0-9a-f]{64}$/i.test(String(block.hash)) || String(block.number).toLowerCase() !== blockTag.toLowerCase()) {
     throw new Error('Invalid Somnia block proof');
   }
@@ -188,9 +201,9 @@ export async function verifyDirectSettlement(
     args: [marketId as `0x${string}`],
   });
   const moduleResult = await rpc<`0x${string}`>('eth_call', [{
-    to: DREAMDEX_MAINNET_CONTRACTS.binaryModule,
+    to: profile.contracts.binaryModule,
     data: moduleData,
-  }, blockReference]);
+  }, blockReference], profile);
   const moduleRecord = decodeFunctionResult({
     abi: MODULE_MARKETS_ABI,
     functionName: 'markets',
@@ -204,6 +217,7 @@ export async function verifyDirectSettlement(
   if (moduleRecord[1] !== 2 || yesId === 0n || noId !== yesId + 1n
     || !sameAddress(market.marketAddress, marketAddress) || !sameAddress(market.poolAddress, poolAddress)
     || !sameAddress(market.collateral, moduleCollateral)
+    || (profile.id !== SOMNIA_MAINNET_PROFILE.id && moduleCollateral.toLowerCase() !== profile.collateral.toLowerCase())
     || String(market.yesTokenId) !== yesId.toString() || String(market.noTokenId) !== noId.toString()
     || (market.oracleQuestionId != null && String(market.oracleQuestionId) !== moduleRecord[0].toString())
     || (market.operatorId != null && String(market.operatorId) !== moduleRecord[4].toString())
@@ -221,9 +235,9 @@ export async function verifyDirectSettlement(
     args: [marketKey],
   });
   const settlementResult = await rpc<`0x${string}`>('eth_call', [{
-    to: DREAMDEX_MAINNET_CONTRACTS.binarySettlement,
+    to: profile.contracts.binarySettlement,
     data: settlementData,
-  }, blockReference]);
+  }, blockReference], profile);
   const settlement = decodeFunctionResult({
     abi: BINARY_SETTLEMENT_ABI,
     functionName: 'getSettlement',
@@ -256,15 +270,15 @@ export async function verifyDirectSettlement(
   return {
     verified: true,
     source: 'SOMNIA_RPC_ETH_CALL',
-    chainId: 5031,
+    chainId: profile.chainId,
     blockNumber: BigInt(blockTag).toString(),
     blockHash,
     blockTag,
     marketId,
     marketAddress,
     poolAddress,
-    moduleAddress: DREAMDEX_MAINNET_CONTRACTS.binaryModule,
-    settlementAddress: DREAMDEX_MAINNET_CONTRACTS.binarySettlement,
+    moduleAddress: profile.contracts.binaryModule,
+    settlementAddress: profile.contracts.binarySettlement,
     collateralToken: settlement.collateralToken,
     oracleQuestionId: moduleRecord[0].toString(),
     originOperatorId: moduleRecord[4].toString(),
@@ -285,14 +299,14 @@ export async function verifyDirectSettlement(
     settlementFeeBpsTimes1k: settlement.settlementFeeBpsTimes1k.toString(),
     calls: {
       moduleMarket: {
-        to: DREAMDEX_MAINNET_CONTRACTS.binaryModule,
+        to: profile.contracts.binaryModule,
         blockTag,
         blockReference,
         data: moduleData,
         result: moduleResult,
       },
       settlementRecord: {
-        to: DREAMDEX_MAINNET_CONTRACTS.binarySettlement,
+        to: profile.contracts.binarySettlement,
         blockTag,
         blockReference,
         data: settlementData,
@@ -302,7 +316,10 @@ export async function verifyDirectSettlement(
   };
 }
 
-export async function fetchFullMarket(marketId: string) {
+export async function fetchFullMarket(
+  marketId: string,
+  profile: JudgeNetworkProfile = SOMNIA_MAINNET_PROFILE,
+) {
   const data = await graphql(`query ReplaySettlement($id: String!) {
     Market_by_pk(id: $id) {
       marketId marketAddress poolAddress collateral marketType asset question strike tradingStart expiry
@@ -310,6 +327,6 @@ export async function fetchFullMarket(marketId: string) {
       quoteDecimals yesTokenId noTokenId
       winningOutcome payoutNumerators payoutDenominator voided finalized resolvedAtTimestamp lastPrice
     }
-  }`, { id: marketId.toLowerCase() });
+  }`, { id: marketId.toLowerCase() }, profile);
   return data.Market_by_pk as Record<string, unknown> | null;
 }

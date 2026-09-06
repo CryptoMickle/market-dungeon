@@ -1,13 +1,17 @@
 import { eventContractIntervalLabel } from './event-contract-interval.ts';
-import { canonicalJudgeActionLog, type JudgeCombatAction } from './judge-combat.ts';
 import {
-  SOMNIA_MAINNET_RPC,
-  type DirectOnchainSettlementProof,
-} from './onchain-settlement-proof.ts';
+  SHANNON_TESTNET_PROFILE,
+  SOMNIA_MAINNET_PROFILE,
+  type JudgeNetworkProfile,
+} from './judge-network.ts';
+import { canonicalJudgeActionLog, type JudgeCombatAction } from './judge-combat.ts';
+import type { DirectOnchainSettlementProof } from './onchain-settlement-proof.ts';
 import type { ReplayCombatProof, ReplayLockAttestation, ReplayProof } from './replay-proof.ts';
 
 export const MARKET_DUNGEON_URL = 'https://market-dungeon.vercel.app';
 export const SOMNIA_EXPLORER_URL = 'https://explorer.somnia.network';
+export const VERIFIED_RUN_PROOF_SCHEMA_V2 = 'market-dungeon/verified-judge-run/v2';
+export const VERIFIED_RUN_PROOF_SCHEMA_V3 = 'market-dungeon/verified-judge-run/v3';
 
 export type VerifiedRunResult = 'BLESSED' | 'CURSED';
 
@@ -18,10 +22,12 @@ export type PortableVerifiedRunSettlementProof = DirectOnchainSettlementProof & 
 
 export function isPortableVerifiedRunSettlement(
   proof: DirectOnchainSettlementProof | null | undefined,
+  profile?: JudgeNetworkProfile,
 ): proof is PortableVerifiedRunSettlementProof {
   return proof?.finalized === true
     && proof.voided === false
-    && (proof.winningOutcome === 0 || proof.winningOutcome === 1);
+    && (proof.winningOutcome === 0 || proof.winningOutcome === 1)
+    && (!profile || proof.chainId === profile.chainId);
 }
 
 export type VerifiedRunProofInput = {
@@ -39,10 +45,14 @@ export function verifiedRunProofFilename(marketId: string) {
   return `market-dungeon-proof-${suffix}.json`;
 }
 
-export function verifiedRunProofArtifact(input: VerifiedRunProofInput, generatedAt = new Date().toISOString()) {
+export function verifiedRunProofArtifact(
+  input: VerifiedRunProofInput,
+  generatedAt = new Date().toISOString(),
+  profile: JudgeNetworkProfile = SOMNIA_MAINNET_PROFILE,
+) {
   const { replayProof, combatProof, combatActions, onchainSettlement } = input;
   if ((input.result !== 'BLESSED' && input.result !== 'CURSED')
-    || !isPortableVerifiedRunSettlement(onchainSettlement)) {
+    || !isPortableVerifiedRunSettlement(onchainSettlement, profile)) {
     throw new Error('Portable Judge proofs require a non-void BLESSED or CURSED settlement.');
   }
   const winningDirection = onchainSettlement.winningOutcome === 0 ? 'UP' : 'DOWN';
@@ -50,14 +60,22 @@ export function verifiedRunProofArtifact(input: VerifiedRunProofInput, generated
   if (replayProof.committedOutcome !== onchainSettlement.winningOutcome || input.result !== expectedResult) {
     throw new Error('Portable Judge proof result must match the committed onchain outcome.');
   }
-  const blockUrl = `${SOMNIA_EXPLORER_URL}/block/${encodeURIComponent(onchainSettlement.blockNumber)}`;
-  const moduleUrl = `${SOMNIA_EXPLORER_URL}/address/${encodeURIComponent(onchainSettlement.moduleAddress)}`;
-  const settlementUrl = `${SOMNIA_EXPLORER_URL}/address/${encodeURIComponent(onchainSettlement.settlementAddress)}`;
+  const shannon = profile.id === SHANNON_TESTNET_PROFILE.id;
+  if (shannon && (replayProof.profileId !== profile.id || replayProof.chainId !== profile.chainId
+    || input.lockAttestation.profileId !== profile.id || input.lockAttestation.chainId !== profile.chainId)) {
+    throw new Error('Shannon Judge proofs require a chain-bound commitment and lock receipt.');
+  }
+  if (!shannon && (replayProof.profileId !== undefined || replayProof.chainId !== undefined)) {
+    throw new Error('Mainnet v2 Judge proofs cannot contain a Shannon network binding.');
+  }
+  const blockUrl = `${profile.explorer}/block/${encodeURIComponent(onchainSettlement.blockNumber)}`;
+  const moduleUrl = `${profile.explorer}/address/${encodeURIComponent(onchainSettlement.moduleAddress)}`;
+  const settlementUrl = `${profile.explorer}/address/${encodeURIComponent(onchainSettlement.settlementAddress)}`;
 
-  return {
-    schema: 'market-dungeon/verified-judge-run/v2',
+  const common = {
+    schema: shannon ? VERIFIED_RUN_PROOF_SCHEMA_V3 : VERIFIED_RUN_PROOF_SCHEMA_V2,
     generatedAt,
-    app: MARKET_DUNGEON_URL,
+    app: shannon ? `${MARKET_DUNGEON_URL}${profile.judgePath}` : MARKET_DUNGEON_URL,
     summary: {
       market: `BTC ${eventContractIntervalLabel(input.intervalSec)}`,
       result: input.result,
@@ -74,7 +92,7 @@ export function verifiedRunProofArtifact(input: VerifiedRunProofInput, generated
     },
     onchainProof: onchainSettlement,
     independentRpcVerification: {
-      rpc: SOMNIA_MAINNET_RPC,
+      rpc: profile.rpc,
       chainIdRequest: { method: 'eth_chainId', params: [] },
       blockRequest: { method: 'eth_getBlockByHash', params: [onchainSettlement.blockHash, false] },
       moduleMarketRequest: {
@@ -105,24 +123,44 @@ export function verifiedRunProofArtifact(input: VerifiedRunProofInput, generated
       'ABI-decode both results and compare market, pool, collateral, token IDs, nonce, payout, and finalized non-void state with onchainProof.',
     ],
   } as const;
+  return shannon
+    ? {
+        ...common,
+        networkProfile: {
+          profileId: profile.id,
+          chainId: profile.chainId,
+          network: profile.name,
+          collateral: profile.collateral,
+          binaryModule: profile.contracts.binaryModule,
+          binarySettlement: profile.contracts.binarySettlement,
+        },
+      }
+    : common;
 }
 
-export function verifiedRunProofJson(input: VerifiedRunProofInput, generatedAt?: string) {
-  return `${JSON.stringify(verifiedRunProofArtifact(input, generatedAt), null, 2)}\n`;
+export function verifiedRunProofJson(
+  input: VerifiedRunProofInput,
+  generatedAt?: string,
+  profile: JudgeNetworkProfile = SOMNIA_MAINNET_PROFILE,
+) {
+  return `${JSON.stringify(verifiedRunProofArtifact(input, generatedAt, profile), null, 2)}\n`;
 }
 
-export function verifiedRunShareText(input: VerifiedRunProofInput) {
+export function verifiedRunShareText(
+  input: VerifiedRunProofInput,
+  profile: JudgeNetworkProfile = SOMNIA_MAINNET_PROFILE,
+) {
   const { replayProof, combatProof, onchainSettlement } = input;
   const actualOutcome = replayProof.committedOutcome === 0 ? 'UP' : 'DOWN';
   const result = input.result === 'BLESSED'
     ? 'VICTORY — prediction correct'
     : 'BOSS LAST STAND — prediction incorrect';
-  const blockUrl = `${SOMNIA_EXPLORER_URL}/block/${encodeURIComponent(onchainSettlement.blockNumber)}`;
-  const moduleUrl = `${SOMNIA_EXPLORER_URL}/address/${encodeURIComponent(onchainSettlement.moduleAddress)}`;
-  const settlementUrl = `${SOMNIA_EXPLORER_URL}/address/${encodeURIComponent(onchainSettlement.settlementAddress)}`;
+  const blockUrl = `${profile.explorer}/block/${encodeURIComponent(onchainSettlement.blockNumber)}`;
+  const moduleUrl = `${profile.explorer}/address/${encodeURIComponent(onchainSettlement.moduleAddress)}`;
+  const settlementUrl = `${profile.explorer}/address/${encodeURIComponent(onchainSettlement.settlementAddress)}`;
 
   return [
-    '⚔️ Market Dungeon — verified Judge run',
+    `⚔️ Market Dungeon — verified Judge run · ${profile.name}`,
     `Market: BTC ${eventContractIntervalLabel(input.intervalSec)}`,
     `Locked choice: BTC ${replayProof.lockedDirection}`,
     `Actual outcome: BTC ${actualOutcome}`,

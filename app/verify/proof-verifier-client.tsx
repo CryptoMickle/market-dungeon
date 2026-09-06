@@ -4,7 +4,10 @@ import Link from 'next/link';
 import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from 'react';
 
 import {
-  VERIFIED_PROOF_EXPLORER,
+  judgeNetworkProfile,
+  type JudgeNetworkProfileId,
+} from '../judge-network';
+import {
   VERIFIED_PROOF_MAX_BYTES,
   verifyProofArtifact,
   type ProofVerificationResult,
@@ -18,7 +21,11 @@ function statusClass(status: ProofVerificationStatus) {
   return styles.unknown;
 }
 
-export default function ProofVerifierClient() {
+export default function ProofVerifierClient({
+  profileId = 'somnia-mainnet',
+}: { profileId?: JudgeNetworkProfileId }) {
+  const profile = judgeNetworkProfile(profileId);
+  const shannon = profile.id === 'shannon-testnet';
   const [ready, setReady] = useState(false);
   const [proofText, setProofText] = useState('');
   const [filename, setFilename] = useState('');
@@ -58,7 +65,7 @@ export default function ProofVerifierClient() {
     setBusy(true);
     setResult(null);
     try {
-      setResult(await verifyProofArtifact(proofText));
+      setResult(await verifyProofArtifact(proofText, undefined, undefined, profile));
     } catch {
       setResult({
         status: 'NOT PROVABLE',
@@ -85,14 +92,14 @@ export default function ProofVerifierClient() {
     <main className={styles.shell}>
       <section className={styles.card} aria-labelledby="proof-verifier-title">
         <header className={styles.header}>
-          <p>MARKET DUNGEON · INDEPENDENT PROOF TOOL</p>
+          <p>MARKET DUNGEON · {shannon ? 'SHANNON ' : ''}INDEPENDENT PROOF TOOL</p>
           <h1 id="proof-verifier-title">Verify a completed run.</h1>
           <span>Load the JSON exported after a Judge Demo. This page verifies the server-authenticated lock receipt, replays combat, decodes the settlement, and re-fetches the recorded Somnia block.</span>
         </header>
 
         <aside className={styles.privacy} aria-label="Verification privacy and safety">
           <strong>LOCAL FILE · READ-ONLY CHAIN CHECK</strong>
-          <span>The proof file is not uploaded. The page fetches only the public lock-attestation key from Market Dungeon; its recorded block reference and two read-only call inputs go to the fixed Somnia mainnet RPC. No wallet, approval, or user signature is used. Vercel may count an ordinary aggregate pageview; proof contents and verification results are never sent to analytics.</span>
+          <span>The proof file is not uploaded. The page fetches only the public lock-attestation key from Market Dungeon; its recorded block reference and two read-only call inputs go to the fixed {profile.name} RPC. No wallet, approval, or user signature is used. Vercel may count an ordinary aggregate pageview; proof contents and verification results are never sent to analytics.</span>
         </aside>
 
         <form className={styles.form} onSubmit={verify}>
@@ -118,7 +125,7 @@ export default function ProofVerifierClient() {
               setFilename('');
               setResult(null);
             }}
-            placeholder={'{\n  "schema": "market-dungeon/verified-judge-run/v2",\n  ...\n}'}
+            placeholder={`{\n  "schema": "market-dungeon/verified-judge-run/${shannon ? 'v3' : 'v2'}",\n  ...\n}`}
             spellCheck={false}
             autoCapitalize="off"
             autoCorrect="off"
@@ -167,7 +174,7 @@ export default function ProofVerifierClient() {
                 <div><span>MARKET ID</span><code>{result.summary.marketId}</code></div>
                 <div><span>RPC VERIFICATION SNAPSHOT</span><code>BLOCK #{result.summary.blockNumber} · {result.summary.blockHash}</code></div>
                 <a
-                  href={`${VERIFIED_PROOF_EXPLORER}/block/${encodeURIComponent(result.summary.blockNumber)}`}
+                  href={`${profile.explorer}/block/${encodeURIComponent(result.summary.blockNumber)}`}
                   target="_blank"
                   rel="noreferrer"
                 >OPEN BLOCK IN SOMNIA EXPLORER ↗</a>
@@ -177,7 +184,7 @@ export default function ProofVerifierClient() {
         )}
 
         <nav className={styles.nav} aria-label="Market Dungeon links">
-          <Link href="/judge">START A NEW JUDGE RUN</Link>
+          <Link href={profile.judgePath}>START A NEW JUDGE RUN</Link>
           <Link href="/">MARKET DUNGEON HOME</Link>
         </nav>
       </section>

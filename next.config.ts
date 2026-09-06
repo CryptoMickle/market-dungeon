@@ -7,7 +7,7 @@ const contentSecurityPolicy = [
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob:",
   "font-src 'self' data:",
-  `connect-src 'self' https://api.infra.mainnet.somnia.network${development ? ' ws: wss:' : ''}`,
+  `connect-src 'self' https://api.infra.mainnet.somnia.network https://api.infra.testnet.somnia.network${development ? ' ws: wss:' : ''}`,
   "frame-src 'none'",
   "frame-ancestors 'none'",
   "object-src 'none'",

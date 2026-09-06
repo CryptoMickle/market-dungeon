@@ -1,5 +1,11 @@
 import { decodeFunctionResult, parseAbi } from 'viem';
 
+import {
+  DREAMDEX_BINARY_CONTRACTS,
+  SOMNIA_MAINNET_PROFILE,
+  type JudgeNetworkProfile,
+} from './judge-network.ts';
+
 export type DirectSettlementCall = {
   to: string;
   blockTag: string;
@@ -13,11 +19,10 @@ export type DirectSettlementCall = {
 
 // @somnia-chain/markets-sdk 0.29.0 mainnet-production deployments.
 export const DREAMDEX_SETTLEMENT_CONTRACTS = {
-  binaryModule: '0x3ecC694Cef705358864a646142ac17A90E29e388',
-  binarySettlement: '0xbF4a49e0Dfd092e5FBE8E5761064C49533e6Ed23',
+  ...DREAMDEX_BINARY_CONTRACTS,
 } as const;
 
-export const SOMNIA_MAINNET_RPC = 'https://api.infra.mainnet.somnia.network';
+export const SOMNIA_MAINNET_RPC = SOMNIA_MAINNET_PROFILE.rpc;
 
 export const MODULE_MARKETS_ABI = parseAbi([
   'function markets(bytes32 marketId) view returns (uint256 oracleQuestionId, uint8 outcomeSlotCount, uint8 voidPolicy, address collateral, uint32 originOperatorId, bytes32 originVenueId, address oracleAdapter, address creator, address market, address pool, uint256 yesId, uint256 noId, uint64 tradingStart, uint64 expiry)',
@@ -33,7 +38,7 @@ const GET_SETTLEMENT_SELECTOR = '0x4c582380';
 export type DirectOnchainSettlementProof = {
   verified: true;
   source: 'SOMNIA_RPC_ETH_CALL';
-  chainId: 5031;
+  chainId: number;
   blockNumber: string;
   blockHash: string;
   blockTag: string;
@@ -180,13 +185,17 @@ export function directSettlementWinner(
 export function directSettlementProofMatchesMarket(
   proof: DirectOnchainSettlementProof | undefined,
   market: SettlementMarket,
+  profile?: JudgeNetworkProfile,
 ) {
-  if (!proof || proof.verified !== true || proof.source !== 'SOMNIA_RPC_ETH_CALL' || proof.chainId !== 5031) return false;
+  const expected = profile ?? SOMNIA_MAINNET_PROFILE;
+  if (!proof || proof.verified !== true || proof.source !== 'SOMNIA_RPC_ETH_CALL'
+    || proof.chainId !== expected.chainId) return false;
   if (!BYTES32.test(proof.marketId) || proof.marketId.toLowerCase() !== market.marketId.toLowerCase()) return false;
   if (![proof.marketAddress, proof.poolAddress, proof.moduleAddress, proof.settlementAddress, proof.collateralToken, proof.creator].every((value) => ADDRESS.test(value))) return false;
   if (!BYTES32.test(proof.originVenueId)) return false;
-  if (proof.moduleAddress.toLowerCase() !== DREAMDEX_SETTLEMENT_CONTRACTS.binaryModule.toLowerCase()
-    || proof.settlementAddress.toLowerCase() !== DREAMDEX_SETTLEMENT_CONTRACTS.binarySettlement.toLowerCase()) return false;
+  if (proof.moduleAddress.toLowerCase() !== expected.contracts.binaryModule.toLowerCase()
+    || proof.settlementAddress.toLowerCase() !== expected.contracts.binarySettlement.toLowerCase()) return false;
+  if (profile?.id === 'shannon-testnet' && proof.collateralToken.toLowerCase() !== expected.collateral.toLowerCase()) return false;
   if (!sameHex(market.marketAddress, proof.marketAddress) || !sameHex(market.poolAddress, proof.poolAddress) || !sameHex(market.collateral, proof.collateralToken)) return false;
   if ((market.oracleQuestionId != null && String(market.oracleQuestionId) !== proof.oracleQuestionId)
     || (market.operatorId != null && String(market.operatorId) !== proof.originOperatorId)
@@ -251,8 +260,8 @@ export type SettlementProofRpcOutcome = {
   reason: string;
 };
 
-async function somniaMainnetRpc(method: string, params: readonly unknown[]) {
-  const response = await fetch(SOMNIA_MAINNET_RPC, {
+async function fixedProfileRpc(profile: JudgeNetworkProfile, method: string, params: readonly unknown[]) {
+  const response = await fetch(profile.rpc, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params }),
@@ -267,9 +276,12 @@ async function somniaMainnetRpc(method: string, params: readonly unknown[]) {
 export async function directSettlementProofRpcOutcome(
   proof: DirectOnchainSettlementProof | undefined,
   market: SettlementMarket,
-  rpc: SettlementProofRpc = somniaMainnetRpc,
+  rpc?: SettlementProofRpc,
+  profile?: JudgeNetworkProfile,
 ): Promise<SettlementProofRpcOutcome> {
-  if (!proof || !directSettlementProofMatchesMarket(proof, market)) {
+  const expected = profile ?? SOMNIA_MAINNET_PROFILE;
+  const readRpc = rpc ?? ((method: string, params: readonly unknown[]) => fixedProfileRpc(expected, method, params));
+  if (!proof || !directSettlementProofMatchesMarket(proof, market, profile)) {
     return {
       status: 'FAIL',
       reason: 'The proof does not match the canonical market and settlement structure.',
@@ -278,7 +290,7 @@ export async function directSettlementProofRpcOutcome(
 
   let chainId: unknown;
   try {
-    chainId = await rpc('eth_chainId', []);
+    chainId = await readRpc('eth_chainId', []);
   } catch {
     return {
       status: 'NOT PROVABLE',
@@ -295,7 +307,7 @@ export async function directSettlementProofRpcOutcome(
 
   let block: unknown;
   try {
-    block = await rpc('eth_getBlockByHash', [proof.blockHash, false]);
+    block = await readRpc('eth_getBlockByHash', [proof.blockHash, false]);
   } catch {
     return {
       status: 'NOT PROVABLE',
@@ -317,8 +329,8 @@ export async function directSettlementProofRpcOutcome(
   }
 
   const [moduleCall, settlementCall] = await Promise.allSettled([
-    rpc('eth_call', [{ to: proof.calls.moduleMarket.to, data: proof.calls.moduleMarket.data }, proof.calls.moduleMarket.blockReference]),
-    rpc('eth_call', [{ to: proof.calls.settlementRecord.to, data: proof.calls.settlementRecord.data }, proof.calls.settlementRecord.blockReference]),
+    readRpc('eth_call', [{ to: proof.calls.moduleMarket.to, data: proof.calls.moduleMarket.data }, proof.calls.moduleMarket.blockReference]),
+    readRpc('eth_call', [{ to: proof.calls.settlementRecord.to, data: proof.calls.settlementRecord.data }, proof.calls.settlementRecord.blockReference]),
   ]);
   const moduleMismatch = moduleCall.status === 'fulfilled'
     && !sameRawHex(moduleCall.value, proof.calls.moduleMarket.result);
@@ -346,7 +358,8 @@ export async function directSettlementProofRpcOutcome(
 export async function directSettlementProofMatchesSomniaRpc(
   proof: DirectOnchainSettlementProof | undefined,
   market: SettlementMarket,
-  rpc: SettlementProofRpc = somniaMainnetRpc,
+  rpc?: SettlementProofRpc,
+  profile?: JudgeNetworkProfile,
 ) {
-  return (await directSettlementProofRpcOutcome(proof, market, rpc)).status === 'PASS';
+  return (await directSettlementProofRpcOutcome(proof, market, rpc, profile)).status === 'PASS';
 }

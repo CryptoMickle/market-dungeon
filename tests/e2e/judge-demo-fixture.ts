@@ -7,6 +7,7 @@ import {
   type ReplayClaims,
 } from '../../app/api/judge-replay/crypto';
 import { canonicalJudgeActionLog, replayJudgeCombat, type JudgeCombatAction } from '../../app/judge-combat';
+import { SHANNON_TESTNET_PROFILE } from '../../app/judge-network';
 import {
   BINARY_SETTLEMENT_ABI,
   DREAMDEX_SETTLEMENT_CONTRACTS,
@@ -227,6 +228,137 @@ export function revealPayload(actions: JudgeCombatAction[]) {
       commitment: COMMITMENT,
       canonical,
       ...commitmentPayload,
+    },
+    combatProof: {
+      verified: combat.verified,
+      ruleset: 'market-dungeon/judge-combat/v1',
+      transcriptDigest: `0x${createHash('sha256').update(transcript, 'utf8').digest('hex')}`,
+      steps: combat.steps,
+      guardDefeated: combat.guardDefeated,
+      bossDefeated: combat.bossDefeated,
+      playerSurvived: combat.playerSurvived,
+      finalHp: combat.finalHp,
+    },
+  };
+}
+
+export const SHANNON_SEAL = `v3.${'j'.repeat(16)}.${'d'.repeat(64)}.${'u'.repeat(22)}`;
+
+const shannonCommitmentPayload: ReplayCommitmentPayload = {
+  ...commitmentPayload,
+  operatorId: SHANNON_TESTNET_PROFILE.originOperatorId,
+  venueId: SHANNON_TESTNET_PROFILE.originVenueId,
+  profileId: SHANNON_TESTNET_PROFILE.id,
+  chainId: SHANNON_TESTNET_PROFILE.chainId,
+};
+const shannonCanonical = canonicalReplayProof(shannonCommitmentPayload);
+export const SHANNON_COMMITMENT = `0x${createHash('sha256').update(shannonCanonical, 'utf8').digest('hex')}`;
+const { committedOutcome: shannonOutcome, lockedDirection: shannonDirection, ...shannonAttestedClaims } = shannonCommitmentPayload;
+const shannonReplayClaims: ReplayClaims = {
+  version: 3,
+  purpose: 'judge-replay',
+  environment: 'development',
+  winningOutcome: shannonOutcome,
+  direction: shannonDirection,
+  ...shannonAttestedClaims,
+};
+export const SHANNON_LOCK_ATTESTATION = replayLockAttestation(shannonReplayClaims);
+export const SHANNON_LOCK_PUBLIC_KEY = replayLockAttestationPublicKey(SHANNON_TESTNET_PROFILE);
+
+const shannonModuleResult = encodeFunctionResult({
+  abi: MODULE_MARKETS_ABI,
+  functionName: 'markets',
+  result: [
+    1n,
+    2,
+    0,
+    SHANNON_TESTNET_PROFILE.collateral as `0x${string}`,
+    SHANNON_TESTNET_PROFILE.originOperatorId,
+    SHANNON_TESTNET_PROFILE.originVenueId as `0x${string}`,
+    `0x${'78'.repeat(20)}` as `0x${string}`,
+    CREATOR as `0x${string}`,
+    MARKET_ADDRESS as `0x${string}`,
+    POOL_ADDRESS as `0x${string}`,
+    YES_ID,
+    NO_ID,
+    100n,
+    400n,
+  ],
+});
+
+const shannonSettlementResult = encodeFunctionResult({
+  abi: BINARY_SETTLEMENT_ABI,
+  functionName: 'getSettlement',
+  result: [
+    SHANNON_TESTNET_PROFILE.collateral,
+    0n,
+    true,
+    false,
+    0n,
+    `0x${'ab'.repeat(20)}`,
+    POOL_ADDRESS,
+    NONCE,
+    [10_000_000n, 0n],
+  ] as never,
+});
+
+export const shannonOnchainSettlement: PortableVerifiedRunSettlementProof = {
+  ...onchainSettlement,
+  chainId: SHANNON_TESTNET_PROFILE.chainId,
+  collateralToken: SHANNON_TESTNET_PROFILE.collateral,
+  originOperatorId: String(SHANNON_TESTNET_PROFILE.originOperatorId),
+  originVenueId: SHANNON_TESTNET_PROFILE.originVenueId,
+  calls: {
+    moduleMarket: { ...onchainSettlement.calls.moduleMarket, result: shannonModuleResult },
+    settlementRecord: { ...onchainSettlement.calls.settlementRecord, result: shannonSettlementResult },
+  },
+};
+
+export const shannonMarket = {
+  ...market,
+  collateral: SHANNON_TESTNET_PROFILE.collateral,
+  operatorId: SHANNON_TESTNET_PROFILE.originOperatorId,
+  venueId: SHANNON_TESTNET_PROFILE.originVenueId,
+  network: SHANNON_TESTNET_PROFILE.name,
+  chainId: SHANNON_TESTNET_PROFILE.chainId,
+  profileId: SHANNON_TESTNET_PROFILE.id,
+};
+
+export const shannonStartPayload = {
+  replay: {
+    seal: SHANNON_SEAL,
+    commitment: SHANNON_COMMITMENT,
+    gameSeed: GAME_SEED,
+    lockedDirection: 'UP',
+    issuedAt: shannonCommitmentPayload.issuedAt,
+    revealAfter: shannonCommitmentPayload.revealAfter,
+    expiresAt: shannonCommitmentPayload.expiresAt,
+    lockAttestation: SHANNON_LOCK_ATTESTATION,
+    publicMarket: {
+      asset: 'BTC', intervalSec: 300, network: SHANNON_TESTNET_PROFILE.name,
+      chainId: SHANNON_TESTNET_PROFILE.chainId, profileId: SHANNON_TESTNET_PROFILE.id,
+    },
+  },
+};
+
+export function shannonRevealPayload(actions: JudgeCombatAction[]) {
+  const combat = replayJudgeCombat(GAME_SEED, actions);
+  const transcript = canonicalJudgeActionLog(GAME_SEED, actions);
+  return {
+    market: structuredClone(shannonMarket),
+    network: {
+      name: SHANNON_TESTNET_PROFILE.name,
+      chainId: SHANNON_TESTNET_PROFILE.chainId,
+      profileId: SHANNON_TESTNET_PROFILE.id,
+    },
+    onchainSettlement: structuredClone(shannonOnchainSettlement),
+    lockAttestation: structuredClone(SHANNON_LOCK_ATTESTATION),
+    replayProof: {
+      verified: true,
+      algorithm: 'SHA-256',
+      commitment: SHANNON_COMMITMENT,
+      canonical: shannonCanonical,
+      ...shannonCommitmentPayload,
     },
     combatProof: {
       verified: combat.verified,
