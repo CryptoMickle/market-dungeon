@@ -20,6 +20,22 @@ The current contest build is intentionally read-only. It reads live market metad
 
 **Integration and SDK/docs feedback:** [docs/DREAMDEX_INTEGRATION_REPORT.md](docs/DREAMDEX_INTEGRATION_REPORT.md)
 
+### Local Shannon Judge candidate
+
+A newer, isolated read-only candidate adds `/shannon/judge` and
+`/shannon/verify` for Somnia Shannon Testnet while preserving the released
+mainnet routes and proof formats. It is locally verified but **not yet pushed,
+tagged, deployed, or externally validated**. Do not treat the public URLs above
+as evidence that the Shannon routes are live.
+
+The candidate binds chain `50312` and the fixed Shannon indexer, RPC, explorer,
+collateral, operator, venue, and deployments into its server-selected profile.
+Its commitment, encrypted seal, signed lock receipt, exported proof, independent
+RPC reproduction, explorer links, challenge link, reset, and verifier remain on
+that profile. It performs no wallet or chain write. See the exact evidence and
+remaining external gates in
+[Shannon Judge release candidate](docs/SHANNON_JUDGE_RELEASE_CANDIDATE.md).
+
 ### Full live expedition
 
 1. Inspect the live dreamDEX CLOB odds, then choose `GOLD AWAKENS` or `SHADOWS RISE` against the active BTC market.

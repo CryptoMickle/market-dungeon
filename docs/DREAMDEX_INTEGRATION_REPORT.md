@@ -1,11 +1,25 @@
 # dreamDEX Integration Report
 
-Implementation snapshot: 5 September 2026.
+Released implementation snapshot: 5 September 2026.
+
+Local Shannon candidate addendum: 7 September 2026.
 
 Status: **This report describes the current read-only v10 contest build. Its
 onchain integration, verifier, receipt, analytics, and sharing trust boundaries
 are inherited unchanged from the released v9 build; v10 reorganizes the Judge
 presentation without expanding transaction authority.**
+
+An unreleased local candidate at implementation commit
+`2dfe0f484822a8ffcc7f7c2303cdc80f66896829` adds fixed read-only Shannon
+Testnet Judge and verifier routes. Its server-selected profile uses chain
+`50312`, `https://dev.smk.somnia.host/v1/graphql`,
+`https://api.infra.testnet.somnia.network`, the Shannon explorer, collateral
+`0x70a86D8842FB63C4Ad2b7cdddF530eBf1BB25d8E`, canonical operator `2`, and the
+canonical venue. It reuses the same BinaryModule and BinarySettlement addresses
+while binding the different chain and collateral into versioned cryptographic
+and proof formats. It is locally tested but not yet pushed, deployed, tagged,
+or externally validated. Exact evidence and limitations are recorded in
+[SHANNON_JUDGE_RELEASE_CANDIDATE.md](SHANNON_JUDGE_RELEASE_CANDIDATE.md).
 
 This document also serves as the hackathon submission's optional SDK and documentation feedback report.
 

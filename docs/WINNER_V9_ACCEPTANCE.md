@@ -4,6 +4,10 @@ Historical record: **superseded by the released v10 baseline. Unchecked items
 below describe the earlier v9 planning process and are not the current release
 status.**
 
+The later 7 September Shannon Judge candidate is documented separately in
+[SHANNON_JUDGE_RELEASE_CANDIDATE.md](SHANNON_JUDGE_RELEASE_CANDIDATE.md). Do not
+infer its deployment or validation state from this historical v9 plan.
+
 Status: **WB-00, WB-01, WB-03, WB-04, and WB-05 complete locally; WB-02 read/verify feasibility complete and the unapproved Shannon write path is stopped/excluded from v9; v9 is not released**
 
 Baseline date: **4 September 2026**

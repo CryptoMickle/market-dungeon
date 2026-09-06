@@ -1,10 +1,28 @@
 # Market Dungeon — pre-video readiness
 
-Status: **internal work complete through WIN-WB-05; external evidence gates open before WIN-WB-06 freeze**
+Status: **Shannon candidate verified locally through ASTRA-WB-05 preparation;
+human evidence and ASTRA-WB-06 public release gates remain open**
 
 This record answers one question: what remains before the single final video can
 be captured? Video work must not begin while a material product, evidence, or
 release-identity change is still possible.
+
+## 7 September Shannon candidate update
+
+| ASTRA block | Status | Evidence or blocker |
+| --- | --- | --- |
+| WB-02 — fixed Shannon Judge/verifier | Complete locally | Implementation commit `2dfe0f484822a8ffcc7f7c2303cdc80f66896829`; [candidate record](SHANNON_JUDGE_RELEASE_CANDIDATE.md) |
+| WB-03A — human usability pilot | Externally blocked, not complete | One moderator-routing request sent; permission, participant invitations, participants, and sessions remain `0` |
+| WB-03B — targeted correction/retest | Technical QA complete; human retest not applicable yet | Chain label, Shannon continuation boundary, mainnet candidate compatibility, and strict parser were corrected from QA/security findings; dedicated Shannon browser test PASS |
+| WB-04 — security and proof review | Complete locally | 61 focused tests and 1,575 malformed proof mutations passed; no open finding |
+| WB-05 — truthful evidence package | Prepared, not final | Private zero-state pilot/evidence report exists; no human or telemetry result may be invented |
+| WB-06 — one public frozen release | Not complete | No push, Preview, Production deploy, public build match, tag, live gate, or independent validator result for this candidate |
+| WB-07 — final video | Stopped by design | Starts only after WB-06 is resolved and the user approves the final candidate |
+
+Local checks for the implementation commit: lint PASS, TypeScript PASS, 99/99
+unit/integration tests, 7/7 Shannon proof-kernel tests, optimized build PASS, and
+22/22 deterministic Chromium tests. These do not replace public live checks or
+human evidence.
 
 ## Work-block status
 

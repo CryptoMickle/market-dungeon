@@ -34,15 +34,19 @@ failed step as a pass.
 
 ## Production proof verification
 
-1. Open the final Production `/judge` URL in a new browser profile or private
+1. Record the requested fixed profile: mainnet (`/judge` and `/verify`) or
+   Shannon Testnet (`/shannon/judge` and `/shannon/verify`). For the Shannon
+   release candidate, use the Shannon pair.
+2. Open the final Production Judge URL in a new browser profile or private
    window.
-2. Complete one fresh Judge run without coaching from the project team.
-3. Download the proof JSON.
-4. Record only the file's SHA-256 checksum; do not publish the proof unless the
+3. Complete one fresh Judge run without coaching from the project team.
+4. Download the proof JSON.
+5. Record only the file's SHA-256 checksum; do not publish the proof unless the
    validator intentionally chooses to publish its public contents.
-5. Open the final Production `/verify` route and load the exact downloaded file.
-6. Record whether the verifier returns `PASS`, `FAIL`, or `NOT PROVABLE`.
-7. Confirm that `/api/build` reports the same full commit as the frozen tag.
+6. Open the matching fixed-profile verifier route and load the exact downloaded
+   file. Do not move a proof between mainnet and Shannon routes.
+7. Record whether the verifier returns `PASS`, `FAIL`, or `NOT PROVABLE`.
+8. Confirm that `/api/build` reports the same full commit as the frozen tag.
 
 The validator must not connect a wallet, sign a wallet message, approve tokens,
 or place a transaction. None of those actions belong to this release.
@@ -60,6 +64,8 @@ Node/npm: <values>
 Release tag: <tag>
 Tag commit: <40-character SHA>
 Production /api/build commit: <40-character SHA>
+Fixed profile: <Somnia mainnet 5031 / Somnia Shannon Testnet 50312>
+Judge/verifier routes: <exact pair>
 Clean working tree before install: yes/no
 npm ci: PASS/FAIL
 npm run release:verify: PASS/FAIL
