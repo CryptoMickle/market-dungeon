@@ -1,7 +1,7 @@
 'use client';
 
 import Image from 'next/image';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { ShareAction } from './analytics-events';
 import { downloadFile, renderRunCardPng } from './run-card-renderer';
 import { runShareCardArtworkPath, runShareCardDataUrl, runShareCaption, runShareClipboardText, runShareXUrl, type RunShareCardInput } from './share-run-card';
@@ -20,7 +20,6 @@ export function RunSharePanel({ input, challengeUrl, onAction, onChallenge }: {
   const [status, setStatus] = useState('');
   const [challengeStatus, setChallengeStatus] = useState('');
   const [manualChallenge, setManualChallenge] = useState(false);
-  const dialog = useRef<HTMLDialogElement>(null);
   const card = prepared?.key === key ? prepared : null;
   const caption = runShareClipboardText(input, challengeUrl);
   const encounters = Math.min(2, input.enemiesDefeated);
@@ -40,8 +39,6 @@ export function RunSharePanel({ input, challengeUrl, onAction, onChallenge }: {
     }).catch(() => { if (!disposed) setFailedKey(key); });
     return () => { disposed = true; if (url) URL.revokeObjectURL(url); };
   }, [key]);
-
-  function showOptions() { dialog.current?.showModal(); }
 
   async function shareChallenge() {
     setManualChallenge(false);
@@ -78,30 +75,32 @@ export function RunSharePanel({ input, challengeUrl, onAction, onChallenge }: {
     }
   }
 
-  async function shareImage() {
+  async function saveImage() {
     if (!card) return;
     try {
-      // Image-only sharing exposes image targets (including Save Image where
-      // provided by iOS). Copying the caption is a separate, explicit gesture.
+      // iOS offers Save Image through its file-only system menu. Invoke it
+      // directly from this gesture; opening X is always a separate action.
       const data = { files: [card.file] };
       if (typeof navigator.share !== 'function' || typeof navigator.canShare !== 'function' || !navigator.canShare(data)) {
-        setStatus('Image sharing is unavailable here. Touch and hold the image, or download it to Files.');
+        downloadCard();
         return;
       }
       const result = navigator.share(data);
       if (!result || typeof result.then !== 'function') {
-        setStatus('The share menu did not confirm opening. Try again or save the image below.');
+        setStatus('The image menu did not confirm opening. Touch and hold the card, or use More options below.');
         return;
       }
       await result;
       onAction('native-completed');
-      setStatus('Image handed to your share menu. Check your chosen app; no post is confirmed here.');
+      // The API cannot tell whether the user saved, shared, or chose a target.
+      // Do not claim a saved image, mark a step complete, or open X automatically.
+      setStatus('Image menu closed. Check that the card was saved, then open X and attach it.');
     } catch (error) {
       if (error instanceof Error && error.name === 'AbortError') {
-        setStatus('Sharing cancelled. Your card is still here.');
+        setStatus('Saving cancelled. Your card is still here.');
         return;
       }
-      setStatus('Could not share the image. Touch and hold it, or download it to Files.');
+      setStatus('Could not open the image menu. Touch and hold the card, or use More options below.');
     }
   }
 
@@ -110,7 +109,7 @@ export function RunSharePanel({ input, challengeUrl, onAction, onChallenge }: {
       await navigator.clipboard.writeText(caption);
       onAction('text-copied');
       onChallenge();
-      setStatus('Challenge text copied. Paste it into your post with the image.');
+      setStatus('Post text copied. Paste it into your draft with the image.');
     } catch {
       setStatus('Copy is unavailable. Select and copy the text below.');
     }
@@ -123,11 +122,11 @@ export function RunSharePanel({ input, challengeUrl, onAction, onChallenge }: {
     setStatus('Download requested. On iPhone, check Files → Downloads; this does not save to Photos.');
   }
 
-  const image = (inDialog = false) => <Image
+  const image = <Image
     className="run-share-card"
     src={card?.url ?? runShareCardDataUrl(input)}
     style={card ? undefined : { backgroundImage: `url(${runShareCardArtworkPath(input)})`, backgroundPosition: 'center', backgroundSize: 'cover' }}
-    alt={inDialog ? 'Your complete run card, ready to save or share' : alt}
+    alt={alt}
     width={1200} height={675} unoptimized
   />;
 
@@ -137,41 +136,31 @@ export function RunSharePanel({ input, challengeUrl, onAction, onChallenge }: {
       <strong>{input.mode === 'JUDGE_REPLAY' ? `FINAL-TIER JUDGE REPLAY · ${encounters}/2 REPLAY ENCOUNTERS` : `ROOM ${input.reachedRoom}/${input.totalRooms} · ${input.enemiesDefeated} ENEMIES DEFEATED`}</strong>
       <small>{input.verifiedOnchain ? 'A social-ready summary of this verified replay. The portable proof is available in Evidence below.' : 'A social-ready snapshot of how far this expedition reached.'}</small>
     </div>
-    {image()}
-    <div className="run-share-actions">
-      <button className="share-primary" type="button" onClick={() => void shareChallenge()}>↗ CHALLENGE A PLAYER</button>
-      <a className="share-x" href={runShareXUrl(input, challengeUrl)} target="_blank" rel="noopener noreferrer" onClick={() => { onAction('x-intent-opened'); onChallenge(); }}>SHARE ON X ↗</a>
-      <button type="button" onClick={showOptions}>SAVE CARD</button>
+    {image}
+    <div className="run-share-actions run-share-x-steps" aria-label="Save image, then open X">
+      <button className="share-primary" type="button" disabled={!card} onClick={() => void saveImage()}>1 · SAVE IMAGE</button>
+      <a className="share-x" href={runShareXUrl(input, challengeUrl)} target="_blank" rel="noopener noreferrer" onClick={() => { onAction('x-intent-opened'); onChallenge(); }}>2 · OPEN X DRAFT ↗</a>
     </div>
-    <small className="run-share-x-note">Challenge a player shares an invitation. Share on X opens a text draft; save the card first if you want to attach its image. Every challenge starts a fresh sealed replay.</small>
-    <small className="run-share-status" aria-live="polite">{challengeStatus}</small>
+    <p className="run-share-x-note">Save the image first, then attach it in X. The draft includes your text and link, not the image.</p>
+    <p className="run-save-hint">On iPhone, choose Save Image in the menu, or touch and hold the card. Downloads go to Files, not Photos.</p>
+    <p className="run-share-status" role="status">{status || (!card ? failedKey === key ? 'Image preparation failed. You can still open the X draft or send an invitation.' : 'Preparing your image…' : '')}</p>
+    <div className="run-share-invitation">
+      <button type="button" onClick={() => void shareChallenge()}>↗ CHALLENGE A PLAYER</button>
+      <small>Send a text-and-link invitation to a fresh sealed replay.</small>
+    </div>
+    <small className="challenge-share-status" aria-live="polite">{challengeStatus}</small>
     {manualChallenge && <label className="share-caption-label">Challenge invitation — copy manually
       <textarea value={caption} readOnly rows={5} />
     </label>}
-    <dialog className="run-share-dialog" ref={dialog} aria-labelledby="share-dialog-title">
-      <div className="share-dialog-heading">
-        <h2 id="share-dialog-title">Save your run card</h2>
-        <button type="button" onClick={() => dialog.current?.close()} aria-label="Close sharing options">✕</button>
-      </div>
-      <p>Save this image before attaching it to your X post, or share the image through your phone’s share menu.</p>
-      {card ? image(true) : <p className="share-image-placeholder">{failedKey === key ? 'The image could not be prepared. Text sharing is still available.' : 'Preparing your complete run card…'}</p>}
+    <details className="run-save-options">
+      <summary>More options</summary>
+      <p>If saving is unavailable, download the PNG to Files. On iPhone, open the file and choose Share → Save Image if offered, then attach it from Photos in X.</p>
       <div className="run-share-actions">
-        <button type="button" onClick={() => void copyCaption()}>1 · COPY CHALLENGE TEXT</button>
-        <button className="share-primary" type="button" disabled={!card} onClick={() => void shareImage()}>2 · SHARE / SAVE IMAGE</button>
+        <button type="button" disabled={!card} onClick={downloadCard}>DOWNLOAD PNG TO FILES</button>
+        <button type="button" onClick={() => void copyCaption()}>COPY POST TEXT</button>
       </div>
-      <p>To save to Photos on iPhone, choose <strong>Save Image</strong> in the share menu if offered, or touch and hold the image above. The available options depend on your browser.</p>
-      <details>
-        <summary>Attach the card manually in X</summary>
-        <p>Save the image first. Then open X and attach it from Photos. This link fills in the text only; it cannot attach this local image.</p>
-        <div className="run-share-actions">
-          <button type="button" disabled={!card} onClick={downloadCard}>DOWNLOAD PNG TO FILES</button>
-          <a className="share-x" href={runShareXUrl(input, challengeUrl)} target="_blank" rel="noopener noreferrer" onClick={() => { onAction('x-intent-opened'); onChallenge(); }}>OPEN X WITH TEXT ↗</a>
-        </div>
-        <p>iPhone downloads go to Files, not Photos. In Files, open the PNG and use Share → Save Image if available.</p>
-      </details>
-      <label className="share-caption-label" htmlFor="share-caption">Challenge text — copy manually if needed</label>
+      <label className="share-caption-label" htmlFor="share-caption">Post text — copy manually if needed</label>
       <textarea id="share-caption" value={caption} readOnly rows={5} />
-      <p className="share-dialog-status" role="status">{status || (!card ? failedKey === key ? 'Image preparation failed. You can still copy the challenge text.' : 'Preparing your image…' : '')}</p>
-    </dialog>
+    </details>
   </section>;
 }

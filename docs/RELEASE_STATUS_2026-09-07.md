@@ -2,17 +2,17 @@
 
 This record resolves discrepancies between the published release, older working
 documentation, and the new hybrid recording plan. It is not a deployment log for
-unpublished changes. The iPhone-feedback revision below supersedes the original
-three-buttons/one-dialog design. Production remains on v11.
+unpublished changes. The latest two-step revision below supersedes both earlier
+dialog designs. Production remains on v11.
 
 ## Two distinct versions
 
 | Item | Published v11 | New working-tree changes |
 | --- | --- | --- |
-| Identity | `hackathon-submission-2026-v11` / `f30b9a56532eb6e3147e7ae8473242545635d0ef` | Initial patch `8fac3a2` deployed to Preview only; subsequent iPhone-feedback correction under validation; no new release tag |
+| Identity | `hackathon-submission-2026-v11` / `f30b9a56532eb6e3147e7ae8473242545635d0ef` | Earlier patches `8fac3a2` and `da58fda` deployed to Preview only; latest two-step revision under validation; no new release tag |
 | Shannon Judge/verifier | Released; not merely a branch candidate | Network/proof logic unchanged |
-| Mobile run card | Earlier share/export flow | Complete PNG prepared ahead of the gesture; explicit sharing dialog; separate caption and image actions |
-| X | Earlier download-and-open flow | Share on X opens the text-only web intent directly; Challenge shares an invitation; Save card opens the image dialog |
+| Mobile run card | Earlier share/export flow | Complete PNG prepared ahead of the gesture; direct Save image action, no intermediate dialog |
+| X | Earlier download-and-open flow | Save image → Open X draft; manual image attachment; Challenge remains a separate text/link invitation |
 | iPhone saving | A download is not a Photos save | Native image share/save where supported; long-press image or Files fallback; physical device test pending |
 | Test evidence | Release gates below | Initial local checks below plus one initial Preview Shannon smoke; no new full release gate |
 
@@ -46,7 +46,7 @@ download, cancellation, denied clipboard access, PNG-render failure, and the
 same-network Shannon challenge boundary. Existing tests cover proof export and
 standalone verification for both profiles.
 
-## iPhone feedback revision
+## First iPhone feedback revision — historical checks for `da58fda`
 
 The developer tested Preview `8fac3a2` and reported that all three sharing
 controls opened the same dialog and none directly opened X. That report was
@@ -73,6 +73,32 @@ readable controls and no horizontal overflow. The first check stopped on
 an outdated README assertion still requiring the v10 release link; the test
 now explicitly distinguishes frozen v10 submission links from README's v11
 published baseline. No frozen release document was rewritten to pass the test.
+
+## Latest UX revision — direct Save image → Open X draft
+
+Further developer feedback found the extra Save card → Share / Save image step
+misleading and the X workflow disjointed. The intermediate dialog is removed.
+The result card now has two ordered actions: `1 · SAVE IMAGE` and
+`2 · OPEN X DRAFT ↗`, with the text/link Challenge action separated below.
+
+Save image invokes the prepared file-only system menu directly from the user
+gesture where supported; without native file-sharing support it downloads the
+PNG. Cancellation or a rejected native request never causes an automatic
+download or X launch. Resolving the native promise never marks an image as saved.
+Open X draft is an explicit text-only intent. The page explains manual image
+attachment; it never silently launches X or claims a publication. More options
+holds the manual Files fallback and optional post-text copying.
+
+No proof, network, BTC, reveal, wallet, or video behavior changed in this revision.
+Native iPhone/X/Photos acceptance remains open; automated tests use controlled
+native-menu responses and an intercepted X destination, not real social posts.
+
+Latest local validation: lint, TypeScript, 99/99 unit/integration, 7/7 Shannon
+kernel, optimized production build (15 routes), 29/29 Chromium browser tests
+(53.5 seconds), all PASS without retries. The result-card panel was visually
+inspected at 390×844: two ordered actions, separate invitation, no extra dialog
+and no horizontal overflow. This validates the UX implementation, not whether
+any particular iPhone has saved the image or X has accepted an attachment.
 
 ## Continue on dreamDEX — exact meaning
 
@@ -106,19 +132,19 @@ No public GitHub, DoraHacks, YouTube or Discord content was changed in this task
 Use an approved HTTPS Preview of the exact patch on a real iPhone. Do not post:
 
 1. Record iPhone model, iOS, browser and X app versions.
-2. Finish one real Judge run. Challenge a player must offer the text/link
-   invitation; Share on X must open X's text draft directly; Save card must
-   open the complete image in the in-game dialog. Cancel or discard each draft.
-3. Copy the caption. Share/save the image. Confirm the file is a complete PNG
+2. Finish one real Judge run. Choose 1 · Save image directly beneath the card.
+   No intermediate in-game dialog should appear. If the system menu offers
+   Save Image, choose it. Otherwise use long-press or the documented Files route.
+3. Confirm the saved file is a complete PNG
    with artwork, readable result, correct gold/progress and the same run ID.
-4. If X is offered in the native menu, select it; verify the draft has the image,
-   paste the caption, verify the correct challenge link, then discard the draft.
+4. Choose 2 · Open X draft. Check the prefilled text/link, attach the saved
+   card manually, then discard the draft. It must not claim automatic attachment.
 5. Exercise Save Image or long-press saving. Open Photos and verify the card.
    If those options are absent, record that limitation; do not mark Photos PASS.
 6. Exercise Download PNG to Files. Check Files → Downloads; use Share → Save
    Image if available. A successful download alone does not pass Photos saving.
-7. Exercise the text-only X alternative and attach the saved card manually.
-   Do not claim automatic attachment by the web link.
+7. Exercise Challenge a player separately. It must offer a text/link invitation,
+   not repeat the image save. Optional post-text copying is under More options.
 8. Cancel the native sheet once. No X tab, download, or copied text should occur
    automatically. Repeat with a fresh run to exclude stale-card reuse.
 9. Repeat on Android if available. Do not generalize an iPhone result to all mobile.

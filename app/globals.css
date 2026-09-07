@@ -407,23 +407,24 @@ span.gold-icon { display: inline-block !important; }
 .portable-proof-actions .proof-verifier-link { grid-column: 1 / -1; border-color: #a855f7; background: #6d28d9; color: white; }
 .portable-proof-status { display: block; min-height: 10px; margin: 7px 0 0; color: #a7f3d0; font-size: 7px; font-weight: 900; letter-spacing: .08em; text-align: center; }
 .run-share-status { display: block; min-height: 10px; margin: 8px 0 0; color: #a7f3d0; font-size: 7px; font-weight: 900; letter-spacing: .08em; text-align: center; }
-.run-share-dialog { width: min(640px, calc(100vw - 24px)); max-height: calc(100dvh - 32px); box-sizing: border-box; overflow-y: auto; padding: 22px; border: 1px solid #7c3aed; border-radius: 18px; background: #171022; color: #f4f4f5; text-align: left; }
-.run-share-dialog::backdrop { background: rgba(0, 0, 0, .8); }
-.share-dialog-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-.share-dialog-heading h2 { margin: 0; font-size: 22px; }
-.share-dialog-heading button { min-width: 44px; min-height: 44px; border: 1px solid #716078; border-radius: 8px; color: white; background: #271a35; cursor: pointer; }
-.run-share-dialog p, .run-share-dialog summary, .share-caption-label { font-size: 14px; line-height: 1.5; }
-.run-share-dialog p { color: #d4cddd; }
-.run-share-dialog .run-share-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-.run-share-dialog .run-share-actions button, .run-share-dialog .run-share-actions a { min-height: 48px; font-size: 12px; }
-.run-share-dialog button:disabled { opacity: .45; cursor: wait; }
-.run-share-dialog details { margin: 16px 0; padding: 12px; background: #21152e; border-radius: 10px; }
-.run-share-dialog summary { cursor: pointer; color: #e9d5ff; }
-.run-share-dialog textarea { display: block; width: 100%; box-sizing: border-box; margin-top: 8px; padding: 12px; color: #eee; background: #0c0910; border: 1px solid #695175; border-radius: 8px; font-size: 16px; line-height: 1.4; resize: vertical; }
+.run-share-actions.run-share-x-steps, .run-save-options .run-share-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.run-share-panel .run-share-x-steps button, .run-share-panel .run-share-x-steps a { min-height: 48px; font-size: 12px; }
+.run-share-panel button:disabled { opacity: .45; cursor: not-allowed; }
+.run-share-panel .run-share-x-note, .run-save-hint { margin: 9px 0 0; font-size: 12px; line-height: 1.5; text-align: left; }
+.run-share-panel .run-share-x-note { color: #e9d5ff; }
+.run-save-hint { color: #b9b2c3; }
+.run-share-panel .run-share-status, .challenge-share-status { display: block; margin: 8px 0; font-size: 12px; line-height: 1.5; letter-spacing: normal; text-align: left; color: #a7f3d0; }
+.run-share-status:empty, .challenge-share-status:empty { display: none; }
+.run-share-invitation { display: grid; gap: 7px; margin-top: 16px; padding-top: 14px; border-top: 1px solid #4b385e; }
+.run-share-invitation button { min-height: 44px; padding: 10px; border: 1px solid #775391; border-radius: 9px; color: #e9d5ff; background: transparent; font-size: 11px; font-weight: 800; cursor: pointer; }
+.run-share-invitation button:focus-visible { outline: 2px solid #d8b4fe; outline-offset: 2px; }
+.run-share-invitation small { font-size: 11px; line-height: 1.5; color: #b9b2c3; text-align: center; }
+.run-save-options { margin-top: 14px; font-size: 12px; line-height: 1.5; color: #b9b2c3; }
+.run-save-options summary { cursor: pointer; color: #d8b4fe; }
+.share-caption-label { display: block; margin-top: 12px; font-size: 12px; line-height: 1.5; }
+.run-save-options textarea { display: block; width: 100%; box-sizing: border-box; margin-top: 8px; padding: 12px; color: #eee; background: #0c0910; border: 1px solid #695175; border-radius: 8px; font-size: 16px; line-height: 1.4; resize: vertical; }
 .run-share-panel > .share-caption-label { display: block; margin-top: 12px; }
 .run-share-panel > .share-caption-label textarea { display: block; box-sizing: border-box; width: 100%; margin-top: 8px; padding: 12px; color: #eee; background: #0c0910; border: 1px solid #695175; border-radius: 8px; font-size: 16px; line-height: 1.4; }
-.run-share-dialog .share-dialog-status { color: #a7f3d0; min-height: 21px; }
-@media (max-width: 480px) { .run-share-dialog { padding: 16px; } .run-share-dialog .run-share-actions { grid-template-columns: 1fr; } }
 .dreamdex-continue { width: 100%; display: grid; grid-template-columns: 1fr; gap: 10px; margin-top: 10px; padding: 13px; border: 1px solid rgba(249, 115, 22, .55); border-radius: 11px; background: linear-gradient(135deg, rgba(124, 45, 18, .26), rgba(88, 28, 135, .18)); text-align: left; }
 .dreamdex-continue span, .dreamdex-continue strong, .dreamdex-continue small { display: block; }
 .dreamdex-continue span { color: #fdba74; font-size: 8px; font-weight: 950; letter-spacing: .14em; }

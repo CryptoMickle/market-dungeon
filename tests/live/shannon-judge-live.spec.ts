@@ -118,14 +118,12 @@ test('live Shannon target remains network-bound through proof export and verifie
   await expect(page.getByText('CHAIN 50312 · EIP-1898 HASH-PINNED · BOTH RAW ETH_CALL RESULTS MATCH')).toBeVisible();
   await expect(page.getByRole('link', { name: /continue on dreamdex/i })).toHaveCount(0);
   await expect(page.getByRole('link', { name: /OPEN INDEPENDENT VERIFIER/ })).toHaveAttribute('href', '/shannon/verify');
-  const xShare = page.getByRole('link', { name: 'SHARE ON X ↗', exact: true });
+  const xShare = page.getByRole('link', { name: '2 · OPEN X DRAFT ↗', exact: true });
   await expect(xShare).toHaveAttribute('href', /https:\/\/twitter\.com\/intent\/tweet\?/);
   await expect(xShare).toHaveAttribute('target', '_blank');
-  await page.getByRole('button', { name: 'SAVE CARD', exact: true }).click();
-  const cardDialog = page.getByRole('dialog', { name: 'Save your run card' });
-  await expect(cardDialog).toBeVisible();
-  await expect(cardDialog.getByAltText('Your complete run card, ready to save or share')).toHaveAttribute('src', /^blob:/);
-  await page.getByRole('button', { name: 'Close sharing options' }).click();
+  await expect(page.getByRole('button', { name: '1 · SAVE IMAGE', exact: true })).toBeEnabled();
+  await expect(page.getByRole('region', { name: 'Share your Market Dungeon result' }).getByRole('img')).toHaveAttribute('src', /^blob:/);
+  await expect(page.getByRole('dialog')).toHaveCount(0);
 
   const [proofDownload] = await Promise.all([
     page.waitForEvent('download'),
