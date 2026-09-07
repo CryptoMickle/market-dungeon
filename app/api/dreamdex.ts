@@ -18,6 +18,13 @@ const MAX_READ_ATTEMPTS = 2;
 
 export type IndexerReadBudget = { deadline: number; timeoutMs: number };
 
+const OPENING_REFERENCE_QUESTION_ID = Symbol('openingReferenceQuestionId');
+type MarketWithOpeningReference = Record<string, unknown> & {
+  finalized?: unknown;
+  voided?: unknown;
+  [OPENING_REFERENCE_QUESTION_ID]?: string | null;
+};
+
 function indexerTiming(budget?: IndexerReadBudget) {
   if (!budget) return undefined;
   const remainingMs = Math.ceil(budget.deadline - performance.now());
@@ -155,17 +162,20 @@ function words(hex: string) {
 }
 
 export async function hydrateMarket(
-  market: Record<string, unknown>,
+  market: MarketWithOpeningReference,
   demoReplay = false,
   profile: JudgeNetworkProfile = SOMNIA_MAINNET_PROFILE,
   indexerBudget?: IndexerReadBudget,
 ) {
   let strikeRaw = String(market.strike ?? '0');
   if (BigInt(strikeRaw) === 0n) {
-    const refs = await graphql(`query OpeningRefs($ids: [String!]) {
-      MarketReferenceLink(where: {market_id: {_in: $ids}}) { referenceQuestionId }
-    }`, { ids: [String(market.marketId).toLowerCase()] }, profile, indexerTiming(indexerBudget));
-    const qid = (refs.MarketReferenceLink as Array<{ referenceQuestionId: string }>)?.[0]?.referenceQuestionId;
+    let qid = market[OPENING_REFERENCE_QUESTION_ID] ?? undefined;
+    if (!(OPENING_REFERENCE_QUESTION_ID in market)) {
+      const refs = await graphql(`query OpeningRefs($ids: [String!]) {
+        MarketReferenceLink(where: {market_id: {_in: $ids}}) { referenceQuestionId }
+      }`, { ids: [String(market.marketId).toLowerCase()] }, profile, indexerTiming(indexerBudget));
+      qid = (refs.MarketReferenceLink as Array<{ referenceQuestionId: string }>)?.[0]?.referenceQuestionId;
+    }
     if (qid) {
       const answers = await graphql(`query OpeningAnswers($qids: [String!]) {
         OracleAnswer(where: {id: {_in: $qids}}) { numericValue }
@@ -358,13 +368,20 @@ export async function fetchFullMarket(
   profile: JudgeNetworkProfile = SOMNIA_MAINNET_PROFILE,
   indexerBudget?: IndexerReadBudget,
 ) {
-  const data = await graphql(`query ReplaySettlement($id: String!) {
+  const normalizedId = marketId.toLowerCase();
+  const data = await graphql(`query ReplaySettlement($id: String!, $ids: [String!]) {
     Market_by_pk(id: $id) {
       marketId marketAddress poolAddress collateral marketType asset question strike tradingStart expiry
       status: clobStatus intervalSec tradeCount lastTradeAt operatorId venueId context oracleQuestionId creator createdByTx
       quoteDecimals yesTokenId noTokenId
       winningOutcome payoutNumerators payoutDenominator voided finalized resolvedAtTimestamp lastPrice
     }
-  }`, { id: marketId.toLowerCase() }, profile, indexerTiming(indexerBudget));
-  return data.Market_by_pk as Record<string, unknown> | null;
+    MarketReferenceLink(where: {market_id: {_in: $ids}}) { referenceQuestionId }
+  }`, { id: normalizedId, ids: [normalizedId] }, profile, indexerTiming(indexerBudget));
+  const market = data.Market_by_pk as Record<string, unknown> | null;
+  if (!market) return null;
+  const replayMarket: MarketWithOpeningReference = { ...market };
+  const referenceQuestionId = (data.MarketReferenceLink as Array<{ referenceQuestionId: string }>)?.[0]?.referenceQuestionId ?? null;
+  Object.defineProperty(replayMarket, OPENING_REFERENCE_QUESTION_ID, { value: referenceQuestionId });
+  return replayMarket;
 }

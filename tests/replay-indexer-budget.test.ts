@@ -15,7 +15,7 @@ const market = {
 };
 test.afterEach(() => { globalThis.fetch = originalFetch; });
 
-test('replay metadata, reference and answer reads share one deadline without changing RPC budgets', async (t) => {
+test('replay metadata and opening reference share one read before the dependent answer', async (t) => {
   let elapsed = 0;
   const timeouts: number[] = [];
   const operations: string[] = [];
@@ -30,11 +30,7 @@ test('replay metadata, reference and answer reads share one deadline without cha
     operations.push(operation);
     if (operation === 'ReplaySettlement') {
       elapsed += 3_000;
-      return Response.json({ data: { Market_by_pk: market } });
-    }
-    if (operation === 'OpeningRefs') {
-      elapsed += 6_000;
-      return Response.json({ data: { MarketReferenceLink: [{ referenceQuestionId: '123' }] } });
+      return Response.json({ data: { Market_by_pk: market, MarketReferenceLink: [{ referenceQuestionId: '123' }] } });
     }
     if (operation === 'OpeningAnswers') {
       elapsed += 5_000;
@@ -48,8 +44,8 @@ test('replay metadata, reference and answer reads share one deadline without cha
   const raw = await fetchFullMarket(market.marketId, SOMNIA_MAINNET_PROFILE, budget);
   const hydrated = await hydrateMarket(raw!, true, SOMNIA_MAINNET_PROFILE, budget);
   assert.equal(hydrated.market.strikeUsd, '65000.00');
-  assert.deepEqual(operations, ['ReplaySettlement', 'OpeningRefs', 'OpeningAnswers', 'eth_chainId', 'eth_call']);
-  assert.deepEqual(timeouts, [12_000, 12_000, 6_000, 5_000, 5_000]);
+  assert.deepEqual(operations, ['ReplaySettlement', 'OpeningAnswers', 'eth_chainId', 'eth_call']);
+  assert.deepEqual(timeouts, [12_000, 12_000, 5_000, 5_000]);
 });
 
 test('an exhausted reveal indexer budget prevents answer and RPC reads rather than producing a partial result', async (t) => {
@@ -62,18 +58,18 @@ test('an exhausted reveal indexer budget prevents answer and RPC reads rather th
     operations.push(operation);
     if (operation === 'ReplaySettlement') {
       elapsed = 12_000;
-      return Response.json({ data: { Market_by_pk: market } });
+      return Response.json({ data: { Market_by_pk: market, MarketReferenceLink: [{ referenceQuestionId: '123' }] } });
     }
-    if (operation === 'OpeningRefs') {
+    if (operation === 'OpeningAnswers') {
       elapsed = 15_000;
-      return Response.json({ data: { MarketReferenceLink: [{ referenceQuestionId: '123' }] } });
+      throw new DOMException('read timed out', 'TimeoutError');
     }
     throw new Error('Unexpected read after budget exhaustion');
   };
   const budget = { deadline: 15_000, timeoutMs: 12_000 };
   const raw = await fetchFullMarket(market.marketId, SOMNIA_MAINNET_PROFILE, budget);
   await assert.rejects(hydrateMarket(raw!, true, SOMNIA_MAINNET_PROFILE, budget), isRetryableUpstreamError);
-  assert.deepEqual(operations, ['ReplaySettlement', 'OpeningRefs']);
+  assert.deepEqual(operations, ['ReplaySettlement', 'OpeningAnswers']);
 });
 
 test('an already exhausted metadata budget sends no request and default reads retain 5s', async (t) => {
@@ -91,4 +87,19 @@ test('an already exhausted metadata budget sends no request and default reads re
   await fetchFullMarket(market.marketId);
   assert.equal(calls, 1);
   assert.deepEqual(timeouts, [5_000]);
+});
+
+test('ordinary hydration without prefetched replay metadata retains its reference lookup', async () => {
+  const operations: string[] = [];
+  globalThis.fetch = async (_input, init) => {
+    const body = JSON.parse(String(init?.body));
+    const operation = body.method ?? body.query.match(/query\s+(\w+)/)[1];
+    operations.push(operation);
+    if (operation === 'OpeningRefs') return Response.json({ data: { MarketReferenceLink: [] } });
+    if (operation === 'eth_chainId') return Response.json({ result: '0x13a7' });
+    if (operation === 'eth_call') return Response.json({ result: `0x${'1'.padStart(64, '0').repeat(3)}` });
+    throw new Error('Unexpected read');
+  };
+  await hydrateMarket({ ...market });
+  assert.deepEqual(operations, ['OpeningRefs', 'eth_chainId', 'eth_call']);
 });

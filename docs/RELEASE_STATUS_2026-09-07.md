@@ -1,5 +1,30 @@
 # Release and recording status — 7 September 2026
 
+## Consolidated reveal lookup — targeted validation passed
+
+The combined-budget candidate `22d4895` passed all 155 local checks and GitHub
+CI, but its exact-identity Preview gate stopped on the first mainnet valid
+reveal: HTTP 503 after 15.273 seconds. The request log identified a dreamDEX
+indexer timeout after earlier reads had consumed most of the shared deadline.
+The concurrent Shannon browser case was interrupted; Production remained on
+the prior release and no v12 tag was created.
+
+A bounded follow-up measured three current mainnet metadata pipelines at 352,
+288 and 217ms. No individual query was consistently slow. The supported cause
+is intermittent provider latency amplified by three serialized indexer reads,
+not a contract contradiction or Vercel storage failure.
+
+Replay settlement metadata and its opening-reference ID are now requested in
+one GraphQL operation. Only the dependent opening-answer lookup remains a
+second indexer request. The reference ID is carried internally and is not added
+to the public response. Ordinary active-market hydration keeps its previous
+reference lookup. Hash-pinned RPC settlement verification, provenance checks,
+the shared 15s deadline and fail-closed behavior are unchanged.
+
+Twelve focused read/budget tests, TypeScript and lint pass locally. Full local,
+Preview and Production validation have not yet been run for this candidate;
+publication must not be inferred from these targeted results.
+
 ## Shared reveal-metadata budget — validation pending
 
 The reduced-query candidate `84d90f1` passed 21 full Preview round-trips
