@@ -22,7 +22,7 @@ test('privacy and creative provenance remain directly accessible from the game',
   }
 });
 
-test('v10 integration and provenance links use the frozen submission tag', () => {
+test('frozen v10 submission links are retained while README identifies the published v11 baseline', () => {
   const immutableBlobRoot = 'https://github.com/CryptoMickle/market-dungeon/blob/hackathon-submission-2026-v10';
   const disclosureUrl = `${immutableBlobRoot}/docs/PROVENANCE_AND_PRIVACY.md`;
   const integrationReportUrl = `${immutableBlobRoot}/docs/DREAMDEX_INTEGRATION_REPORT.md`;
@@ -39,6 +39,6 @@ test('v10 integration and provenance links use the frozen submission tag', () =>
   assert.match(credits, /href="https:\/\/youtu\.be\/6IviQrMweZ4"/);
   assert.match(credits, /BASELINE V8 VIDEO/);
   assert.match(readme, /\*\*Current public baseline demo \(1:52\):\*\* https:\/\/youtu\.be\/6IviQrMweZ4/);
-  assert.match(readme, /releases\/tag\/hackathon-submission-2026-v10/);
+  assert.match(readme, /releases\/tag\/hackathon-submission-2026-v11/);
   assert.match(readme, /https:\/\/market-dungeon\.vercel\.app\/verify/);
 });

@@ -1512,9 +1512,9 @@ export default function MarketDungeon({
               <h2>Lock your omen before the replay is drawn.</h2>
               <small>Choose BTC UP or DOWN. The hidden onchain outcome decides whether your combat victory becomes permanent.</small>
               <div className="judge-lock-context" aria-live="polite">
-                <span>LIVE BTC CONTEXT</span>
-                <strong>{liveBtcContext ? liveBtcContextPrice(liveBtcContext) : 'REFERENCE UNAVAILABLE'}</strong>
-                <small>{liveBtcContext ? `dreamDEX ${eventContractIntervalName(liveBtcContext.intervalSec)} opening line · context only` : 'The sealed replay remains available.'}</small>
+                <span>{shannonJudge ? 'HISTORICAL BTC REPLAY' : 'LIVE BTC CONTEXT'}</span>
+                <strong>{shannonJudge ? 'OPENING PRICE SEALED' : liveBtcContext ? liveBtcContextPrice(liveBtcContext) : 'REFERENCE UNAVAILABLE'}</strong>
+                <small>{shannonJudge ? 'No live price feed in Shannon replay. The historical opening price is revealed after combat.' : liveBtcContext ? `dreamDEX ${eventContractIntervalName(liveBtcContext.intervalSec)} opening line · context only` : 'The sealed replay remains available.'}</small>
               </div>
             </div>
             <div className="judge-quick-choice" aria-label="Choose BTC direction">
@@ -1631,13 +1631,15 @@ export default function MarketDungeon({
                 <strong>UP OR DOWN</strong>
                 <p>The selected replay market ID, addresses, strike, expiry and outcome are not chosen or sent before your choice locks.</p>
                 <div className="judge-live-context" aria-live="polite">
-                  <span>BTC LIVE CONTEXT</span>
-                  <strong>{liveBtcContext ? liveBtcContextPrice(liveBtcContext) : 'REFERENCE UNAVAILABLE'}</strong>
-                  <small>{liveBtcContext
+                  <span>{shannonJudge ? 'HISTORICAL BTC REPLAY' : 'BTC LIVE CONTEXT'}</span>
+                  <strong>{shannonJudge ? 'OPENING PRICE SEALED' : liveBtcContext ? liveBtcContextPrice(liveBtcContext) : 'REFERENCE UNAVAILABLE'}</strong>
+                  <small>{shannonJudge
+                    ? 'This testnet replay does not fetch a live BTC price. The historical market and its opening price remain sealed until reveal.'
+                    : liveBtcContext
                     ? `Separate live dreamDEX ${eventContractIntervalName(liveBtcContext.intervalSec)} opening line · ${liveBtcContextTime(liveBtcContext)} · context only · not the replay market`
                     : 'The live reference does not affect replay availability. The sealed historical line remains hidden.'}</small>
                 </div>
-                <LiveMarketOdds odds={marketOdds} direction={direction} />
+                {!shannonJudge && <LiveMarketOdds odds={marketOdds} direction={direction} />}
               </div>
               <div className="judge-seal-note"><span>CRYPTOGRAPHIC SEAL + SIGNED RECEIPT</span><strong>Your direction locks before a random historical settlement is selected.</strong><small>The official environment authenticates the commitment and lock window. This is a server receipt, not an external timestamp. Full market proof appears only at Reveal Boss Fate.</small></div>
               <MarketProof market={market} mode="sealed" profile={judgeProfile} />

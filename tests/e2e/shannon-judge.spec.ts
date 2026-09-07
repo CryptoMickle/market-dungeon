@@ -69,6 +69,9 @@ test('Shannon Judge flow remains profile-bound through replay, sharing, reset, c
   await expect(page).toHaveURL(/\/shannon\/judge$/);
   await expect(page.locator('.safety-line')).toContainText('SHANNON TESTNET');
   await expect(page.locator('.safety-line')).toContainText('HISTORICAL DREAMDEX REPLAY');
+  await expect(page.locator('.judge-lock-context')).toContainText('OPENING PRICE SEALED');
+  await expect(page.locator('.judge-lock-context')).toContainText('No live price feed in Shannon replay');
+  await expect(page.getByText('REFERENCE UNAVAILABLE', { exact: true })).toHaveCount(0);
   await expect(page.getByText('SEALED BTC 5-MIN REPLAY · 15M FALLBACK · SHANNON TESTNET')).toHaveCount(1);
 
   await page.getByRole('button', { name: 'LOCK OMEN & SEAL REPLAY' }).click();
@@ -89,12 +92,9 @@ test('Shannon Judge flow remains profile-bound through replay, sharing, reset, c
   for (const link of await explorerLinks.all()) {
     expect(await link.getAttribute('href')).toMatch(/^https:\/\/shannon-explorer\.somnia\.network\/(?:block|address)\//);
   }
-  await page.getByRole('button', { name: 'SHARE ON X ↗' }).click();
-  await page.getByText('Attach the card manually in X', { exact: true }).click();
-  const xShare = page.getByRole('link', { name: 'OPEN X WITH TEXT ↗' });
+  const xShare = page.getByRole('link', { name: 'SHARE ON X ↗', exact: true });
   const xShareUrl = new URL(await xShare.getAttribute('href') ?? '');
   expect(xShareUrl.searchParams.get('url')).toBe('https://market-dungeon.vercel.app/shannon/judge?challenge=1');
-  await page.getByRole('button', { name: 'Close sharing options' }).click();
 
   await page.evaluate(() => {
     Object.defineProperty(navigator, 'clipboard', {

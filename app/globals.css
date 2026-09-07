@@ -420,6 +420,8 @@ span.gold-icon { display: inline-block !important; }
 .run-share-dialog details { margin: 16px 0; padding: 12px; background: #21152e; border-radius: 10px; }
 .run-share-dialog summary { cursor: pointer; color: #e9d5ff; }
 .run-share-dialog textarea { display: block; width: 100%; box-sizing: border-box; margin-top: 8px; padding: 12px; color: #eee; background: #0c0910; border: 1px solid #695175; border-radius: 8px; font-size: 16px; line-height: 1.4; resize: vertical; }
+.run-share-panel > .share-caption-label { display: block; margin-top: 12px; }
+.run-share-panel > .share-caption-label textarea { display: block; box-sizing: border-box; width: 100%; margin-top: 8px; padding: 12px; color: #eee; background: #0c0910; border: 1px solid #695175; border-radius: 8px; font-size: 16px; line-height: 1.4; }
 .run-share-dialog .share-dialog-status { color: #a7f3d0; min-height: 21px; }
 @media (max-width: 480px) { .run-share-dialog { padding: 16px; } .run-share-dialog .run-share-actions { grid-template-columns: 1fr; } }
 .dreamdex-continue { width: 100%; display: grid; grid-template-columns: 1fr; gap: 10px; margin-top: 10px; padding: 13px; border: 1px solid rgba(249, 115, 22, .55); border-radius: 11px; background: linear-gradient(135deg, rgba(124, 45, 18, .26), rgba(88, 28, 135, .18)); text-align: left; }

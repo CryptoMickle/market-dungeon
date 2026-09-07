@@ -2,18 +2,19 @@
 
 This record resolves discrepancies between the published release, older working
 documentation, and the new hybrid recording plan. It is not a deployment log for
-unpublished changes.
+unpublished changes. The iPhone-feedback revision below supersedes the original
+three-buttons/one-dialog design. Production remains on v11.
 
 ## Two distinct versions
 
 | Item | Published v11 | New working-tree changes |
 | --- | --- | --- |
-| Identity | `hackathon-submission-2026-v11` / `f30b9a56532eb6e3147e7ae8473242545635d0ef` | Uncommitted changes on that baseline; no new tag or deployment |
+| Identity | `hackathon-submission-2026-v11` / `f30b9a56532eb6e3147e7ae8473242545635d0ef` | Initial patch `8fac3a2` deployed to Preview only; subsequent iPhone-feedback correction under validation; no new release tag |
 | Shannon Judge/verifier | Released; not merely a branch candidate | Network/proof logic unchanged |
 | Mobile run card | Earlier share/export flow | Complete PNG prepared ahead of the gesture; explicit sharing dialog; separate caption and image actions |
-| X | Earlier download-and-open flow | No automatic opening or media-attachment claim; explicit text-only web intent after image handling |
+| X | Earlier download-and-open flow | Share on X opens the text-only web intent directly; Challenge shares an invitation; Save card opens the image dialog |
 | iPhone saving | A download is not a Photos save | Native image share/save where supported; long-press image or Files fallback; physical device test pending |
-| Test evidence | Release gates below | Local regression checks below; no fresh Preview/Production gate |
+| Test evidence | Release gates below | Initial local checks below plus one initial Preview Shannon smoke; no new full release gate |
 
 Published evidence:
 [v11 release](https://github.com/CryptoMickle/market-dungeon/releases/tag/hackathon-submission-2026-v11).
@@ -22,7 +23,7 @@ Recorded v11 gates: lint, TypeScript, 99 unit/integration, seven Shannon kernel,
 live rounds, 20 per network per environment, zero retries. Those live gates do
 not cover the newer mobile patch or promise continuous availability.
 
-## New local checks
+## Initial mobile patch checks (before iPhone feedback)
 
 - TypeScript and lint: PASS.
 - Unit/integration: 99/99 PASS.
@@ -44,6 +45,34 @@ native share payload with active user activation, no automatic X opening or
 download, cancellation, denied clipboard access, PNG-render failure, and the
 same-network Shannon challenge boundary. Existing tests cover proof export and
 standalone verification for both profiles.
+
+## iPhone feedback revision
+
+The developer tested Preview `8fac3a2` and reported that all three sharing
+controls opened the same dialog and none directly opened X. That report was
+correct; the original acceptance plan below has been corrected to three
+distinct actions. Physical iPhone acceptance of the revised behavior is pending.
+
+The same test reported missing BTC pricing on `/shannon/judge`. That route
+intentionally makes no mainnet market call, but incorrectly displayed
+`REFERENCE UNAVAILABLE`. It now says `HISTORICAL BTC REPLAY / OPENING PRICE SEALED`
+and explains that the historical opening price remains hidden until reveal.
+The empty mainnet odds component is no longer shown on Shannon. Network and
+proof logic are unchanged. Mainnet's separate market reference is an active
+market's opening line, not a live spot-price feed.
+
+Regression coverage adds actual X-intent navigation to an intercepted test tab,
+distinct invitation-versus-image actions, cancellation without side effects,
+PNG-independent invitation sharing, and Shannon's explicit sealed-price text
+with zero mainnet calls. This is automated QA, not an independent human test.
+
+Revised local check: lint, TypeScript, 99/99 unit/integration, 7/7 Shannon
+kernel, optimized build (15 routes), and 28/28 deterministic Chromium tests
+all PASS. The 390×844 Save card screenshot was inspected: complete card,
+readable controls and no horizontal overflow. The first check stopped on
+an outdated README assertion still requiring the v10 release link; the test
+now explicitly distinguishes frozen v10 submission links from README's v11
+published baseline. No frozen release document was rewritten to pass the test.
 
 ## Continue on dreamDEX — exact meaning
 
@@ -77,8 +106,9 @@ No public GitHub, DoraHacks, YouTube or Discord content was changed in this task
 Use an approved HTTPS Preview of the exact patch on a real iPhone. Do not post:
 
 1. Record iPhone model, iOS, browser and X app versions.
-2. Finish one real Judge run and open Share on X. It must keep you on the result
-   until you choose an image or X action.
+2. Finish one real Judge run. Challenge a player must offer the text/link
+   invitation; Share on X must open X's text draft directly; Save card must
+   open the complete image in the in-game dialog. Cancel or discard each draft.
 3. Copy the caption. Share/save the image. Confirm the file is a complete PNG
    with artwork, readable result, correct gold/progress and the same run ID.
 4. If X is offered in the native menu, select it; verify the draft has the image,
@@ -93,7 +123,8 @@ Use an approved HTTPS Preview of the exact patch on a real iPhone. Do not post:
    automatically. Repeat with a fresh run to exclude stale-card reuse.
 9. Repeat on Android if available. Do not generalize an iPhone result to all mobile.
 
-Device result: **NOT YET TESTED**.
+Device result: initial Preview **FAILED developer UX acceptance** as above;
+revised Preview **PENDING physical iPhone acceptance**. No independent participant.
 
 Apple documents the download location in
 [Files/Downloads](https://support.apple.com/en-us/102440).

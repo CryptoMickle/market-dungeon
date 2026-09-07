@@ -100,6 +100,8 @@ test('live Shannon target remains network-bound through proof export and verifie
 
   await page.goto('/shannon/judge?automation=1');
   await expect(page.locator('.safety-line')).toContainText('SHANNON TESTNET');
+  await expect(page.locator('.judge-lock-context')).toContainText('OPENING PRICE SEALED');
+  await expect(page.getByText('REFERENCE UNAVAILABLE', { exact: true })).toHaveCount(0);
   await page.getByRole('button', { name: 'LOCK OMEN & SEAL REPLAY' }).click();
   await page.getByRole('button', { name: /ATTACK/ }).click();
   await page.getByRole('button', { name: '👑 ENTER FINAL BOSS' }).click();
@@ -116,6 +118,14 @@ test('live Shannon target remains network-bound through proof export and verifie
   await expect(page.getByText('CHAIN 50312 · EIP-1898 HASH-PINNED · BOTH RAW ETH_CALL RESULTS MATCH')).toBeVisible();
   await expect(page.getByRole('link', { name: /continue on dreamdex/i })).toHaveCount(0);
   await expect(page.getByRole('link', { name: /OPEN INDEPENDENT VERIFIER/ })).toHaveAttribute('href', '/shannon/verify');
+  const xShare = page.getByRole('link', { name: 'SHARE ON X ↗', exact: true });
+  await expect(xShare).toHaveAttribute('href', /https:\/\/twitter\.com\/intent\/tweet\?/);
+  await expect(xShare).toHaveAttribute('target', '_blank');
+  await page.getByRole('button', { name: 'SAVE CARD', exact: true }).click();
+  const cardDialog = page.getByRole('dialog', { name: 'Save your run card' });
+  await expect(cardDialog).toBeVisible();
+  await expect(cardDialog.getByAltText('Your complete run card, ready to save or share')).toHaveAttribute('src', /^blob:/);
+  await page.getByRole('button', { name: 'Close sharing options' }).click();
 
   const [proofDownload] = await Promise.all([
     page.waitForEvent('download'),

@@ -363,15 +363,12 @@ test('Judge Demo completes in Chromium and renders independently verified proof 
   await expect(page.getByText('BROWSER RPC REFETCH + ABI + DIGESTS VERIFIED')).toBeVisible();
   await expect(page.getByAltText('Market Dungeon Judge Replay share card: 2 of 2 replay encounters')).toBeVisible();
   await expect(page.getByText('FINAL-TIER JUDGE REPLAY · 2/2 REPLAY ENCOUNTERS')).toBeVisible();
-  await page.getByRole('button', { name: 'SHARE ON X ↗' }).click();
-  await page.getByText('Attach the card manually in X', { exact: true }).click();
-  const xShare = page.getByRole('link', { name: 'OPEN X WITH TEXT ↗' });
+  const xShare = page.getByRole('link', { name: 'SHARE ON X ↗', exact: true });
   await expect(xShare).toHaveAttribute('href', /https:\/\/twitter\.com\/intent\/tweet\?/);
   const xShareUrl = new URL(await xShare.getAttribute('href') ?? '');
   expect(xShareUrl.searchParams.get('text')).toContain('2 of 2 replay encounters cleared');
   expect(xShareUrl.searchParams.get('text')).toContain('Can you beat my run?');
   expect(xShareUrl.searchParams.get('url')).toBe('https://market-dungeon.vercel.app/judge?challenge=1');
-  await page.getByRole('button', { name: 'Close sharing options' }).click();
   await expect(page.getByRole('link', { name: 'OPEN INDEPENDENT VERIFIER ↗' })).toHaveAttribute('href', '/verify');
 
   const proofLinks = revealedProof.locator('a');
@@ -401,9 +398,10 @@ test('Judge Demo completes in Chromium and renders independently verified proof 
       },
     });
   });
-  await page.getByRole('button', { name: '↗ CHALLENGE A PLAYER' }).click();
+  await page.getByRole('button', { name: 'SAVE CARD', exact: true }).click();
   await page.getByRole('button', { name: '2 · SHARE / SAVE IMAGE' }).click();
   await expect(page.getByRole('status')).toContainText('Could not share the image');
+  await page.getByText('Attach the card manually in X', { exact: true }).click();
   const [cardDownload] = await Promise.all([
     page.waitForEvent('download'),
     page.getByRole('button', { name: 'DOWNLOAD PNG TO FILES' }).click(),
