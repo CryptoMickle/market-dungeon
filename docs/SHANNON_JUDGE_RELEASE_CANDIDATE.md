@@ -123,8 +123,9 @@ Shannon deployment claim.
   or Production gates.
 - Human participant invitations: `0`; participants: `0`; sessions: `0`.
 - Independent validator invitations: `0`; validators: `0`.
-- One Discord moderator-routing request has been sent; permission to post a
-  participant invitation has not been received.
+- Participant recruitment remains unpublished pending separate manual user
+  approval. Administrative routing evidence is retained privately and is not
+  product-quality, participant, endorsement, or validation evidence.
 
 Until those facts change, describe the candidate as **branch-published, locally
 verified, and independently reproducible by design**, not finally released,
