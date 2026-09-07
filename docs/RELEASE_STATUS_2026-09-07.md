@@ -1,5 +1,34 @@
 # Release and recording status — 7 September 2026
 
+## Replay-start latency correction — pending release validation
+
+The two exact-identity live gates for `c1bbdfb` both stopped on Shannon start
+HTTP 503, before card preparation. The candidate's isolated renderer checks
+passed nine cases; they did not replace a live gate. PR #42 remained draft and
+Production was not promoted.
+
+A subsequent bounded diagnostic fetched the exact historical candidate query
+directly in 9.631 seconds. Preview and unchanged Production returned a replay
+in 8.317 and 8.724 seconds respectively. Individual five- and fifteen-minute
+queries varied from 1.401 to 6.052 seconds, so splitting the query was not a
+reliable remedy. These are a small set of observations, not a latency benchmark
+or proof of the cause of every previous failure.
+
+Only candidate discovery now permits a 12-second read with at most two attempts
+inside one shared 15-second network budget. Ordinary indexer reads and all RPC
+proof budgets remain unchanged. The historical filters, balanced random draw,
+network isolation, cache policy and fail-closed proof checks are unchanged.
+The replay's issue time and full 15-second anti-peek hold now begin after the
+candidate read, and market age is rechecked at that actual issue time.
+
+Five new tests check the scoped timeout, remaining retry budget, exhausted
+budget, full post-load hold and rejection of candidates that age out during
+loading. The 26 focused read/replay tests passed. Full local verification then
+passed lint, TypeScript, the optimized 15-route build, 104 unit/integration,
+7 Shannon kernel and 36 deterministic Chromium tests (147 total; no retries).
+Deployed gates remain pending at this checkpoint; publication must not be
+inferred from the local results.
+
 ## Image-readiness correction after the accepted two-step flow
 
 The owner approved the two-step mobile flow and its GitHub/Production release.

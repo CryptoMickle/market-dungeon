@@ -21,6 +21,9 @@ import type { CandidateData, ReplayCandidateData } from './state.ts';
 const NO_STORE = { 'cache-control': 'private, no-store, max-age=0' };
 const REPLAY_TTL_SECONDS = 30 * 60;
 const MIN_REVEAL_SECONDS = 15;
+// The full historical indexer query has been observed taking >9s. Allow one
+// 12s read and at most one retry within 15s total; RPC proof budgets stay unchanged.
+const CANDIDATE_READ_TIMING = { timeoutMs: 12_000, totalBudgetMs: 15_000 };
 
 type CandidateStore = (
   load: () => Promise<CandidateData>,
@@ -106,13 +109,17 @@ export function createJudgeReplayStartHandler(input: {
     }
 
     try {
-      const now = Math.floor(Date.now() / 1000);
-      const minExpiry = now - MAX_REPLAY_MARKET_AGE_SECONDS;
+      const queryNow = Math.floor(Date.now() / 1000);
+      const minExpiry = queryNow - MAX_REPLAY_MARKET_AGE_SECONDS;
       const { data, cacheState } = await input.candidates(() => graphql(
         candidateQuery(input.profile),
-        { minExpiry: String(minExpiry), now: String(now) },
+        { minExpiry: String(minExpiry), now: String(queryNow) },
         input.profile,
+        CANDIDATE_READ_TIMING,
       ) as Promise<CandidateData>);
+      // Start the hold when the replay is actually issued, not before a slow
+      // indexer read. Revalidate market age at this same current timestamp.
+      const now = Math.floor(Date.now() / 1000);
       const replayPool = selectBalancedReplayPool(
         eligibleCandidates(data.fiveMinute ?? [], now),
         eligibleCandidates(data.fifteenMinute ?? [], now),

@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { graphql, isRetryableUpstreamError } from '../app/api/dreamdex.ts';
+import { SHANNON_TESTNET_PROFILE } from '../app/judge-network.ts';
 
 const originalFetch = globalThis.fetch;
 
@@ -49,4 +50,54 @@ test('a persistent transport timeout stops after the bounded second attempt', as
     (error: unknown) => isRetryableUpstreamError(error) && error.retryAfter === 2,
   );
   assert.equal(calls, 2);
+});
+
+test('candidate reads can finish beyond the default 5s without changing ordinary read budgets', async (t) => {
+  let elapsed = 0;
+  const timeouts: number[] = [];
+  t.mock.method(performance, 'now', () => elapsed);
+  t.mock.method(AbortSignal, 'timeout', (ms: number) => {
+    timeouts.push(ms);
+    return new AbortController().signal;
+  });
+  globalThis.fetch = async () => {
+    elapsed += 9_600;
+    return Response.json({ data: { fiveMinute: [], fifteenMinute: [] } });
+  };
+  assert.deepEqual(await graphql('query Candidates { Market { marketId } }', {}, SHANNON_TESTNET_PROFILE,
+    { timeoutMs: 12_000, totalBudgetMs: 15_000 }), { fiveMinute: [], fifteenMinute: [] });
+  await graphql('query Ordinary { Market { marketId } }');
+  assert.deepEqual(timeouts, [12_000, 5_000]);
+});
+
+test('candidate retry uses only the remaining shared budget and never starts a third attempt', async (t) => {
+  let elapsed = 0;
+  const timeouts: number[] = [];
+  t.mock.method(performance, 'now', () => elapsed);
+  t.mock.method(AbortSignal, 'timeout', (ms: number) => {
+    timeouts.push(ms);
+    return new AbortController().signal;
+  });
+  globalThis.fetch = async () => {
+    elapsed += timeouts.at(-1)!;
+    throw new DOMException('read timed out', 'TimeoutError');
+  };
+  await assert.rejects(graphql('query Candidates { Market { marketId } }', {}, SHANNON_TESTNET_PROFILE,
+    { timeoutMs: 12_000, totalBudgetMs: 15_000 }), isRetryableUpstreamError);
+  assert.deepEqual(timeouts, [12_000, 3_000]);
+  assert.equal(elapsed, 15_000);
+});
+
+test('an exhausted candidate budget prevents a second request', async (t) => {
+  let elapsed = 0;
+  let calls = 0;
+  t.mock.method(performance, 'now', () => elapsed);
+  globalThis.fetch = async () => {
+    calls += 1;
+    elapsed = 15_000;
+    throw new DOMException('read timed out', 'TimeoutError');
+  };
+  await assert.rejects(graphql('query Candidates { Market { marketId } }', {}, SHANNON_TESTNET_PROFILE,
+    { timeoutMs: 12_000, totalBudgetMs: 15_000 }), isRetryableUpstreamError);
+  assert.equal(calls, 1);
 });

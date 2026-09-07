@@ -49,17 +49,23 @@ async function postJsonRead<T>(
   url: string,
   body: unknown,
   timeoutMs: number,
+  totalBudgetMs?: number,
 ): Promise<T> {
   let lastError: UpstreamReadError | undefined;
+  const deadline = totalBudgetMs === undefined ? undefined : performance.now() + totalBudgetMs;
 
   for (let attempt = 1; attempt <= MAX_READ_ATTEMPTS; attempt += 1) {
+    const remainingMs = deadline === undefined ? timeoutMs : Math.ceil(deadline - performance.now());
+    if (remainingMs <= 0) {
+      throw lastError ?? new UpstreamReadError(`${source} read budget exhausted`, { retryable: true });
+    }
     try {
       const response = await fetch(url, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify(body),
         cache: 'no-store',
-        signal: AbortSignal.timeout(timeoutMs),
+        signal: AbortSignal.timeout(Math.min(timeoutMs, remainingMs)),
       });
       if (!response.ok) {
         throw new UpstreamReadError(`${source} returned HTTP ${response.status}`, {
@@ -87,12 +93,14 @@ export async function graphql(
   query: string,
   variables: Record<string, unknown> = {},
   profile: JudgeNetworkProfile = SOMNIA_MAINNET_PROFILE,
+  timing?: { timeoutMs: number; totalBudgetMs: number },
 ) {
   const payload = await postJsonRead<{ data?: Record<string, unknown>; errors?: unknown }>(
     'dreamDEX indexer',
     profile.indexer,
     { query, variables },
-    INDEXER_TIMEOUT_MS,
+    timing?.timeoutMs ?? INDEXER_TIMEOUT_MS,
+    timing?.totalBudgetMs,
   );
   if (payload.errors || !payload.data) {
     throw new UpstreamReadError('dreamDEX indexer rejected the query', { retryable: false });

@@ -210,6 +210,53 @@ test('start route falls back to a balanced fifteen-minute replay pool', async ()
   assert.equal(payload.replay.publicMarket.intervalSec, 900);
 });
 
+test('a slow candidate read preserves the full hold after issuance and uses the candidate-only budget', async (t) => {
+  const initialNow = 1_788_770_000;
+  let now = initialNow;
+  const timeouts: number[] = [];
+  t.mock.method(Date, 'now', () => now * 1_000);
+  t.mock.method(AbortSignal, 'timeout', (ms: number) => {
+    timeouts.push(ms);
+    return new AbortController().signal;
+  });
+  globalThis.fetch = async () => {
+    now += 10;
+    return Response.json({ data: {
+      fiveMinute: [candidate(MARKET_ID, 0, 300, initialNow), candidate(`0x${'ef'.repeat(32)}`, 1, 300, initialNow)],
+      fifteenMinute: [],
+    } });
+  };
+  const response = await startReplay(post('http://local.test/api/judge-replay/start', { direction: 'UP' }));
+  const { replay } = await response.json();
+  assert.equal(response.status, 200);
+  assert.deepEqual(timeouts, [12_000]);
+  assert.equal(replay.issuedAt, initialNow + 10);
+  assert.equal(replay.revealAfter, now + 15);
+  assert.equal(replay.expiresAt, now + 30 * 60);
+  const early = await revealReplay(post('http://local.test/api/judge-replay/reveal', {
+    seal: replay.seal, actions: completedCombat(replay.gameSeed),
+  }));
+  assert.equal(early.status, 425);
+  assert.equal((await early.json()).retryAfter, 15);
+});
+
+test('markets that age out during a slow candidate read cannot be sealed', async (t) => {
+  const initialNow = 1_788_770_000;
+  let now = initialNow;
+  t.mock.method(Date, 'now', () => now * 1_000);
+  const candidateNow = initialNow - 7 * 24 * 60 * 60 + 35;
+  globalThis.fetch = async () => {
+    now += 10;
+    return Response.json({ data: {
+      fiveMinute: [candidate(MARKET_ID, 0, 300, candidateNow), candidate(`0x${'ef'.repeat(32)}`, 1, 300, candidateNow)],
+      fifteenMinute: [],
+    } });
+  };
+  const response = await startReplay(post('http://local.test/api/judge-replay/start', { direction: 'UP' }));
+  assert.equal(response.status, 503);
+  assert.equal('replay' in await response.json(), false);
+});
+
 test('start route shares its candidate read and rate-limits repeated client requests', async () => {
   let upstreamReads = 0;
   globalThis.fetch = async () => {
