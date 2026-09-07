@@ -121,9 +121,11 @@ Shannon deployment claim.
   corrected candidate.
 - The corrected candidate has not yet passed its exact-identity public Preview
   or Production gates.
-- Human participant invitations: `0`; participants: `0`; sessions: `0`.
+- Participant-invitation channel posts: `1`; known people invited or replied:
+  `0`; participants: `0`; sessions: `0`. A public channel post is not a known
+  person, participant, response, or usability result.
 - Independent validator invitations: `0`; validators: `0`.
-- Participant recruitment remains unpublished pending separate manual user
+- The one participant invitation was published only after separate manual user
   approval. Administrative routing evidence is retained privately and is not
   product-quality, participant, endorsement, or validation evidence.
 

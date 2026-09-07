@@ -24,9 +24,10 @@ a public deployment, human usability result, independent non-team validation,
 or audit. A first exact-identity Preview passed 20/20 preserved-mainnet live
 runs but was rejected for Shannon when a case-sensitive indexer address filter
 returned no candidates. The release stopped; the corrected lowercase filter is
-covered by regression and live-index checks and awaits a new Preview. Participant
-invitations, participants, sessions, validator
-invitations, and validators all remain `0`. The full candidate record is
+covered by regression and live-index checks and awaits a new Preview. One
+participant-invitation channel post has been published; known people invited or
+replied, participants, sessions, validator invitations, and validators remain
+`0`. A channel post is not counted as a person or result. The full candidate record is
 [SHANNON_JUDGE_RELEASE_CANDIDATE.md](SHANNON_JUDGE_RELEASE_CANDIDATE.md).
 
 ## Ten-second product claim

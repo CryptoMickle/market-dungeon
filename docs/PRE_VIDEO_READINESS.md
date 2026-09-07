@@ -12,7 +12,7 @@ release-identity change is still possible.
 | ASTRA block | Status | Evidence or blocker |
 | --- | --- | --- |
 | WB-02 — fixed Shannon Judge/verifier | Complete locally | Implementation commit `2dfe0f484822a8ffcc7f7c2303cdc80f66896829`; [candidate record](SHANNON_JUDGE_RELEASE_CANDIDATE.md) |
-| WB-03A — human usability pilot | Prepared; collection not started | The participant invitation remains unpublished pending separate manual user approval. Administrative routing evidence is private; invitations, participants, and sessions remain `0`. |
+| WB-03A — human usability pilot | Recruitment posted; collection not started | One channel invitation was published after separate manual user approval. Known people invited or replied, participants, and sessions remain `0`; a channel post is not counted as a person or result. Administrative routing evidence is private. |
 | WB-03B — targeted correction/retest | Technical QA complete; human retest not applicable yet | Chain label, Shannon continuation boundary, mainnet candidate compatibility, and strict parser were corrected from QA/security findings; dedicated Shannon browser test PASS |
 | WB-04 — security and proof review | Complete locally | 61 focused tests and 1,575 malformed proof mutations passed; no open finding |
 | WB-05 — truthful evidence package | Prepared, not final | Private zero-state pilot/evidence report exists; no human or telemetry result may be invented |
