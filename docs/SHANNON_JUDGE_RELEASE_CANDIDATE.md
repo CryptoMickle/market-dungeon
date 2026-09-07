@@ -1,10 +1,13 @@
 # Market Dungeon — Shannon Judge release candidate
 
-Status: **local release candidate; not pushed, tagged, deployed, or externally validated**
+Status: **branch-published release candidate; final tag, Production, human, and
+independent validation still pending**
 
 Prepared: 7 September 2026
 
-Implementation commit: `2dfe0f484822a8ffcc7f7c2303cdc80f66896829`
+Initial implementation commit: `2dfe0f484822a8ffcc7f7c2303cdc80f66896829`.
+The final source identity is intentionally assigned only by the next immutable
+post-v10 release tag and its matching public `/api/build` response.
 
 This record separates what the local Shannon candidate proves from what still
 depends on a public deployment or independent people. It does not replace the
@@ -95,29 +98,45 @@ recorded conditions satisfied. It found no active canonical short-window market
 at the time. That evidence supports historical Judge Replay availability; it
 does not prove this candidate is publicly deployed or continuously available.
 
-## Open external gates
+## First public Preview gate
 
-- No Preview or Production deployment contains this commit.
-- No public `/api/build` has been matched to this candidate.
-- No Preview or Production live Judge-to-verifier gate has been run on it.
+- Preview `064da1d178751590587a07e8a585d0de741b91f0` matched its public
+  `/api/build` identity.
+- The preserved mainnet Judge-to-verifier path passed 20/20 consecutive live
+  runs with zero retries.
+- The new Shannon live gate correctly rejected that Preview: the start route
+  returned `503` because the fixed checksummed collateral address was compared
+  case-sensitively with the indexer's lowercase address value.
+- Release was halted. The filter now emits canonical lowercase address values,
+  a regression assertion covers the query, and a fresh local call against the
+  real Shannon indexer returns a balanced 5-minute pool. The corrected commit
+  still requires a new exact-identity Preview and both live gates.
+
+This failed first Preview is release-engineering evidence, not a successful
+Shannon deployment claim.
+
+## Remaining external gates
+
+- No final release tag or matching Production deployment exists for the
+  corrected candidate.
+- The corrected candidate has not yet passed its exact-identity public Preview
+  or Production gates.
 - Human participant invitations: `0`; participants: `0`; sessions: `0`.
 - Independent validator invitations: `0`; validators: `0`.
 - One Discord moderator-routing request has been sent; permission to post a
   participant invitation has not been received.
-- No final release tag exists for this candidate.
 
-Until those facts change, describe the candidate as **locally verified and
-independently reproducible by design**, not publicly released, user-validated,
-independently validated, or audited.
+Until those facts change, describe the candidate as **branch-published, locally
+verified, and independently reproducible by design**, not finally released,
+user-validated, independently validated, or audited.
 
 ## Release order
 
-1. Obtain explicit authorization for push and Preview deployment.
-2. Confirm Preview `/api/build` matches the exact candidate commit.
-3. Run the documented zero-retry Preview gate on both the intended Shannon
+1. Confirm a new Preview `/api/build` matches the corrected candidate commit.
+2. Run the documented zero-retry Preview gate on both the intended Shannon
    entry and the preserved mainnet regression path.
-4. Close the human-pilot window with actual results or an explicit zero-result.
-5. Create a new immutable release tag; never move v10.
-6. Deploy the identical commit to Production and repeat the live gate.
-7. Obtain qualified validator records if available, or disclose zero.
-8. Freeze public copy and only then begin the final video block.
+3. Close the human-pilot window with actual results or an explicit zero-result.
+4. Create a new immutable release tag; never move v10.
+5. Deploy the identical commit to Production and repeat both live gates.
+6. Obtain qualified validator records if available, or disclose zero.
+7. Freeze public copy and only then begin the final video block.

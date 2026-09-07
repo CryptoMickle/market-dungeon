@@ -9,7 +9,7 @@ onchain integration, verifier, receipt, analytics, and sharing trust boundaries
 are inherited unchanged from the released v9 build; v10 reorganizes the Judge
 presentation without expanding transaction authority.**
 
-An unreleased local candidate at implementation commit
+An unreleased branch candidate based on implementation commit
 `2dfe0f484822a8ffcc7f7c2303cdc80f66896829` adds fixed read-only Shannon
 Testnet Judge and verifier routes. Its server-selected profile uses chain
 `50312`, `https://dev.smk.somnia.host/v1/graphql`,
@@ -17,8 +17,9 @@ Testnet Judge and verifier routes. Its server-selected profile uses chain
 `0x70a86D8842FB63C4Ad2b7cdddF530eBf1BB25d8E`, canonical operator `2`, and the
 canonical venue. It reuses the same BinaryModule and BinarySettlement addresses
 while binding the different chain and collateral into versioned cryptographic
-and proof formats. It is locally tested but not yet pushed, deployed, tagged,
-or externally validated. Exact evidence and limitations are recorded in
+and proof formats. It is branch-published and locally tested but not yet tagged,
+released to Production, human-tested, or independently validated. Exact
+Preview evidence and limitations are recorded in
 [SHANNON_JUDGE_RELEASE_CANDIDATE.md](SHANNON_JUDGE_RELEASE_CANDIDATE.md).
 
 This document also serves as the hackathon submission's optional SDK and documentation feedback report.

@@ -227,7 +227,7 @@ test('mainnet and Shannon start routes use isolated caches and fixed indexers', 
   assert.match(queries[0]!, /operatorId: \{_is_null: false\}, venueId: \{_is_null: false\}/);
   assert.doesNotMatch(queries[0]!, /collateral: \{_eq:/);
   assert.match(queries[1]!, /operatorId: \{_eq: 2\}/);
-  assert.match(queries[1]!, new RegExp(`collateral: \\{_eq: "${SHANNON_TESTNET_PROFILE.collateral}"\\}`));
+  assert.match(queries[1]!, new RegExp(`collateral: \\{_eq: "${SHANNON_TESTNET_PROFILE.collateral.toLowerCase()}"\\}`));
 
   const mainnetPayload = await mainnet.json();
   const shannonPayload = await shannon.json();

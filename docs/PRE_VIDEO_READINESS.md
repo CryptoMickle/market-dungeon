@@ -1,7 +1,7 @@
 # Market Dungeon — pre-video readiness
 
 Status: **Shannon candidate verified locally through ASTRA-WB-05 preparation;
-human evidence and ASTRA-WB-06 public release gates remain open**
+ASTRA-WB-06 is in progress and human evidence remains open**
 
 This record answers one question: what remains before the single final video can
 be captured? Video work must not begin while a material product, evidence, or
@@ -16,13 +16,14 @@ release-identity change is still possible.
 | WB-03B — targeted correction/retest | Technical QA complete; human retest not applicable yet | Chain label, Shannon continuation boundary, mainnet candidate compatibility, and strict parser were corrected from QA/security findings; dedicated Shannon browser test PASS |
 | WB-04 — security and proof review | Complete locally | 61 focused tests and 1,575 malformed proof mutations passed; no open finding |
 | WB-05 — truthful evidence package | Prepared, not final | Private zero-state pilot/evidence report exists; no human or telemetry result may be invented |
-| WB-06 — one public frozen release | Not complete | No push, Preview, Production deploy, public build match, tag, live gate, or independent validator result for this candidate |
+| WB-06 — one public frozen release | In progress, not complete | Branch push and first exact-identity Preview completed. Mainnet passed 20/20; Shannon exposed a case-sensitive indexer filter, so release was halted and corrected. New Preview, tag, Production gates, and independent validator results remain open. |
 | WB-07 — final video | Stopped by design | Starts only after WB-06 is resolved and the user approves the final candidate |
 
-Local checks for the implementation commit: lint PASS, TypeScript PASS, 99/99
+Local checks for the corrected candidate: lint PASS, TypeScript PASS, 99/99
 unit/integration tests, 7/7 Shannon proof-kernel tests, optimized build PASS, and
-22/22 deterministic Chromium tests. These do not replace public live checks or
-human evidence.
+22/22 deterministic Chromium tests. A dedicated public-live Shannon test is
+also staged alongside the existing mainnet live gate. These do not replace the
+new exact-identity public live checks or human evidence.
 
 ## Work-block status
 

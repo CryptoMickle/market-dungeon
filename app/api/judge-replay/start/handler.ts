@@ -57,7 +57,7 @@ async function directionFrom(request: Request): Promise<ReplayDirection> {
 function candidateQuery(profile: JudgeNetworkProfile) {
   const originFilter = profile.id === 'somnia-mainnet'
     ? 'operatorId: {_is_null: false}, venueId: {_is_null: false}'
-    : `operatorId: {_eq: ${profile.originOperatorId}}, venueId: {_eq: "${profile.originVenueId}"}, collateral: {_eq: "${profile.collateral}"}`;
+    : `operatorId: {_eq: ${profile.originOperatorId}}, venueId: {_eq: "${profile.originVenueId.toLowerCase()}"}, collateral: {_eq: "${profile.collateral.toLowerCase()}"}`;
   return `query SealedReplayCandidates($minExpiry: numeric!, $now: numeric!) {
     fiveMinute: Market(where: {
       marketType: {_eq: "BINARY"}, asset: {_eq: "BTC"}, intervalSec: {_eq: "300"},

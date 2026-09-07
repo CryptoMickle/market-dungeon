@@ -20,13 +20,14 @@ The current contest build is intentionally read-only. It reads live market metad
 
 **Integration and SDK/docs feedback:** [docs/DREAMDEX_INTEGRATION_REPORT.md](docs/DREAMDEX_INTEGRATION_REPORT.md)
 
-### Local Shannon Judge candidate
+### Shannon Judge release candidate
 
 A newer, isolated read-only candidate adds `/shannon/judge` and
 `/shannon/verify` for Somnia Shannon Testnet while preserving the released
-mainnet routes and proof formats. It is locally verified but **not yet pushed,
-tagged, deployed, or externally validated**. Do not treat the public URLs above
-as evidence that the Shannon routes are live.
+mainnet routes and proof formats. The candidate is published on
+`phase1/winner-v9` and verified locally, but availability is not a release claim
+until an immutable post-v10 tag and the matching Production `/api/build`
+identity exist. It has not been human- or independently validated.
 
 The candidate binds chain `50312` and the fixed Shannon indexer, RPC, explorer,
 collateral, operator, venue, and deployments into its server-selected profile.

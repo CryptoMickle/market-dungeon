@@ -1,7 +1,7 @@
 # Market Dungeon — judge evidence pack
 
-Status: **pre-video draft; Shannon local-candidate addendum prepared, public and
-human evidence still pending**
+Status: **pre-video draft; Shannon branch candidate and first Preview evidence
+recorded, final public release and human evidence still pending**
 
 This is the concise evidence source for the final DoraHacks page, README, video
 script, and release notes. Deployment-derived evidence belongs in release notes
@@ -10,7 +10,7 @@ or copied into a tag before it exists.
 
 ## Shannon candidate addendum — 7 September 2026
 
-Implementation commit `2dfe0f484822a8ffcc7f7c2303cdc80f66896829`
+Initial implementation commit `2dfe0f484822a8ffcc7f7c2303cdc80f66896829`
 adds fixed `/shannon/judge` and `/shannon/verify` paths without changing the
 released mainnet v2 proof formats. Local verification passes 99/99 application
 tests, 7/7 Shannon proof-kernel tests, the optimized build, and 22/22 Chromium
@@ -21,7 +21,11 @@ calls.
 The security pass completed 61 focused tests and rejected 1,575 malformed proof
 types before any public-key or RPC request. This is local project evidence, not
 a public deployment, human usability result, independent non-team validation,
-or audit. Participant invitations, participants, sessions, validator
+or audit. A first exact-identity Preview passed 20/20 preserved-mainnet live
+runs but was rejected for Shannon when a case-sensitive indexer address filter
+returned no candidates. The release stopped; the corrected lowercase filter is
+covered by regression and live-index checks and awaits a new Preview. Participant
+invitations, participants, sessions, validator
 invitations, and validators all remain `0`. The full candidate record is
 [SHANNON_JUDGE_RELEASE_CANDIDATE.md](SHANNON_JUDGE_RELEASE_CANDIDATE.md).
 
