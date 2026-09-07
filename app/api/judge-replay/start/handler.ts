@@ -33,28 +33,44 @@ function responseHeaders(rate: RateLimitResult, extra: Record<string, string> = 
   return { ...NO_STORE, ...rateLimitHeaders(rate), ...extra };
 }
 
-function eligibleCandidates(candidates: ReplayCandidateData[], now: number) {
+function eligibleCandidates(candidates: ReplayCandidateData[], now: number, excluded = new Set<string>()) {
   return candidates.filter((candidate) => {
     const provenance = replayMarketProvenanceFromMarket(candidate as Record<string, unknown>);
     return provenance !== null
+      && !excluded.has(String(candidate.marketId).toLowerCase())
       && provenance.marketExpiry <= now
       && now - provenance.marketExpiry <= MAX_REPLAY_MARKET_AGE_SECONDS;
   });
 }
 
-async function directionFrom(request: Request): Promise<ReplayDirection> {
+async function requestInputFrom(request: Request, allowExcludedMarketIds: boolean): Promise<{
+  direction: ReplayDirection;
+  excludedMarketIds: Set<string>;
+}> {
   if (!request.headers.get('content-type')?.toLowerCase().startsWith('application/json')) {
     throw new Error('Invalid request');
   }
   const raw = await request.text();
-  if (raw.length > 128) throw new Error('Invalid request');
+  if (raw.length > (allowExcludedMarketIds ? 3_072 : 128)) throw new Error('Invalid request');
   const body = JSON.parse(raw) as unknown;
   if (!body || typeof body !== 'object' || Array.isArray(body)) throw new Error('Invalid request');
-  const keys = Object.keys(body);
-  if (keys.length !== 1 || keys[0] !== 'direction') throw new Error('Invalid request');
+  const keys = Object.keys(body).sort();
+  const validKeys = allowExcludedMarketIds
+    ? (keys.length === 1 && keys[0] === 'direction')
+      || (keys.length === 2 && keys[0] === 'direction' && keys[1] === 'excludeMarketIds')
+    : keys.length === 1 && keys[0] === 'direction';
+  if (!validKeys) throw new Error('Invalid request');
   const direction = (body as { direction?: unknown }).direction;
   if (direction !== 'UP' && direction !== 'DOWN') throw new Error('Invalid request');
-  return direction;
+  const rawExcluded = (body as { excludeMarketIds?: unknown }).excludeMarketIds ?? [];
+  if (!Array.isArray(rawExcluded) || rawExcluded.length > 40) throw new Error('Invalid request');
+  const excludedMarketIds = new Set<string>();
+  for (const marketId of rawExcluded) {
+    if (typeof marketId !== 'string' || !/^0x[0-9a-f]{64}$/i.test(marketId)) throw new Error('Invalid request');
+    excludedMarketIds.add(marketId.toLowerCase());
+  }
+  if (excludedMarketIds.size !== rawExcluded.length) throw new Error('Invalid request');
+  return { direction, excludedMarketIds };
 }
 
 function candidateQuery(profile: JudgeNetworkProfile, intervalSec: 300 | 900) {
@@ -79,6 +95,9 @@ export function createJudgeReplayStartHandler(input: {
   profile: JudgeNetworkProfile;
   candidates: CandidateStore;
   rateNamespace: string;
+  allowExcludedMarketIds?: boolean;
+  invalidRequestMessage?: string;
+  unavailableMessage?: string;
 }) {
   const rateConfig = { namespace: input.rateNamespace, limit: 6, windowMs: 60_000 };
 
@@ -92,10 +111,14 @@ export function createJudgeReplayStartHandler(input: {
     }
 
     let direction: ReplayDirection;
+    let excludedMarketIds: Set<string>;
     try {
-      direction = await directionFrom(request);
+      ({ direction, excludedMarketIds } = await requestInputFrom(request, input.allowExcludedMarketIds === true));
     } catch {
-      return Response.json({ error: 'Invalid Judge Replay request.' }, { status: 400, headers: responseHeaders(rate) });
+      return Response.json(
+        { error: input.invalidRequestMessage ?? 'Invalid Judge Replay request.' },
+        { status: 400, headers: responseHeaders(rate) },
+      );
     }
 
     try {
@@ -118,7 +141,7 @@ export function createJudgeReplayStartHandler(input: {
           ) as Promise<CandidateData>;
         }
         const fiveMinute = (await read(300)).fiveMinute ?? [];
-        if (selectBalancedReplayPool(eligibleCandidates(fiveMinute, Math.floor(Date.now() / 1000)), [])) {
+        if (selectBalancedReplayPool(eligibleCandidates(fiveMinute, Math.floor(Date.now() / 1000), excludedMarketIds), [])) {
           return { fiveMinute, fifteenMinute: [] };
         }
         const fifteenMinute = (await read(900)).fifteenMinute ?? [];
@@ -128,8 +151,8 @@ export function createJudgeReplayStartHandler(input: {
       // indexer read. Revalidate market age at this same current timestamp.
       const now = Math.floor(Date.now() / 1000);
       const replayPool = selectBalancedReplayPool(
-        eligibleCandidates(data.fiveMinute ?? [], now),
-        eligibleCandidates(data.fifteenMinute ?? [], now),
+        eligibleCandidates(data.fiveMinute ?? [], now, excludedMarketIds),
+        eligibleCandidates(data.fifteenMinute ?? [], now, excludedMarketIds),
       );
       if (!replayPool) throw new Error('Balanced replay pool unavailable');
       const outcomePool = replayPool.outcomePools[randomInt(2)];
@@ -166,7 +189,11 @@ export function createJudgeReplayStartHandler(input: {
     } catch (error) {
       const retryAfter = isRetryableUpstreamError(error) ? error.retryAfter : 3;
       return Response.json(
-        { error: 'Sealed Judge Replay is unavailable. Please try again.', retryState: 'upstream_retry', retryAfter },
+        {
+          error: input.unavailableMessage ?? 'Sealed Judge Replay is unavailable. Please try again.',
+          retryState: 'upstream_retry',
+          retryAfter,
+        },
         { status: 503, headers: responseHeaders(rate, { 'retry-after': String(retryAfter) }) },
       );
     }

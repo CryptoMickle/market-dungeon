@@ -134,7 +134,11 @@ export function RunSharePanel({ input, challengeUrl, onAction, onChallenge }: {
     <div className="run-share-heading">
       <span>YOUR MARKET DUNGEON RUN CARD</span>
       <strong>{input.mode === 'JUDGE_REPLAY' ? `FINAL-TIER JUDGE REPLAY · ${encounters}/2 REPLAY ENCOUNTERS` : `ROOM ${input.reachedRoom}/${input.totalRooms} · ${input.enemiesDefeated} ENEMIES DEFEATED`}</strong>
-      <small>{input.verifiedOnchain ? 'A social-ready summary of this verified replay. The portable proof is available in Evidence below.' : 'A social-ready snapshot of how far this expedition reached.'}</small>
+      <small>{input.mode === 'JUDGE_REPLAY' && input.verifiedOnchain
+        ? 'A social-ready summary of this verified replay. The portable proof is available in Evidence below.'
+        : input.verifiedOnchain
+          ? 'A social-ready summary of the completed expedition and its verified Event Contract settlements. The card itself is not portable proof.'
+          : 'A social-ready snapshot of how far this expedition reached.'}</small>
     </div>
     {image}
     <div className="run-share-actions run-share-x-steps" aria-label="Save image, then open X">

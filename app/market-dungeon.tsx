@@ -1,6 +1,7 @@
 'use client';
 
 import Image from 'next/image';
+import FullExpedition from './full-expedition';
 import { RunSharePanel } from './run-share-panel';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -487,7 +488,14 @@ function readProfile() {
   }
 }
 
-export default function MarketDungeon({
+export default function MarketDungeon(props: {
+  directJudgeEntry?: boolean;
+  judgeProfileId?: JudgeNetworkProfileId;
+}) {
+  return props.directJudgeEntry ? <LegacyMarketDungeon {...props} /> : <FullExpedition />;
+}
+
+function LegacyMarketDungeon({
   directJudgeEntry = false,
   judgeProfileId = 'somnia-mainnet',
 }: {

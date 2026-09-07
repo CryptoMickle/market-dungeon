@@ -1,11 +1,13 @@
 # dreamDEX Integration Report
 
-Released implementation snapshot: 7 September 2026, v11.
+Released implementation snapshot: 7 September 2026, v11. Local candidate addendum: restored Full Expedition v2.
 
 Status: **The published baseline is `hackathon-submission-2026-v11`, commit
 `f30b9a56532eb6e3147e7ae8473242545635d0ef`. It includes read-only mainnet
-and fixed Shannon Testnet Judge/verifier routes. New mobile-sharing source
-changes are local, not part of v11.** See [release and recording status](RELEASE_STATUS_2026-09-07.md).
+and fixed Shannon Testnet Judge/verifier routes. The restored full-expedition,
+full-run settlement routes and newer mobile-sharing source changes are local,
+not part of v11.** See [Full Expedition rules](FULL_EXPEDITION_RULES.md) and
+[release and recording status](RELEASE_STATUS_2026-09-07.md).
 
 Shannon uses chain `50312`, `https://dev.smk.somnia.host/v1/graphql`,
 `https://api.infra.testnet.somnia.network`, the Shannon explorer, collateral
@@ -20,8 +22,8 @@ This document also serves as the hackathon submission's optional SDK and documen
 
 ## Judge summary
 
-- The current contest build prefers active BTC 5-minute Event Contracts, falls back to 15 minutes when required, and reads finalized settlement data from dreamDEX on Somnia mainnet.
-- The active prediction cards show live UP/DOWN implied odds from the market-ID-keyed dreamDEX CLOB through the official `@somnia-chain/markets-sdk` package.
+- The released v11 surface includes active BTC market discovery and official-SDK CLOB context. The local restored full expedition instead starts immediately and selects a finalized historical Event Contract only after the player chooses at each boss gate.
+- The local full-run path prefers a balanced recent 5-minute replay pool and falls back to 15 minutes; market identity and result stay sealed until the full-strength boss is defeated.
 - The Judge Replay locks the player's direction before a balanced, cryptographically random finalized market is selected.
 - The selected market and direction are authenticated inside an AES-256-GCM seal; the browser receives no identifying market metadata before reveal.
 - The reveal route deterministically replays the bounded combat transcript and rejects the request unless both the guard and boss were defeated and the player survived.
@@ -87,6 +89,24 @@ At reveal, the authenticated seal supplies the committed market ID and metadata 
 
 The lightweight live-settlement lookup requests only `marketId`, `clobStatus`, `finalized`, `voided`, `winningOutcome`, `payoutNumerators`, `payoutDenominator`, and `resolvedAtTimestamp`.
 
+### Restored full-expedition settlement adapter — local candidate
+
+The full expedition reuses the hardened historical selection and seal format
+through separate `/api/full-run/replay/start` and
+`/api/full-run/replay/reveal` routes. Start additionally accepts at most 40
+canonical, unique previously revealed market IDs so a CURSED rematch cannot
+reuse an earlier Event Contract. The standard Judge start schema remains
+unchanged and rejects that extension.
+
+The full-run reveal request contains only the opaque seal and is capped at
+4 KiB. It enforces the same anti-peek hold, expiry, rate limit, authenticated
+claims and Somnia settlement hydration. Its response labels the proof scope as
+`historical-event-contract-settlement` and intentionally contains no
+`combatProof`: the 40-room gameplay uses local randomness and is not passed off
+as the deterministic Judge-v1 transcript. BLESSED, CURSED and VOID are applied
+only after the returned market ID, commitment, direction and proof version
+match the active boss attempt. Provider errors leave the run frozen for retry.
+
 ## Chain 5031 and RPC verification
 
 Mainnet hydration verifies chain ID `5031`; the fixed Shannon Judge profile requires `50312`. Active-market hydration also reads pool parameters (`tickSize`, `minQuantity`, `lotSize`) using selector `0x0765910c`. Judge reveal does not need those parameters: its successful uncached server path uses exactly five RPC reads (chain ID, block number, block header, module, settlement) and zero indexer reads.
@@ -107,7 +127,8 @@ The build's revealed proof includes the RPC verification snapshot block number/h
 
 ## Metadata, settlement, and combat boundaries
 
-- Active-market metadata is public immediately and drives the full live expedition.
+- Active-market metadata remains available to the released legacy surface and as separate Judge-page context. It does not drive the local restored full expedition.
+- The restored full expedition exposes no selected market identity before a boss choice and seal. A different verified historical market is required after every CURSED result.
 - Judge Replay returns no selected replay market identifier, address, strike, expiry, or outcome before reveal. Those values are authenticated inside an AES-256-GCM seal under a server-only environment key.
 - The start route also signs an Ed25519 receipt over the salted commitment, locked direction, and lock-window timestamps. The browser verifies that receipt against the fixed same-origin public-key endpoint before accepting the lock, and reveal must return the byte-identical receipt. This prevents a client from fabricating a post-hoc portable proof, but it is a Market Dungeon server authentication boundary—not an external timestamp, decentralized attestation, or proof of server honesty.
 - The version-2 pre-reveal SHA-256 commitment binds market ID, binary/BTC template, interval, canonical question, trading window, finalized status, trade count, last trade, operator, venue, context, oracle question ID, creator, creation transaction, recorded outcome, locked direction, independent `gameSeed`, replay timestamps, and a hidden random salt.
@@ -126,7 +147,8 @@ The stateless combat check proves that the submitted action sequence is valid un
 - Application-level client guards allow six replay starts and twelve reveal attempts per fixed one-minute window. They derive the client identity from platform forwarding headers, return `429`, `Retry-After`, and `RateLimit-*` metadata, and run before any upstream settlement read.
 - A successfully verified combat transcript reserves its replay commitment before settlement verification starts. Concurrent identical reveals share one promise, later identical reveals use the same bounded result, and a different transcript for that commitment fails with `409`. Transient `503` results are shared only for their short retry window; successful or definitive results remain deduplicated until seal expiry.
 - Server-side direct indexer and RPC reads use five-second `AbortSignal.timeout` budgets and at most one retry. The independent browser Somnia proof calls use an eight-second timeout. Retries are limited to idempotent transport failures and retryable HTTP statuses; query errors, invalid JSON, RPC errors, and proof mismatches fail closed without retry.
-- Judge start accepts one `UP`/`DOWN` field and at most 128 request bytes.
+- Judge start accepts one `UP`/`DOWN` field and at most 128 request bytes. The separately namespaced full-run start may additionally accept at most 40 unique canonical excluded market IDs and caps the request at 3,072 characters.
+- Full-run reveal accepts only one opaque seal, caps the body at 4 KiB, and returns verified market settlement without a Judge combat-proof claim.
 - Judge reveal accepts only `seal` plus a structured action array, caps the body at 8 KiB, the seal at 4,096 characters, and the transcript at 64 steps, and rejects extra fields.
 - Replay seals have a 15-second minimum hold and a 30-minute lifetime. Eligible markets have an explicit maximum age of seven days in both interval pools. The browser mirrors the hold with a visible countdown and disabled reveal action, while the server remains authoritative. Environment-bound AES-GCM authentication, strict full-provenance claim validation, balanced outcome pools, direct settlement re-validation, and deterministic combat replay all fail closed.
 - The lock-receipt Ed25519 seed is domain-separated from the replay encryption key, and the public endpoint exposes only the active environment key. Rotating `JUDGE_REPLAY_SEAL_KEY` therefore changes the receipt key as well; without a retained historical-key archive, an older exported proof is `NOT PROVABLE` because the matching trusted key is unavailable. `FAIL` is reserved for an invalid signature under a matching trusted key or another demonstrated contradiction.

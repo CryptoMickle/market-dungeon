@@ -1,6 +1,13 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
 
 import type { JudgeCombatAction } from '../../app/judge-combat';
+import { emptyGame } from '../../app/gameplay/delveworn-engine';
+import { FULL_RUN_MARKET_PROOF_VERSION } from '../../app/gameplay/event-boss-engine';
+import {
+  FULL_RUN_STORAGE_KEY,
+  serializeFullRunSession,
+  type FullRunSession,
+} from '../../app/gameplay/full-run-storage';
 import { SOMNIA_MAINNET_RPC } from '../../app/onchain-settlement-proof';
 import {
   BLOCK_HASH,
@@ -90,43 +97,17 @@ async function expectOptimizedImageLoaded(image: Locator) {
   ))).toBe(true);
 }
 
-test('homepage makes the short Judge Demo the primary first-screen action', async ({ page }) => {
-  const expirySeconds = Math.floor(Date.now() / 1_000) + 300;
-  const activeMarket = {
-    ...market,
-    expiry: String(expirySeconds),
-    expiryIso: new Date(expirySeconds * 1_000).toISOString(),
-    status: 'Active',
-    finalized: false,
-    winningOutcome: undefined,
-  };
-  await page.route('**/api/market**', async (route) => {
-    await route.fulfill({ json: { market: activeMarket, odds: null } });
-  });
-
+test('homepage leads with the restored full expedition and keeps the Judge walkthrough one action away', async ({ page }) => {
   await page.goto('/');
-  const judgeEntry = page.getByRole('region', { name: 'Judge-first entry' });
-  await expect(judgeEntry).toBeVisible();
-  const judgeButton = page.getByRole('button', { name: /START 2-MIN JUDGE DEMO/ });
-  await expect(judgeButton).toBeVisible();
-  await expect(judgeButton).toHaveClass(/judge-entry-primary/);
-  await expect(page.getByRole('link', { name: /PLAY THE FULL FOUR-TIER EXPEDITION/ })).toHaveAttribute('href', '#full-expedition');
-
-  const fullRunButton = page.getByRole('button', { name: /BEGIN FULL EXPEDITION/ });
+  await expect(page.getByRole('heading', { name: 'Forty rooms. Four bosses. One market curse at a time.' })).toBeVisible();
+  const fullRunButton = page.getByRole('button', { name: 'ENTER THE DUNGEON' });
+  await expect(fullRunButton).toBeVisible();
   await expect(fullRunButton).toBeEnabled();
-  await expect(fullRunButton).toHaveClass(/full-run-action/);
-  expect(await judgeButton.evaluate((element) => element.getBoundingClientRect().bottom <= window.innerHeight)).toBe(true);
+  await expect(page.getByRole('link', { name: /JUDGES: OPEN THE 2-MINUTE PROOF WALKTHROUGH/ })).toHaveAttribute('href', '/judge');
   expect(await page.evaluate(() => window.scrollY)).toBe(0);
 });
 
-test('homepage and /judge prerender their primary Judge actions before client hydration', async ({ request }) => {
-  const homepageResponse = await request.get('/');
-  expect(homepageResponse.ok()).toBe(true);
-  const homepageHtml = await homepageResponse.text();
-  expect(homepageHtml).toContain('JUDGES · START HERE');
-  expect(homepageHtml).toContain('START 2-MIN JUDGE DEMO · VERIFIED RUN');
-  expect(homepageHtml).not.toContain('PREPARING MARKET DUNGEON');
-
+test('/judge prerenders its primary Judge action before client hydration', async ({ request }) => {
   const judgeResponse = await request.get('/judge');
   expect(judgeResponse.ok()).toBe(true);
   const judgeHtml = await judgeResponse.text();
@@ -134,36 +115,78 @@ test('homepage and /judge prerender their primary Judge actions before client hy
   expect(judgeHtml).not.toContain('PREPARING MARKET DUNGEON');
 });
 
-test('mobile Full Expedition can select and lock BTC DOWN', async ({ page }) => {
-  const expirySeconds = Math.floor(Date.now() / 1_000) + 300;
-  const activeMarket = {
-    ...market,
-    expiry: String(expirySeconds),
-    expiryIso: new Date(expirySeconds * 1_000).toISOString(),
-    status: 'Active',
-    finalized: false,
-    winningOutcome: undefined,
-  };
-  await page.route('**/api/market**', async (route) => {
-    await route.fulfill({ json: { market: activeMarket, odds: null } });
-  });
+test('mobile Full Expedition starts cleanly and restores exact combat state after reload', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
 
   await page.goto('/');
-  const fullRunChoices = page.locator('.setup-intro .prediction-buttons');
-  const up = fullRunChoices.getByRole('button', { name: /GOLD AWAKENS/ });
-  const down = fullRunChoices.getByRole('button', { name: /SHADOWS RISE/ });
-  await expect(down).toBeVisible();
-  await expect(up).toHaveAttribute('aria-pressed', 'true');
-  await expect(down).toHaveAttribute('aria-pressed', 'false');
+  await page.getByRole('button', { name: 'ENTER THE DUNGEON' }).click();
+  await expect(page.getByRole('region', { name: 'Tier progress' })).toBeVisible();
+  await expect(page.getByText('T1 · 0/40')).toBeVisible();
+  const enemyHp = page.locator('[class*="enemyBar"] b');
+  await page.getByRole('button', { name: /ATTACK/ }).click();
+  const hpAfterAttack = await enemyHp.innerText();
+  expect(hpAfterAttack).not.toBe('60/60');
+  await page.reload();
+  await expect(page.getByText(hpAfterAttack, { exact: true }).first()).toBeVisible();
+  await expect.poll(() => page.evaluate(() => ({
+    viewport: window.innerWidth,
+    content: document.documentElement.scrollWidth,
+  }))).toEqual({ viewport: 390, content: 390 });
+});
 
-  await down.click();
-  await expect(up).toHaveAttribute('aria-pressed', 'false');
-  await expect(down).toHaveAttribute('aria-pressed', 'true');
-  const begin = page.getByRole('button', { name: /BEGIN FULL EXPEDITION.*SHADOWS RISE/ });
-  await expect(begin).toBeEnabled();
-  await begin.click();
-  await expect(page.getByLabel('Expedition status')).toContainText('T1 · R1');
+test('completed full expedition restores with an honest mobile run card', async ({ page }) => {
+  const marketIds = [1, 2, 3, 4].map((value) => `0x${value.toString(16).padStart(64, '0')}`);
+  const commitments = [1, 2, 3, 4].map((value) => `0x${(value + 10).toString(16).padStart(64, '0')}`);
+  const settlements = marketIds.map((marketId, index) => ({
+    attemptId: `attempt_${index + 1}`,
+    marketId,
+    direction: index % 2 === 0 ? 'UP' as const : 'DOWN' as const,
+    proofVersion: FULL_RUN_MARKET_PROOF_VERSION,
+    commitment: commitments[index],
+    outcome: 'BLESSED' as const,
+  }));
+  const session: FullRunSession = {
+    schema: 'market-dungeon/full-run-session/v1',
+    replay: null,
+    run: {
+      schema: 'market-dungeon/full-run/v2',
+      game: {
+        ...emptyGame(),
+        hasStarted: true,
+        active: true,
+        roomsCleared: 40,
+        monsterHp: 0,
+        monsterMaxHp: 230,
+        gold: 123,
+      },
+      phase: 'complete',
+      attemptNumber: 4,
+      rematchRequired: false,
+      currentAttempt: null,
+      pendingBossReward: null,
+      usedMarketIds: marketIds,
+      usedCommitments: commitments,
+      resolvedAttemptIds: settlements.map((settlement) => settlement.attemptId),
+      settlements,
+    },
+  };
+  const serialized = serializeFullRunSession(session);
+  await page.addInitScript(({ key, value }) => localStorage.setItem(key, value), {
+    key: FULL_RUN_STORAGE_KEY,
+    value: serialized,
+  });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/');
+
+  await expect(page.getByRole('heading', { name: 'Every boss stayed down.' })).toBeVisible();
+  const share = page.getByRole('region', { name: 'Share your Market Dungeon result' });
+  await expect(share).toContainText('ROOM 40/40 · 40 ENEMIES DEFEATED');
+  await expect(share).toContainText('The card itself is not portable proof.');
+  await expect(share.getByRole('img')).toHaveAttribute('alt', 'Market Dungeon share card: room 40 of 40');
+  await expect.poll(() => page.evaluate(() => ({
+    viewport: window.innerWidth,
+    content: document.documentElement.scrollWidth,
+  }))).toEqual({ viewport: 390, content: 390 });
 });
 
 test('direct /judge entry lands on actionable Judge Setup without scrolling', async ({ page }) => {
@@ -267,40 +290,109 @@ test('Judge Demo rejects a malformed or direction-swapped start response before 
   await expect(page.getByRole('button', { name: 'LOCK OMEN & SEAL REPLAY' })).toBeEnabled();
 });
 
-test('full-run setup fetches the next market at the exact five-minute rollover', async ({ page }) => {
-  const rolloverSeconds = Math.floor(Date.now() / 1_000) + 3;
-  const expiringMarket = {
-    ...market,
-    marketId: `0x${'aa'.repeat(32)}`,
-    expiry: String(rolloverSeconds),
-    expiryIso: new Date(rolloverSeconds * 1_000).toISOString(),
-    status: 'Active',
-    finalized: false,
-    winningOutcome: undefined,
-  };
-  const freshMarket = {
-    ...expiringMarket,
-    marketId: `0x${'bb'.repeat(32)}`,
-    expiry: String(rolloverSeconds + 300),
-    expiryIso: new Date((rolloverSeconds + 300) * 1_000).toISOString(),
-  };
-  const marketRequestTimes: number[] = [];
+test('full-run entry does not fetch or expose a market before a boss gate', async ({ page }) => {
+  let marketRequests = 0;
   await page.route('**/api/market**', async (route) => {
-    const requestTime = Date.now();
-    marketRequestTimes.push(requestTime);
-    await route.fulfill({
-      json: { market: requestTime < rolloverSeconds * 1_000 ? expiringMarket : freshMarket, odds: null },
+    marketRequests += 1;
+    await route.fulfill({ json: { market, odds: null } });
+  });
+  await page.goto('/');
+  await page.getByRole('button', { name: 'ENTER THE DUNGEON' }).click();
+  await expect(page.getByText('Room 1 opens. Survive forty rooms and four sealed boss fates.')).toBeVisible();
+  expect(marketRequests).toBe(0);
+});
+
+test('full-run boss gate carries CURSED resources into a new market and releases one BLESSED relic', async ({ page }) => {
+  const markets = [1, 2].map((value) => `0x${value.toString(16).padStart(64, '0')}`);
+  const commitments = [1, 2].map((value) => `0x${(value + 20).toString(16).padStart(64, '0')}`);
+  const seals = [
+    `v2.${'A'.repeat(16)}.${'B'.repeat(43)}.${'C'.repeat(22)}`,
+    `v2.${'D'.repeat(16)}.${'E'.repeat(43)}.${'F'.repeat(22)}`,
+  ];
+  const session: FullRunSession = {
+    schema: 'market-dungeon/full-run-session/v1',
+    replay: null,
+    run: {
+      schema: 'market-dungeon/full-run/v2',
+      game: {
+        ...emptyGame(),
+        hasStarted: true,
+        active: true,
+        hp: 100,
+        maxHp: 100,
+        baseMaxHp: 100,
+        weaponLevel: 100,
+        roomsCleared: 9,
+        monsterHp: 0,
+        monsterMaxHp: 0,
+      },
+      phase: 'boss-lock-required',
+      attemptNumber: 0,
+      rematchRequired: false,
+      currentAttempt: null,
+      pendingBossReward: null,
+      usedMarketIds: [],
+      usedCommitments: [],
+      resolvedAttemptIds: [],
+      settlements: [],
+    },
+  };
+  await page.addInitScript(({ key, value }) => localStorage.setItem(key, value), {
+    key: FULL_RUN_STORAGE_KEY,
+    value: serializeFullRunSession(session),
+  });
+  let startCount = 0;
+  await page.route('**/api/full-run/replay/start', async (route) => {
+    const body = route.request().postDataJSON() as { direction: 'UP' | 'DOWN'; excludeMarketIds: string[] };
+    expect(body).toEqual({
+      direction: startCount === 0 ? 'UP' : 'DOWN',
+      excludeMarketIds: startCount === 0 ? [] : [markets[0]],
     });
+    const index = startCount++;
+    const now = Math.floor(Date.now() / 1_000);
+    await route.fulfill({ json: { replay: {
+      seal: seals[index],
+      commitment: commitments[index],
+      lockedDirection: body.direction,
+      revealAfter: now - 1,
+      expiresAt: now + 1_800,
+    } } });
+  });
+  let revealCount = 0;
+  await page.route('**/api/full-run/replay/reveal', async (route) => {
+    const index = revealCount++;
+    expect(route.request().postDataJSON()).toEqual({ seal: seals[index] });
+    await route.fulfill({ json: { settlement: {
+      proofVersion: FULL_RUN_MARKET_PROOF_VERSION,
+      commitment: commitments[index],
+      marketId: markets[index],
+      direction: index === 0 ? 'UP' : 'DOWN',
+      outcome: index === 0 ? 'CURSED' : 'BLESSED',
+    } } });
   });
 
   await page.goto('/');
-  await expectOptimizedImageLoaded(page.getByAltText('Miss Morgue, Kevin the Unqualified and Brutus assembled in the dungeon'));
-  await expect(page.getByText('TIER 1 PREDICTION · MARKET #AAAA')).toBeVisible();
-  await expect(page.getByText('TIER 1 PREDICTION · MARKET #BBBB')).toBeVisible({ timeout: 6_000 });
-  expect(marketRequestTimes.some((time) => (
-    time >= rolloverSeconds * 1_000 && time < rolloverSeconds * 1_000 + 1_000
-  ))).toBe(true);
-  await expect(page.getByRole('button', { name: /BEGIN FULL EXPEDITION/ })).toBeEnabled();
+  await expect(page.getByRole('heading', { name: 'Lock your omen before entering.' })).toBeVisible();
+  await page.getByRole('button', { name: 'LOCK BTC UP · OPEN BOSS GATE' }).click();
+  await expect(page.getByRole('heading', { name: 'Tier 1 Dungeon Lord' })).toBeVisible();
+  await page.getByRole('button', { name: /ATTACK/ }).click();
+  await page.getByRole('button', { name: 'REVEAL BOSS FATE' }).click();
+
+  await expect(page.getByRole('heading', { name: 'The boss has returned at full HP.' })).toBeVisible();
+  await expect(page.getByText('❤️ 100/100')).toBeVisible();
+  await expect(page.getByText('CAMP BEFORE THE BOSS')).toHaveCount(0);
+  await page.getByRole('button', { name: /SHADOWS RISE/ }).click();
+  await page.getByRole('button', { name: 'LOCK BTC DOWN · OPEN BOSS GATE' }).click();
+  await expect(page.getByText('122/122')).toBeVisible();
+  await page.getByRole('button', { name: /ATTACK/ }).click();
+  await page.getByRole('button', { name: 'REVEAL BOSS FATE' }).click();
+
+  await expect(page.getByText(/BOSS RELIC/)).toBeVisible();
+  await page.getByRole('button', { name: 'CLAIM & EQUIP' }).click();
+  await expect(page.getByRole('heading', { name: /Loot secured|The path ahead is open/ })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'ENTER ROOM 11' })).toBeVisible();
+  expect(startCount).toBe(2);
+  expect(revealCount).toBe(2);
 });
 
 test('privacy, asset provenance, AI disclosure, and music credits are reachable from the game', async ({ page }) => {
@@ -309,7 +401,7 @@ test('privacy, asset provenance, AI disclosure, and music credits are reachable 
   });
 
   await page.goto('/');
-  await page.getByRole('link', { name: 'PRIVACY · CREDITS · AI DISCLOSURE' }).click();
+  await page.getByRole('link', { name: 'PRIVACY · CREDITS' }).click();
   await expect(page).toHaveURL('/credits');
   await expect(page.getByRole('heading', { name: 'Privacy, credits & AI disclosure' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Analytics and local data' })).toBeVisible();
@@ -328,10 +420,9 @@ test('Judge Demo completes in Chromium and renders independently verified proof 
   });
   await installDeterministicUpstreams(page);
 
-  const documentResponse = await page.goto('/');
+  const documentResponse = await page.goto('/judge');
   expect(documentResponse?.headers()['content-security-policy']).toContain("frame-ancestors 'none'");
   expect(documentResponse?.headers()['x-content-type-options']).toBe('nosniff');
-  await page.getByRole('button', { name: /2-MIN JUDGE DEMO/ }).click();
   await expect(page.getByRole('heading', { name: 'Lock your omen before the replay is drawn.' })).toBeVisible();
   await page.getByRole('button', { name: /GOLD AWAKENS/ }).click();
   await page.getByRole('button', { name: 'LOCK OMEN & SEAL REPLAY' }).click();

@@ -2,9 +2,9 @@
 
 **Defeat the boss. Predict the market. Survive both.**
 
-Market Dungeon is a playable fantasy roguelite built for the **Somnia × dreamDEX Event Contracts Hackathon**. A live BTC 5-minute Event Contract becomes a dungeon omen: choose **Gold Awakens (UP)** or **Shadows Rise (DOWN)**, clear ten rooms, defeat the tier boss, and survive the finalized onchain outcome. Permanent victory requires both combat success and a correct prediction. If the 5-minute market is unavailable, discovery falls back safely to 15 minutes.
+Market Dungeon is a playable fantasy roguelite built for the **Somnia × dreamDEX Event Contracts Hackathon**. In the current local candidate, a player crosses 40 Delveworn rooms and chooses **Gold Awakens (UP)** or **Shadows Rise (DOWN)** before each boss. A sealed historical dreamDEX Event Contract then decides whether the defeated boss stays down or returns at full strength. Permanent tier victory requires both combat success and a correct—or voided—onchain result.
 
-The current contest build is intentionally read-only. It reads live market metadata, shows live UP/DOWN implied odds from the dreamDEX CLOB through the official Markets SDK, and independently derives finalized payouts through hash-pinned Somnia RPC calls to the deployed BinaryModule and BinarySettlement contracts at one RPC verification snapshot block. It never requests a wallet signature, token approval, or trade.
+The contest project is intentionally read-only. It never requests a wallet signature, token approval or trade. The focused Judge route still exposes its independently reproducible, hash-pinned settlement proof; the restored full expedition uses a narrower sealed historical-settlement check and does not mislabel its locally random 40-room combat as Judge proof.
 
 ## Live demo
 
@@ -39,17 +39,16 @@ proof, challenge and verifier. Shannon does **not** show **Continue on dreamDEX*
 On the mainnet version that button opens the external dreamDEX application;
 it does not open another Delveworn or Market Dungeon route.
 
-### Full live expedition
+### Restored full expedition — unreleased local candidate
 
-1. Inspect the live dreamDEX CLOB odds, then choose `GOLD AWAKENS` or `SHADOWS RISE` against the active BTC market.
-2. Enter a tier and clear ten deterministic combat rooms.
-3. Use potions and gold, including Quartermaster Kevin's shops after Room 5 and the boss.
-4. Defeat the boss through normal combat, then reveal the dreamDEX result.
-5. A correct prediction keeps the boss down, awards its gold plus a 50-gold prediction reward, and opens the next tier with a fresh BTC prediction.
-6. An incorrect prediction triggers the defeated boss's fatal last strike and ends the run.
-7. Clear all four tiers to win the full expedition.
+1. Enter without waiting for an active market and clear nine rooms using the restored Delveworn combat, loot, potion, armor and shop rules.
+2. At the boss gate, choose `GOLD AWAKENS` or `SHADOWS RISE` before a recent finalized Event Contract is selected and sealed.
+3. Defeat the full-strength boss, then reveal and verify the historical settlement on Somnia.
+4. `BLESSED` or `VOID` releases the ordinary boss reward and one relic exactly once. `CURSED` grants no reward and resurrects the same boss at full scaled HP.
+5. A rematch keeps the player's remaining HP, potions, equipment, gold, relics and spent revive, does not reopen camp, and requires a different sealed Event Contract.
+6. Repeat through Rooms 10, 20, 30 and 40. Ordinary combat death still ends the run.
 
-Gold persists between runs. Potions have a hard maximum of five: a new run restores the three-potion starting amount, or preserves a higher remaining amount up to five. Attack and defense upgrades remain within the current run but reset for every new expedition.
+New runs always start at 100 HP, three potions, zero gold, weapon zero, armor zero and no relic. All 15 relics and their Delveworn trade-offs are present. Full rules, mode boundaries and the current external gates are recorded in [Full Expedition rules](docs/FULL_EXPEDITION_RULES.md).
 
 ### Two-minute Judge Demo
 
@@ -252,11 +251,13 @@ Preview deployment origin. The smoke verifies replay start, the `425` anti-peek 
 
 ```text
 app/
-  page.tsx              Homepage entry and judge/full-run choice
+  page.tsx              Restored 40-room Full Expedition entry
   judge/page.tsx        Direct Judge Demo entry
   verify/page.tsx       Browser-local independent proof verifier
   verify-proof.ts       Strict proof parsing and fail-closed reproduction
-  market-dungeon.tsx    Shared ten-room game and Judge Demo state machine
+  full-expedition.tsx   Delveworn gameplay plus sealed boss-settlement UI
+  gameplay/             Ported reducer, relics, boss gate and safe persistence
+  market-dungeon.tsx    Legacy Judge Demo state machine and route switch
   clob-odds.ts          Pure implied-odds derivation and formatting
   event-contract-interval.ts 5m-first selection, labeling, and 15m fallback
   onchain-settlement-proof.ts Browser-side direct-proof binding validation
@@ -264,6 +265,7 @@ app/
   api/dreamdex-odds.ts  Official Markets SDK top-of-book read with fallback
   api/market/route.ts   Live market discovery and settlement lookup
   api/judge-replay/     Encrypted replay start/reveal plus public receipt key
+  api/full-run/replay/  Full-run historical seal and settlement-only reveal
   globals.css           Responsive game presentation
   layout.tsx            Metadata and social preview configuration
 public/
@@ -271,7 +273,7 @@ public/
   characters/            Travelling merchant artwork
   monsters/              Four progression tiers for each enemy class
 tests/
-  e2e/                   Deterministic Chromium Judge Demo regression test
+  e2e/                   Full-run, Judge, verifier and mobile regression tests
   live/                  Scheduled read-only production smoke test
   shannon-spike/         Fail-closed Shannon proof-kernel tests
 scripts/
@@ -279,6 +281,7 @@ scripts/
 docs/
   DORAHACKS_SUBMISSION.md Submission-ready project description and judge path
   DREAMDEX_INTEGRATION_REPORT.md Exact implemented integration surface and gaps
+  FULL_EXPEDITION_RULES.md Restored game, boss-rematch and proof boundaries
   PILOT_MEASUREMENT_V2.md Frozen privacy-safe funnel definitions and report format
 ```
 
@@ -287,7 +290,7 @@ docs/
 - Event Contracts use real assets on mainnet; this contest build does not trade.
 - The interface must not be used to bypass dreamDEX eligibility or jurisdiction checks.
 - A future wallet-enabled mode should use exact-amount approval, transaction simulation, explicit maximum-loss disclosure, and separate user confirmation for every write.
-- Gold and the next-run potion count are stored only on the player's device; active combat and loadout state reset on refresh.
+- The restored full expedition persists a strictly validated, versioned run only on the player's device. Active combat and a pending historical seal can resume after refresh; malformed or mismatched stored data is rejected. Starting a new run resets all run resources.
 - Judge combat is rendered in the browser, but reveal is server-gated by a stateless deterministic replay of the submitted structured action log. This proves that the transcript is valid under the published seed and rules; because the seed is public, it is not proof of human input or elapsed play time.
 - Production and Preview require separate `JUDGE_REPLAY_SEAL_KEY` values, each encoded as exactly 64 hexadecimal characters (32 bytes). The Ed25519 lock-receipt key is deterministically separated from that secret. Rotating the secret cleanly invalidates in-flight replay seals and changes the published verification key; without a retained historical public-key archive, older exported proofs can no longer authenticate their receipt and therefore cannot return `PASS`.
 - A valid lock receipt proves that the official Market Dungeon environment authenticated the commitment, direction, and stated lock window. It is deliberately described as server-authenticated, not as an external timestamp, decentralized attestation, or proof that the server itself was honest.
@@ -296,7 +299,7 @@ docs/
 - GitHub workflows grant their token read-only repository access and pin every external action to a full, reviewed commit SHA; version comments preserve update visibility without trusting mutable tags.
 - Vercel Web Analytics records normal page views plus the closed `/funnel/v2/...` lifecycle as manual pageviews: entry, accepted seal, first reveal, verified completion, definitive verification failure, sharing, challenge activity, and Continue-on-dreamDEX intent. Labels contain only enumerated categories; no wallet, market ID, commitment, proof, transcript, exact timing, or arbitrary query content is sent. WebDriver sessions and the exact `automation=1` smoke marker are suppressed. Counts are non-WebDriver event volumes, not unique humans; legacy `/funnel/...` counts remain separate. See [Clean pilot measurement v2](docs/PILOT_MEASUREMENT_V2.md).
 - The live footer links to a dedicated **Privacy · Credits · AI Disclosure** page. The versioned [provenance and privacy disclosure](docs/PROVENANCE_AND_PRIVACY.md) documents analytics, browser-local state, direct Somnia RPC verification, the complete visual-asset groups, generative-AI assistance, and the demo video's credited Pixabay music.
-- New replay discovery and active markets depend on the public dreamDEX indexer. An already sealed Judge replay needs only Somnia RPC to reveal and independently verify; transient RPC unavailability preserves the round for a bounded retry. Neither path fabricates a verified result when its required provider is unavailable.
+- New Judge and full-run historical replay discovery depend on the public dreamDEX indexer. An already sealed replay needs Somnia RPC to reveal and verify its settlement; transient provider unavailability preserves the round for a bounded retry. Neither path fabricates a verified result when its required provider is unavailable.
 
 ## Contest status
 
@@ -312,7 +315,9 @@ docs/
 - Browser-local independent proof verifier with explicit `PASS`, `FAIL`, and `NOT PROVABLE` outcomes: complete
 - Implementation-specific dreamDEX integration report: complete
 - Desktop and 390 px mobile judge-flow QA: complete
-- Four-tier dual-condition progression: complete
+- Restored 40-room Delveworn mechanics, all 15 relics and full-strength CURSED boss rematches: complete in the local candidate; not yet published
+- Versioned full-run reload and settlement-only historical boss adapter: complete in the local candidate; physical iPhone and public Preview gates remain pending
+- Four-tier dual-condition progression: complete locally; deployed baseline behavior remains identified by its release tag
 - Final competition video: deliberately scheduled after the final release freeze; the public 1:52 v8 baseline remains available until that single replacement passes caption and embed QA
 - Wallet writes: intentionally disabled
 

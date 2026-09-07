@@ -1,5 +1,35 @@
 # Release and recording status — 7 September 2026
 
+## Restored Full Expedition v2 — local candidate, external gates pending
+
+The current working tree restores the 40-room Delveworn rules, random loot,
+shops/camps and all 15 relics. Every boss attempt locks a recently finalized
+historical Event Contract only after the player chooses BTC UP or DOWN.
+BLESSED/VOID releases one ordinary boss reward; CURSED grants nothing and
+returns the same boss at full scaled HP while preserving depleted resources and
+spent revive state. A different Event Contract is required for every rematch.
+
+Separate full-run start/reveal routes reuse the hardened historical seal and
+Somnia settlement hydration but identify their proof scope as settlement only;
+they export no Judge combat proof. The legacy `/judge` and portable verifier
+remain unchanged. Full-run local persistence now fails closed unless room,
+boss-settlement, attempt, market and commitment identities agree. The existing
+mobile run-card component is available for the restored full run and explicitly
+labels the card as a social summary rather than portable proof.
+
+One complete local release gate passed: lint, TypeScript, 141 unit/integration
+tests, 7 Shannon proof-kernel tests, optimized production build and 38 Chromium
+tests. Manual local desktop plus 390×844 browser checks found no horizontal
+overflow, loaded encounter art, and preserved exact combat HP across reload.
+These checks are automated or owner-agent local QA, not independent humans.
+
+No commit, push, Preview, Production deployment, DoraHacks update or video has
+been made. A separate independent review, one approved Preview, physical owner
+iPhone validation and bounded real-provider smoke remain required. The local
+candidate uses historical replay as its stable full-game route and does not
+expose the older live-full-expedition mode; that product freeze must be accepted
+before release.
+
 ## RPC-only Judge reveal — local candidate, release gates pending
 
 Judge reveal now uses authenticated lock-time metadata and the fixed Somnia
