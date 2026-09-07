@@ -14,6 +14,10 @@ import {
   type ReplayProof,
 } from '../../app/replay-proof';
 import { validLiveJudgeActions } from '../judge-live-actions';
+import { attachRunCardPreparation, observeRunCardPreparation } from '../run-card-diagnostics';
+
+test.beforeEach(async ({ page }) => { await observeRunCardPreparation(page); });
+test.afterEach(async ({ page }, info) => { await attachRunCardPreparation(page, info); });
 
 async function reveal(
   request: APIRequestContext,

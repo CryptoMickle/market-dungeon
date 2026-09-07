@@ -6,6 +6,7 @@ import type { JudgeCombatAction } from '../../app/judge-combat';
 import { SOMNIA_MAINNET_RPC } from '../../app/onchain-settlement-proof';
 import type { ReplayCombatProof, ReplayProof } from '../../app/replay-proof';
 import { verifiedRunProofJson, type VerifiedRunProofInput } from '../../app/share-verified-run';
+import { attachRunCardPreparation, observeRunCardPreparation } from '../run-card-diagnostics';
 import {
   BLOCK_HASH,
   BLOCK_TAG,
@@ -22,6 +23,9 @@ import {
 type RouteState = {
   publicKeyAvailable: boolean;
 };
+
+test.beforeEach(async ({ page }) => { await observeRunCardPreparation(page); });
+test.afterEach(async ({ page }, info) => { await attachRunCardPreparation(page, info); });
 
 function exportedProof() {
   const reveal = revealPayload(VALID_ACTIONS);
@@ -258,6 +262,49 @@ test('cancelled native sharing does not download or open X and clipboard denial 
   expect(downloads).toEqual([]);
 });
 
+test('a stalled PNG callback cannot leave Save image disabled or replace the completed card later', async ({ context, page }) => {
+  await installDeterministicRoutes(context);
+  await page.addInitScript(() => {
+    HTMLCanvasElement.prototype.toBlob = function (callback) {
+      Reflect.set(window, '__expectedCardPixels', this.getContext('2d')!.getImageData(0, 0, this.width, this.height).data);
+      Reflect.set(window, '__latePngCallback', () => callback(null));
+    };
+  });
+  await completeJudgeDemo(page);
+  const image = page.getByRole('region', { name: 'Share your Market Dungeon result' }).getByRole('img');
+  // Keep the same five-second readiness budget as the live gate.
+  await expect(page.getByRole('button', { name: '1 · SAVE IMAGE', exact: true })).toBeEnabled();
+  await expect(image).toHaveAttribute('src', /^blob:/);
+  const originalUrl = await image.getAttribute('src');
+  expect(await image.evaluate(async (node: HTMLImageElement) => {
+    await node.decode();
+    const canvas = document.createElement('canvas');
+    canvas.width = node.naturalWidth;
+    canvas.height = node.naturalHeight;
+    const context = canvas.getContext('2d')!;
+    context.drawImage(node, 0, 0);
+    const actual = context.getImageData(0, 0, canvas.width, canvas.height).data;
+    const expected: Uint8ClampedArray = Reflect.get(window, '__expectedCardPixels');
+    return canvas.width === 1200 && canvas.height === 675
+      && actual.length === expected.length && actual.every((byte, index) => byte === expected[index]);
+  })).toBe(true);
+  await page.evaluate(() => Reflect.get(window, '__latePngCallback')());
+  await expect(image).toHaveAttribute('src', originalUrl!);
+  await expect(page.locator('.run-share-status')).toHaveText('');
+  await expect(page.getByRole('button', { name: '1 · SAVE IMAGE', exact: true })).toBeEnabled();
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+});
+
+test('a loaded image with a stalled decode promise cannot block card preparation', async ({ context, page }) => {
+  await installDeterministicRoutes(context);
+  await page.addInitScript(() => {
+    HTMLImageElement.prototype.decode = function () { return new Promise<void>(() => {}); };
+  });
+  await completeJudgeDemo(page);
+  await expect(page.getByRole('button', { name: '1 · SAVE IMAGE', exact: true })).toBeEnabled();
+  await expect(page.getByRole('region', { name: 'Share your Market Dungeon result' }).getByRole('img')).toHaveAttribute('src', /^blob:/);
+});
+
 test('PNG preparation failure preserves text sharing without exporting an incomplete card', async ({ context, page }) => {
   await installDeterministicRoutes(context);
   await page.addInitScript(() => { HTMLCanvasElement.prototype.toBlob = (callback) => callback(null); });
@@ -269,6 +316,73 @@ test('PNG preparation failure preserves text sharing without exporting an incomp
   await expect(page.getByRole('button', { name: 'DOWNLOAD PNG TO FILES' })).toBeDisabled();
   await expect(page.getByRole('link', { name: '2 · OPEN X DRAFT ↗' })).toHaveAttribute('href', /intent\/tweet/);
 });
+
+test('slow artwork stays pending until loaded, then produces a complete card', async ({ context, page }) => {
+  await installDeterministicRoutes(context);
+  let release!: () => void;
+  const delayedArtwork = new Promise<void>((resolve) => { release = resolve; });
+  await context.route('**/monsters/boss-4-chairman-below.webp', async (route) => {
+    await delayedArtwork;
+    await route.continue();
+  });
+  await completeJudgeDemo(page);
+  const save = page.getByRole('button', { name: '1 · SAVE IMAGE', exact: true });
+  try {
+    await expect(page.getByRole('status')).toHaveText('Preparing your image…');
+    // Deliberately hold the source beyond the PNG fallback delay. No partial
+    // canvas may become shareable while its artwork is still missing.
+    await new Promise((resolve) => setTimeout(resolve, 1_500));
+    await expect(save).toBeDisabled();
+  } finally {
+    release();
+  }
+  await expect(save).toBeEnabled();
+  await expect(page.getByRole('region', { name: 'Share your Market Dungeon result' }).getByRole('img')).toHaveAttribute('src', /^blob:/);
+});
+
+test('broken artwork reports failure without enabling an incomplete image', async ({ context, page }) => {
+  await installDeterministicRoutes(context);
+  await context.route('**/monsters/boss-4-chairman-below.webp', (route) => route.abort());
+  await completeJudgeDemo(page);
+  await expect(page.getByRole('status')).toContainText('Image preparation failed');
+  await expect(page.getByRole('button', { name: '1 · SAVE IMAGE', exact: true })).toBeDisabled();
+  await expect(page.getByRole('link', { name: '2 · OPEN X DRAFT ↗' })).toHaveAttribute('href', /intent\/tweet/);
+});
+
+test('artwork that never finishes loading exits preparation with an honest error', async ({ context, page }) => {
+  await installDeterministicRoutes(context);
+  let release!: () => void;
+  const stalledArtwork = new Promise<void>((resolve) => { release = resolve; });
+  await context.route('**/monsters/boss-4-chairman-below.webp', async (route) => {
+    await stalledArtwork;
+    await route.abort();
+  });
+  try {
+    await completeJudgeDemo(page);
+    await expect(page.getByRole('status')).toContainText('Image preparation failed', { timeout: 12_000 });
+    await expect(page.getByRole('button', { name: '1 · SAVE IMAGE', exact: true })).toBeDisabled();
+    await expect(page.getByRole('link', { name: '2 · OPEN X DRAFT ↗' })).toHaveAttribute('href', /intent\/tweet/);
+  } finally {
+    release();
+  }
+});
+
+for (const failure of ['throws', 'empty'] as const) {
+  test(`stalled encoder whose fallback ${failure} reports failure instead of exporting a fake PNG`, async ({ context, page }) => {
+    await installDeterministicRoutes(context);
+    await page.addInitScript((mode) => {
+      HTMLCanvasElement.prototype.toBlob = () => {};
+      HTMLCanvasElement.prototype.toDataURL = () => {
+        if (mode === 'throws') throw new Error('Encoder unavailable');
+        return 'data:,';
+      };
+    }, failure);
+    await completeJudgeDemo(page);
+    await expect(page.getByRole('status')).toContainText('Image preparation failed');
+    await expect(page.getByRole('button', { name: '1 · SAVE IMAGE', exact: true })).toBeDisabled();
+    await expect(page.getByRole('link', { name: '2 · OPEN X DRAFT ↗' })).toHaveAttribute('href', /intent\/tweet/);
+  });
+}
 
 test('Save image downloads directly when a native image menu is unavailable, without opening X', async ({ context, page }) => {
   await installDeterministicRoutes(context);

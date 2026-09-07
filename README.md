@@ -18,7 +18,7 @@ The current contest build is intentionally read-only. It reads live market metad
 
 **Published v11 baseline:** https://github.com/CryptoMickle/market-dungeon/releases/tag/hackathon-submission-2026-v11
 
-**Current source versus published build:** [release and recording status](docs/RELEASE_STATUS_2026-09-07.md). The newer mobile-share changes are local and are not part of that immutable v11 release.
+**Release status:** [latest published release and completed checks](https://github.com/CryptoMickle/market-dungeon/releases/latest). Match its source commit against the live `/api/build` identity. The [pre-release recording snapshot](docs/RELEASE_STATUS_2026-09-07.md) records the newer mobile work and its gates; it does not replace the release registry. The immutable v11 baseline above does not contain those newer changes.
 
 **Integration and SDK/docs feedback:** [docs/DREAMDEX_INTEGRATION_REPORT.md](docs/DREAMDEX_INTEGRATION_REPORT.md)
 
@@ -75,7 +75,7 @@ It is a fast replay, not a mocked settlement.
 4. Press **Reveal Boss Fate**. The server first replays the combat transcript, then reads the BinaryModule market binding and BinarySettlement payout with both calls pinned to one canonical Somnia block hash.
 5. Confirm that the result first states the combat and prediction conditions, then reports that the choice lock, combat replay, and two block-pinned Somnia contract reads were verified. Expand the technical proof to see each exact raw `eth_call` result in its own labeled row alongside the corresponding target, block hash, and calldata.
 6. Choose **Download proof JSON** or **Copy proof JSON**, then open the independent `/verify` route in its new tab and load the artifact. The verifier first checks the server-authenticated lock receipt against the fixed public-key endpoint, then recomputes the commitment and combat locally, decodes the settlement, and re-fetches the recorded Somnia block and both contract results without a wallet or upload.
-7. Inspect the generated 1200×675 run card. The newer source offers **1 · Save image → 2 · Open X draft**, directly beneath the image, without an intermediate dialog. Save image offers the device's image-saving menu where supported, or downloads a PNG when native file sharing is unavailable; a download does not automatically save to iPhone Photos. Open X draft fills in text and a link; attach the saved image manually. Neither action automatically triggers the other, and the page cannot confirm a save or publication. **Challenge a player** is a separate text-and-link invitation action. **More options** contains a Files download and optional text copying. The challenge link opens a fresh, separately sealed replay on the same network profile. Physical iPhone acceptance and a Production release of this revision remain pending. In mainnet only, **Continue on dreamDEX** opens the external current dreamDEX market.
+7. Inspect the generated 1200×675 run card. This source offers **1 · Save image → 2 · Open X draft**, directly beneath the image, without an intermediate dialog. Save image offers the device's image-saving menu where supported, or downloads a PNG when native file sharing is unavailable; a download does not automatically save to iPhone Photos. Open X draft fills in text and a link; attach the saved image manually. Neither action automatically triggers the other, and the page cannot confirm a save or publication. **Challenge a player** is a separate text-and-link invitation action. **More options** contains a Files download and optional text copying. The challenge link opens a fresh, separately sealed replay on the same network profile. The owner approved this two-step flow; native-device coverage remains limited. Consult the release registry for actual Production status. In mainnet only, **Continue on dreamDEX** opens the external current dreamDEX market.
 
 8. Expand the raw technical proof only when needed and inspect its block and contract links in the Somnia explorer. No wallet, approval, order or other transaction is requested.
 
@@ -308,7 +308,7 @@ docs/
 - Two-minute judge path: complete
 - Salted pre-reveal commitment, server-authenticated Ed25519 lock receipt, working block/contract links, copyable market ID, and portable post-reveal proof JSON: complete
 - Stateless server-verified Judge combat transcript: complete
-- Social-ready run card and separate proof artifact: released in v11. New pre-rendered PNG and direct Save image → Open X draft flow (no intermediate dialog): implemented locally; physical iPhone acceptance and Production publication pending.
+- Social-ready run card and separate proof artifact: released in v11. This source contains the owner-approved direct Save image → Open X draft flow, with bounded image preparation and a complete-PNG fallback. See the release registry for actual publication and gate results; owner acceptance is not universal iPhone/iOS/X certification.
 - Browser-local independent proof verifier with explicit `PASS`, `FAIL`, and `NOT PROVABLE` outcomes: complete
 - Implementation-specific dreamDEX integration report: complete
 - Desktop and 390 px mobile judge-flow QA: complete

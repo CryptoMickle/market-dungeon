@@ -1,5 +1,47 @@
 # Release and recording status — 7 September 2026
 
+## Image-readiness correction after the accepted two-step flow
+
+The owner approved the two-step mobile flow and its GitHub/Production release.
+Publication was then held by two failed live gates against `23fccd0`: the first
+had a client-side timeout during valid reveal (8 passed); a separate confirmation
+had Save image still disabled at its five-second assertion (36 passed).
+Neither is a completed release gate. GitHub PR #42 was held in draft.
+
+Twenty local and twenty isolated Preview sharing checks subsequently passed.
+Those Preview checks used controlled market/RPC fixtures, not live chain proof.
+A separate live diagnostic returned 503 at start before card preparation.
+The original image stall was not reproduced with stage instrumentation; its
+precise browser scheduling cause remains unconfirmed.
+
+Fault-injection tests did reproduce two unbounded waits in the old renderer:
+a non-settling image `decode()` promise and a missing `toBlob()` callback.
+Both left Save image disabled beyond the unchanged five-second readiness gate.
+The correction waits for loaded image data with a ten-second failure bound,
+then composes the same 1200×675 canvas. PNG encoding normally stays asynchronous;
+after one second without its callback, it encodes that same completed canvas
+synchronously. A late callback cannot replace the result. An explicit encoder
+failure or missing artwork is reported honestly, never exported as a partial card.
+
+This addresses a known scheduling possibility: Chromium's implementation uses
+[idle tasks for PNG encoding](https://chromium.googlesource.com/chromium/src/+/lkgr/third_party/blink/renderer/core/html/canvas/canvas_async_blob_creator.cc),
+with its own completion deadline longer than five seconds. It is supporting
+evidence for hardening the wait, not proof of the original failure's exact cause.
+
+The added tests cover stalled decode/encode, a late callback, pixel-for-pixel
+PNG fidelity, slow/broken/never-finishing artwork and failed fallback encoding.
+The 15-test focused mobile run passed. The subsequent full local release check
+passed lint, TypeScript, 99 unit/integration, 7 Shannon kernel and 36 Chromium
+tests (142 total), plus the optimized 15-route build. No local test retries were
+used. The unchanged 390px two-step panel was visually checked. Deployment outcomes
+belong to the release registry, not this pre-release snapshot. No UI sequence,
+proof logic, network profile, wallet behavior or video asset was changed.
+
+**Pre-release snapshot.** Subsequent publication and completed gates are recorded
+in the [release registry](https://github.com/CryptoMickle/market-dungeon/releases/latest).
+Compare the release commit with the public `/api/build` identity before recording.
+The v11 and pending labels below describe their checkpoint, not a rolling status.
+
 This record resolves discrepancies between the published release, older working
 documentation, and the new hybrid recording plan. It is not a deployment log for
 unpublished changes. The latest two-step revision below supersedes both earlier

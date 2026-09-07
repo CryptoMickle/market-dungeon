@@ -1,14 +1,62 @@
 import { runShareCardArtworkPath, runShareCardDataUrl, runShareCardFilename, type RunShareCardInput } from './share-run-card';
 
-export async function renderRunCardPng(input: RunShareCardInput) {
-  const loadImage = async (source: string) => {
+function loadImage(source: string) {
+  return new Promise<HTMLImageElement>((resolve, reject) => {
     const image = new window.Image();
-    image.decoding = 'async';
+    const finish = (error?: Error) => {
+      window.clearTimeout(timeout);
+      image.onload = null;
+      image.onerror = null;
+      if (error) {
+        image.removeAttribute('src');
+        reject(error);
+      } else {
+        resolve(image);
+      }
+    };
+    const timeout = window.setTimeout(() => finish(new Error('Card image loading timed out')), 10_000);
+    image.onload = () => finish(image.naturalWidth && image.naturalHeight ? undefined : new Error('Card image is empty'));
+    image.onerror = () => finish(new Error('Card image could not load'));
+    // Canvas draws loaded images directly. Do not make export depend on the
+    // optional decode() presentation promise, which can be delayed separately.
     image.src = source;
-    await image.decode();
-    return image;
-  };
+  });
+}
 
+function encodePng(canvas: HTMLCanvasElement) {
+  return new Promise<Blob>((resolve, reject) => {
+    let finished = false;
+    const finish = (blob: Blob | null, error = new Error('PNG export unavailable')) => {
+      if (finished) return;
+      finished = true;
+      window.clearTimeout(timeout);
+      if (blob?.size && blob.type === 'image/png') resolve(blob);
+      else reject(error);
+    };
+    // Some browsers schedule toBlob through idle work. If its callback stalls,
+    // encode this same, already-composited fixed-size canvas synchronously.
+    // This happens before any save gesture, never while opening a share menu.
+    const timeout = window.setTimeout(() => {
+      if (finished) return;
+      try {
+        const prefix = 'data:image/png;base64,';
+        const encoded = canvas.toDataURL('image/png');
+        if (!encoded.startsWith(prefix)) throw new Error('PNG fallback unavailable');
+        const bytes = Uint8Array.from(atob(encoded.slice(prefix.length)), (char) => char.charCodeAt(0));
+        finish(new Blob([bytes], { type: 'image/png' }));
+      } catch (error) {
+        finish(null, error instanceof Error ? error : new Error('PNG fallback failed'));
+      }
+    }, 1_000);
+    try {
+      canvas.toBlob((blob) => finish(blob), 'image/png');
+    } catch (error) {
+      finish(null, error instanceof Error ? error : new Error('PNG export failed'));
+    }
+  });
+}
+
+export async function renderRunCardPng(input: RunShareCardInput) {
   const [artwork, overlay] = await Promise.all([
     loadImage(runShareCardArtworkPath(input)),
     loadImage(runShareCardDataUrl(input)),
@@ -43,13 +91,13 @@ export async function renderRunCardPng(input: RunShareCardInput) {
   );
   context.drawImage(overlay, 0, 0, canvas.width, canvas.height);
 
-  const blob = await new Promise<Blob>((resolve, reject) => {
-    canvas.toBlob((value) => {
-      if (value) resolve(value);
-      else reject(new Error('PNG export unavailable'));
-    }, 'image/png');
-  });
-  return new File([blob], runShareCardFilename(input), { type: 'image/png' });
+  try {
+    const blob = await encodePng(canvas);
+    return new File([blob], runShareCardFilename(input), { type: 'image/png' });
+  } finally {
+    canvas.width = 0;
+    canvas.height = 0;
+  }
 }
 
 export function downloadFile(file: File) {
@@ -62,4 +110,3 @@ export function downloadFile(file: File) {
   link.remove();
   window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
 }
-
