@@ -16,26 +16,28 @@ The current contest build is intentionally read-only. It reads live market metad
 
 **DoraHacks submission:** https://dorahacks.io/buidl/48083
 
-**Frozen v10 submission release:** https://github.com/CryptoMickle/market-dungeon/releases/tag/hackathon-submission-2026-v10
+**Published v11 baseline:** https://github.com/CryptoMickle/market-dungeon/releases/tag/hackathon-submission-2026-v11
+
+**Current source versus published build:** [release and recording status](docs/RELEASE_STATUS_2026-09-07.md). The newer mobile-share changes are local and are not part of that immutable v11 release.
 
 **Integration and SDK/docs feedback:** [docs/DREAMDEX_INTEGRATION_REPORT.md](docs/DREAMDEX_INTEGRATION_REPORT.md)
 
-### Shannon Judge release candidate
+### Released Shannon Judge
 
-A newer, isolated read-only candidate adds `/shannon/judge` and
-`/shannon/verify` for Somnia Shannon Testnet while preserving the released
-mainnet routes and proof formats. The candidate is published on
-`phase1/winner-v9` and verified locally, but availability is not a release claim
-until an immutable post-v10 tag and the matching Production `/api/build`
-identity exist. It has not been human- or independently validated.
+The v11 release includes [Shannon Judge](https://market-dungeon.vercel.app/shannon/judge)
+and [Shannon verifier](https://market-dungeon.vercel.app/shannon/verify) on Somnia
+Shannon Testnet, chain `50312`. Both use historical finalized markets and remain
+wallet-free and read-only. The mainnet `/judge` and `/verify` routes are preserved.
 
-The candidate binds chain `50312` and the fixed Shannon indexer, RPC, explorer,
-collateral, operator, venue, and deployments into its server-selected profile.
-Its commitment, encrypted seal, signed lock receipt, exported proof, independent
-RPC reproduction, explorer links, challenge link, reset, and verifier remain on
-that profile. It performs no wallet or chain write. See the exact evidence and
-remaining external gates in
-[Shannon Judge release candidate](docs/SHANNON_JUDGE_RELEASE_CANDIDATE.md).
+Commit `f30b9a56532eb6e3147e7ae8473242545635d0ef` passed the recorded Preview
+and Production gates: 20 mainnet plus 20 Shannon round-trips in each environment,
+zero retries. These are project-controlled automated checks, not independent
+human testing. See [Shannon release record](docs/SHANNON_JUDGE_RELEASE_CANDIDATE.md).
+
+The fixed profile binds the chain, indexer, RPC, collateral, contracts, receipt,
+proof, challenge and verifier. Shannon does **not** show **Continue on dreamDEX**.
+On the mainnet version that button opens the external dreamDEX application;
+it does not open another Delveworn or Market Dungeon route.
 
 ### Full live expedition
 
@@ -73,13 +75,14 @@ It is a fast replay, not a mocked settlement.
 4. Press **Reveal Boss Fate**. The server first replays the combat transcript, then reads the BinaryModule market binding and BinarySettlement payout with both calls pinned to one canonical Somnia block hash.
 5. Confirm that the result first states the combat and prediction conditions, then reports that the choice lock, combat replay, and two block-pinned Somnia contract reads were verified. Expand the technical proof to see each exact raw `eth_call` result in its own labeled row alongside the corresponding target, block hash, and calldata.
 6. Choose **Download proof JSON** or **Copy proof JSON**, then open the independent `/verify` route in its new tab and load the artifact. The verifier first checks the server-authenticated lock receipt against the fixed public-key endpoint, then recomputes the commitment and combat locally, decodes the settlement, and re-fetches the recorded Somnia block and both contract results without a wallet or upload.
-7. Continue to the current dreamDEX market or inspect the generated 1200×675 run card. **Challenge a player** sends the PNG and a direct link to `/judge?challenge=1` through supported native share targets; **Share on X** downloads the card and opens a pre-filled challenge post; **Download card** saves it directly. The challenge recipient always receives a fresh, separately sealed replay rather than the sender's market or outcome.
+7. Inspect the generated 1200×675 run card. In the newer local source, **Challenge a player**, **Share on X**, and **Save card** open sharing options. Copy the challenge text, then share the prepared PNG through a supported device share menu. **Open X with text** is an explicit alternative: it fills text but does not attach the image. A PNG download goes to the browser's download location, not automatically to iPhone Photos. The challenge link opens a fresh, separately sealed replay on the same network profile. Physical iPhone verification and a release of this new flow remain pending. In mainnet only, **Continue on dreamDEX** opens the external current dreamDEX market.
 8. Expand the raw technical proof only when needed and inspect its block and contract links in the Somnia explorer. No wallet, approval, order or other transaction is requested.
 
 In Preview, the share controls intentionally keep the canonical Production
 challenge URL. Test Preview challenge handling directly at Preview
 `/judge?challenge=1`; the generated share link is not Preview evidence until
-Production serves the same v10 release.
+Production serves the same exact candidate commit. Shannon challenge URLs remain
+on `/shannon/judge?challenge=1`; mainnet challenge URLs remain on `/judge?challenge=1`.
 
 ## Why Event Contracts fit the game
 
@@ -285,7 +288,7 @@ docs/
 - Judge combat is rendered in the browser, but reveal is server-gated by a stateless deterministic replay of the submitted structured action log. This proves that the transcript is valid under the published seed and rules; because the seed is public, it is not proof of human input or elapsed play time.
 - Production and Preview require separate `JUDGE_REPLAY_SEAL_KEY` values, each encoded as exactly 64 hexadecimal characters (32 bytes). The Ed25519 lock-receipt key is deterministically separated from that secret. Rotating the secret cleanly invalidates in-flight replay seals and changes the published verification key; without a retained historical public-key archive, older exported proofs can no longer authenticate their receipt and therefore cannot return `PASS`.
 - A valid lock receipt proves that the official Market Dungeon environment authenticated the commitment, direction, and stated lock window. It is deliberately described as server-authenticated, not as an external timestamp, decentralized attestation, or proof that the server itself was honest.
-- Every page and API response receives an explicit Content Security Policy plus `nosniff`, `DENY` framing, strict-origin referrer and restrictive camera/microphone/geolocation/payment/USB/browser-topics permissions; the framework-identifying response header is disabled. Browser connections are limited to same-origin endpoints and the public Somnia mainnet RPC; production also enables HSTS and upgrades insecure requests. The CSP retains narrowly documented inline script/style allowances required by Next.js hydration and the component's dynamic inline progress styles. Development alone permits eval, WebSockets and Vercel's analytics debug-script origin for the local toolchain.
+- Every page and API response receives an explicit Content Security Policy plus `nosniff`, `DENY` framing, strict-origin referrer and restrictive camera/microphone/geolocation/payment/USB/browser-topics permissions; the framework-identifying response header is disabled. Browser connections are limited to same-origin endpoints and the fixed public Somnia mainnet and Shannon RPCs; production also enables HSTS and upgrades insecure requests. The CSP retains narrowly documented inline script/style allowances required by Next.js hydration and the component's dynamic inline progress styles. Development alone permits eval, WebSockets and Vercel's analytics debug-script origin for the local toolchain.
 - Judge reveal requests are capped at 8 KiB of UTF-8 input. A declared oversize request is rejected before its body is read; requests without a trustworthy length are read incrementally and their stream is cancelled immediately after crossing the limit.
 - GitHub workflows grant their token read-only repository access and pin every external action to a full, reviewed commit SHA; version comments preserve update visibility without trusting mutable tags.
 - Vercel Web Analytics records normal page views plus the closed `/funnel/v2/...` lifecycle as manual pageviews: entry, accepted seal, first reveal, verified completion, definitive verification failure, sharing, challenge activity, and Continue-on-dreamDEX intent. Labels contain only enumerated categories; no wallet, market ID, commitment, proof, transcript, exact timing, or arbitrary query content is sent. WebDriver sessions and the exact `automation=1` smoke marker are suppressed. Counts are non-WebDriver event volumes, not unique humans; legacy `/funnel/...` counts remain separate. See [Clean pilot measurement v2](docs/PILOT_MEASUREMENT_V2.md).
@@ -302,7 +305,7 @@ docs/
 - Two-minute judge path: complete
 - Salted pre-reveal commitment, server-authenticated Ed25519 lock receipt, working block/contract links, copyable market ID, and portable post-reveal proof JSON: complete
 - Stateless server-verified Judge combat transcript: complete
-- Social-ready run card with progress, native image sharing, direct X composer, PNG download, and a separate copy/download proof artifact: complete
+- Social-ready run card and separate proof artifact: released in v11. New mobile sharing dialog, pre-rendered PNG, and explicit X/manual attachment flow: implemented locally; physical iPhone check and publication pending.
 - Browser-local independent proof verifier with explicit `PASS`, `FAIL`, and `NOT PROVABLE` outcomes: complete
 - Implementation-specific dreamDEX integration report: complete
 - Desktop and 390 px mobile judge-flow QA: complete

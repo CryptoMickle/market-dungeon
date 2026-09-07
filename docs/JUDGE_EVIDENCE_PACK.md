@@ -1,34 +1,26 @@
 # Market Dungeon — judge evidence pack
 
-Status: **pre-video draft; Shannon branch candidate and first Preview evidence
-recorded, final public release and human evidence still pending**
+Status: **v11 technical release recorded; human evidence remains unestablished;
+new mobile sharing and these documentation corrections are local.**
 
-This is the concise evidence source for the final DoraHacks page, README, video
-script, and release notes. Deployment-derived evidence belongs in release notes
-or attached artifacts after the final commit is frozen; it must not be invented
-or copied into a tag before it exists.
+Updated: 7 September 2026. This is the evidence source for submission copy and
+the new hybrid video kit. See [release and recording status](RELEASE_STATUS_2026-09-07.md). Published release evidence must not
+be attributed to the unshipped mobile patch.
 
-## Shannon candidate addendum — 7 September 2026
+## Shannon release update
 
-Initial implementation commit `2dfe0f484822a8ffcc7f7c2303cdc80f66896829`
-adds fixed `/shannon/judge` and `/shannon/verify` paths without changing the
-released mainnet v2 proof formats. Local verification passes 99/99 application
-tests, 7/7 Shannon proof-kernel tests, the optimized build, and 22/22 Chromium
-tests. The dedicated Shannon browser flow completes lock, combat, reveal,
-proof export, and standalone verification while making zero mainnet API/RPC
-calls.
+V11 includes fixed `/shannon/judge` and `/shannon/verify` while preserving
+mainnet `/judge` and `/verify`. Its corrected final commit passed 40/40 Preview
+and 40/40 Production round-trips (20 per network in each environment), zero
+retries. The initial failed Preview and its lowercase-indexer-filter correction
+remain documented in [the Shannon release record](SHANNON_JUDGE_RELEASE_CANDIDATE.md).
 
-The security pass completed 61 focused tests and rejected 1,575 malformed proof
-types before any public-key or RPC request. This is local project evidence, not
-a public deployment, human usability result, independent non-team validation,
-or audit. A first exact-identity Preview passed 20/20 preserved-mainnet live
-runs but was rejected for Shannon when a case-sensitive indexer address filter
-returned no candidates. The release stopped; the corrected lowercase filter is
-covered by regression and live-index checks and awaits a new Preview. One
-participant-invitation channel post has been published; known people invited or
-replied, participants, sessions, validator invitations, and validators remain
-`0`. A channel post is not counted as a person or result. The full candidate record is
-[SHANNON_JUDGE_RELEASE_CANDIDATE.md](SHANNON_JUDGE_RELEASE_CANDIDATE.md).
+The recorded security pass covered 61 focused tests and 1,575 malformed proofs.
+It is project-controlled expert-assisted evidence, not a third-party audit.
+The latest retained private ledger records one voluntary reply, zero qualified
+participants, zero completed human sessions, and zero independent external
+validators. The release's earlier zero-reply snapshot remains historical.
+No fresh Discord check or telemetry extraction was performed for this update.
 
 ## Ten-second product claim
 
@@ -43,28 +35,22 @@ for Event Contracts, backed by reproducible Somnia evidence.
 
 | Evidence | Verified public state |
 | --- | --- |
-| Live Judge entry | `https://market-dungeon.vercel.app/judge` |
-| Browser-local verifier | `https://market-dungeon.vercel.app/verify` |
-| Frozen source | `hackathon-submission-2026-v10` → `abfac8ed7b8333d67b0b9388c08c109864d99f5b` |
-| Production build identity | `/api/build` returned the exact v10 commit at `2026-09-05T02:19Z` |
-| Local release gates | Lint PASS; TypeScript PASS; 88/88 unit tests; 7/7 Shannon proof-kernel tests; optimized build PASS; 21/21 deterministic Chromium tests |
-| Preview live gate | 20/20 Judge → proof download → standalone verifier PASS, zero retries, `2026-09-04T23:29:24Z`–`23:42:54Z` |
-| Production live gate | 20/20 Judge → proof download → standalone verifier PASS, zero retries, `2026-09-04T23:48:29Z`–`2026-09-05T00:01:54Z` |
-| Somnia mainnet | Chain `5031`; BinaryModule `0x3ecC694Cef705358864a646142ac17A90E29e388`; BinarySettlement `0xbF4a49e0Dfd092e5FBE8E5761064C49533e6Ed23` |
-| Human pilot | Collection protocol ready; qualified results **PENDING** |
-| Independent validators | Runbook ready; two non-team records **PENDING** |
-| Final video | Captured only after the final release freeze; **PENDING** |
+| Testnet Judge / verifier | `https://market-dungeon.vercel.app/shannon/judge` / `/shannon/verify` |
+| Mainnet Judge / verifier | `https://market-dungeon.vercel.app/judge` / `/verify` |
+| Published baseline | `hackathon-submission-2026-v11` → `f30b9a56532eb6e3147e7ae8473242545635d0ef` |
+| Production identity | Exact v11 commit checked at the recorded release gate on 7 September 2026 |
+| V11 local gates | Lint, TypeScript, 99/99 unit/integration, 7/7 Shannon kernel, build, 22/22 deterministic Chromium PASS |
+| V11 Preview live gate | 40/40: 20 mainnet + 20 Shannon, zero retries |
+| V11 Production live gate | 40/40: 20 mainnet + 20 Shannon, zero retries |
+| Networks | Mainnet `5031`; Shannon `50312`; fixed separate profiles |
+| Human pilot | No qualified session evidence established |
+| Independent external validators | None established |
+| New mobile sharing | Local patch; not covered by v11 live gates; physical iPhone verification pending |
+| Final video | New hybrid kit prepared; final recordings, edit, approval and publication pending |
 
-Public workflow evidence:
-
-- Preview 20-run gate:
-  `https://github.com/CryptoMickle/market-dungeon/actions/runs/33929683624`
-- Production 20-run gate:
-  `https://github.com/CryptoMickle/market-dungeon/actions/runs/33930849654`
-- Main CI:
-  `https://github.com/CryptoMickle/market-dungeon/actions/runs/33930662651`
-- v10 release:
-  `https://github.com/CryptoMickle/market-dungeon/releases/tag/hackathon-submission-2026-v10`
+Source: [v11 public release record](https://github.com/CryptoMickle/market-dungeon/releases/tag/hackathon-submission-2026-v11).
+These are recorded release results; no new public live gate was executed during
+this documentation update.
 
 The project treats a frozen release tag as permanent and never moves or reuses
 it. The full commit is the authoritative source identity; this is a project
@@ -111,7 +97,10 @@ the replay independent.
 Market Dungeon's ecosystem contribution is a progression funnel rather than a
 current trading-volume claim:
 
-`entry → prediction lock → verified completion → share/challenge → challenge completion → Continue on dreamDEX`
+`entry → prediction lock → verified completion → share/challenge → fresh challenge`
+
+The separate mainnet continuation can then open dreamDEX; it is not a Shannon
+funnel stage.
 
 - **Entry and education:** a player can learn the binary Event Contract model
   without first funding a wallet or approving a token.
@@ -121,8 +110,10 @@ current trading-volume claim:
   combat performance and market settlement are separate inputs.
 - **Distribution:** a verified result becomes a social card and a fixed fresh
   challenge link without publishing the sender's proof or market outcome.
-- **Qualified continuation:** the terminal CTA sends interested players to the
-  current dreamDEX market. It measures discovery intent only.
+- **Qualified continuation (mainnet only):** the terminal CTA opens the external
+  dreamDEX application at its current BTC 5m/15m market. It does not route to
+  Delveworn or Market Dungeon. Shannon does not show it. The event measures a
+  click, not confirmed arrival, wallet connection, trade or conversion.
 
 ### Current evidence boundary
 
@@ -186,7 +177,8 @@ be narrated as implemented functionality.
 - [x] Load-bearing Event Contract role stated in plain language.
 - [x] Proof trust boundaries stated without overclaiming independence.
 - [x] Ecosystem funnel and 30/60/90-day path defined.
-- [ ] Qualified human pilot results inserted or explicitly reported as unmet.
-- [ ] Two independent non-team validation records linked or explicitly reported as unmet.
-- [ ] Final commit, release tag, Production identity, and final live gates inserted.
+- [x] Human-pilot absence explicitly disclosed (not a passed human-testing gate).
+- [x] Independent non-team validation absence explicitly disclosed.
+- [x] Published v11 commit, tag and recorded technical gates inserted.
+- [ ] New mobile patch device checks, release identity and live gates completed.
 - [ ] Final video and captions linked after the release freeze.

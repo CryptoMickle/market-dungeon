@@ -363,12 +363,15 @@ test('Judge Demo completes in Chromium and renders independently verified proof 
   await expect(page.getByText('BROWSER RPC REFETCH + ABI + DIGESTS VERIFIED')).toBeVisible();
   await expect(page.getByAltText('Market Dungeon Judge Replay share card: 2 of 2 replay encounters')).toBeVisible();
   await expect(page.getByText('FINAL-TIER JUDGE REPLAY · 2/2 REPLAY ENCOUNTERS')).toBeVisible();
-  const xShare = page.getByRole('link', { name: 'SHARE ON X ↗' });
+  await page.getByRole('button', { name: 'SHARE ON X ↗' }).click();
+  await page.getByText('Attach the card manually in X', { exact: true }).click();
+  const xShare = page.getByRole('link', { name: 'OPEN X WITH TEXT ↗' });
   await expect(xShare).toHaveAttribute('href', /https:\/\/twitter\.com\/intent\/tweet\?/);
   const xShareUrl = new URL(await xShare.getAttribute('href') ?? '');
   expect(xShareUrl.searchParams.get('text')).toContain('2 of 2 replay encounters cleared');
   expect(xShareUrl.searchParams.get('text')).toContain('Can you beat my run?');
   expect(xShareUrl.searchParams.get('url')).toBe('https://market-dungeon.vercel.app/judge?challenge=1');
+  await page.getByRole('button', { name: 'Close sharing options' }).click();
   await expect(page.getByRole('link', { name: 'OPEN INDEPENDENT VERIFIER ↗' })).toHaveAttribute('href', '/verify');
 
   const proofLinks = revealedProof.locator('a');
@@ -398,12 +401,16 @@ test('Judge Demo completes in Chromium and renders independently verified proof 
       },
     });
   });
+  await page.getByRole('button', { name: '↗ CHALLENGE A PLAYER' }).click();
+  await page.getByRole('button', { name: '2 · SHARE / SAVE IMAGE' }).click();
+  await expect(page.getByRole('status')).toContainText('Could not share the image');
   const [cardDownload] = await Promise.all([
     page.waitForEvent('download'),
-    page.getByRole('button', { name: '↗ CHALLENGE A PLAYER' }).click(),
+    page.getByRole('button', { name: 'DOWNLOAD PNG TO FILES' }).click(),
   ]);
   expect(cardDownload.suggestedFilename()).toBe('market-dungeon-run-12121212.png');
-  await expect(page.getByText('SHARING UNAVAILABLE · CARD DOWNLOADED + CHALLENGE TEXT COPIED')).toBeVisible();
+  await expect(page.getByRole('status')).toContainText('does not save to Photos');
+  await page.getByRole('button', { name: '1 · COPY CHALLENGE TEXT' }).click();
   const copiedPost = await page.evaluate(() => Reflect.get(globalThis, '__marketDungeonClipboard'));
   expect(copiedPost).toContain("I beat Market Dungeon's final-tier Judge Replay");
   expect(copiedPost).toContain('2 of 2 replay encounters cleared');
@@ -411,6 +418,7 @@ test('Judge Demo completes in Chromium and renders independently verified proof 
   expect(copiedPost).toContain('Can you beat my run?');
   expect(copiedPost).toContain('https://market-dungeon.vercel.app/judge?challenge=1');
   expect(() => JSON.parse(copiedPost as string)).toThrow();
+  await page.getByRole('button', { name: 'Close sharing options' }).click();
 
   await page.getByRole('button', { name: 'COPY PROOF JSON' }).click();
   await expect(page.getByText('PORTABLE PROOF JSON COPIED')).toBeVisible();

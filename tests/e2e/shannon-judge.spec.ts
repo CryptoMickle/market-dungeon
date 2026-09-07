@@ -89,9 +89,12 @@ test('Shannon Judge flow remains profile-bound through replay, sharing, reset, c
   for (const link of await explorerLinks.all()) {
     expect(await link.getAttribute('href')).toMatch(/^https:\/\/shannon-explorer\.somnia\.network\/(?:block|address)\//);
   }
-  const xShare = page.getByRole('link', { name: 'SHARE ON X ↗' });
+  await page.getByRole('button', { name: 'SHARE ON X ↗' }).click();
+  await page.getByText('Attach the card manually in X', { exact: true }).click();
+  const xShare = page.getByRole('link', { name: 'OPEN X WITH TEXT ↗' });
   const xShareUrl = new URL(await xShare.getAttribute('href') ?? '');
   expect(xShareUrl.searchParams.get('url')).toBe('https://market-dungeon.vercel.app/shannon/judge?challenge=1');
+  await page.getByRole('button', { name: 'Close sharing options' }).click();
 
   await page.evaluate(() => {
     Object.defineProperty(navigator, 'clipboard', {

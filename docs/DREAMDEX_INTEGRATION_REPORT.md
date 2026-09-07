@@ -1,26 +1,20 @@
 # dreamDEX Integration Report
 
-Released implementation snapshot: 5 September 2026.
+Released implementation snapshot: 7 September 2026, v11.
 
-Local Shannon candidate addendum: 7 September 2026.
+Status: **The published baseline is `hackathon-submission-2026-v11`, commit
+`f30b9a56532eb6e3147e7ae8473242545635d0ef`. It includes read-only mainnet
+and fixed Shannon Testnet Judge/verifier routes. New mobile-sharing source
+changes are local, not part of v11.** See [release and recording status](RELEASE_STATUS_2026-09-07.md).
 
-Status: **This report describes the current read-only v10 contest build. Its
-onchain integration, verifier, receipt, analytics, and sharing trust boundaries
-are inherited unchanged from the released v9 build; v10 reorganizes the Judge
-presentation without expanding transaction authority.**
-
-An unreleased branch candidate based on implementation commit
-`2dfe0f484822a8ffcc7f7c2303cdc80f66896829` adds fixed read-only Shannon
-Testnet Judge and verifier routes. Its server-selected profile uses chain
-`50312`, `https://dev.smk.somnia.host/v1/graphql`,
+Shannon uses chain `50312`, `https://dev.smk.somnia.host/v1/graphql`,
 `https://api.infra.testnet.somnia.network`, the Shannon explorer, collateral
-`0x70a86D8842FB63C4Ad2b7cdddF530eBf1BB25d8E`, canonical operator `2`, and the
-canonical venue. It reuses the same BinaryModule and BinarySettlement addresses
-while binding the different chain and collateral into versioned cryptographic
-and proof formats. It is branch-published and locally tested but not yet tagged,
-released to Production, human-tested, or independently validated. Exact
-Preview evidence and limitations are recorded in
-[SHANNON_JUDGE_RELEASE_CANDIDATE.md](SHANNON_JUDGE_RELEASE_CANDIDATE.md).
+`0x70a86D8842FB63C4Ad2b7cdddF530eBf1BB25d8E`, operator `2`, and the
+canonical venue. Versioned commitments and proofs bind this separate profile.
+The recorded v11 Preview and Production gates each passed 20 mainnet and
+20 Shannon round-trips with zero retries. No completed qualified human session
+or independent non-team validation is established by those automated gates.
+See [Shannon release record](SHANNON_JUDGE_RELEASE_CANDIDATE.md).
 
 This document also serves as the hackathon submission's optional SDK and documentation feedback report.
 
@@ -36,6 +30,14 @@ This document also serves as the hackathon submission's optional SDK and documen
 - No wallet, approval, order or private key is required to reproduce the judge path.
 
 ## Integration surface
+
+The detailed discovery and live-market paths below describe **mainnet**.
+Shannon exposes historical finalized Judge Replay only; use the fixed-profile
+record above for its endpoints and versioned proof format. **Continue on
+dreamDEX** exists on the mainnet result and opens
+`https://app.dreamdex.io/event-contracts/WBTC:USDso/5m` (or `15m` for the selected
+interval). It does not open Delveworn. Shannon has no such continuation action.
+
 
 Market Dungeon uses the official dreamDEX Markets SDK plus two server-side data sources. After reveal, the browser also reads the public Somnia RPC directly to reproduce the server proof:
 
@@ -101,7 +103,7 @@ For every terminal market—indexed as either `finalized = true` or `voided = tr
 
 The live settlement endpoint never returns a terminal result for application unless this direct proof succeeds. The browser then independently repeats the proof before it applies a void refund path, prediction win/loss, gold, death, victory, or tier progression. A pending non-terminal market may still be returned without a settlement proof because it cannot yet change game state.
 
-The build's revealed proof includes the RPC verification snapshot block number/hash, canonical EIP-1898 reference, deployments, market origin and trading window, market key, IDs, payout vector, and the raw target/block-reference/calldata/result for both `eth_call`s. The UI exposes working block and contract links and a copyable market ID. Social sharing is intentionally separated from technical verification: a client-generated 1200×675 PNG summarizes either two-encounter Judge replay progress or the full expedition's actual room/tier, plus enemies, gold, prediction and verification status, for native sharing or a pre-filled X post. Copy/download JSON actions retain the server-authenticated lock receipt, complete canonical commitment input, combat actions/digest, and reproducible RPC requests/results. The card is rendered locally and does not publish or persist run data. The JSON proves contract state at the recorded snapshot block; it does not claim that this is the block containing the transaction that originally finalized that state.
+The build's revealed proof includes the RPC verification snapshot block number/hash, canonical EIP-1898 reference, deployments, market origin and trading window, market key, IDs, payout vector, and the raw target/block-reference/calldata/result for both `eth_call`s. The UI exposes working block and contract links and a copyable market ID. Social sharing is intentionally separated from technical verification: a client-generated 1200×675 PNG summarizes either two-encounter Judge replay progress or the full expedition's actual room/tier, plus enemies, gold, prediction and verification status, for supported native image sharing or manual attachment to an X post. In the newer local implementation, the PNG is prepared before the share gesture; copying text, sharing/saving the image, downloading to Files, and opening X are separate explicit actions. The X link contains text and a challenge URL, not the PNG. An iPhone download is not a Photos save, and actual share targets depend on browser/OS/app support. Physical iPhone acceptance remains pending; this change is not in v11. Copy/download JSON actions retain the server-authenticated lock receipt, complete canonical commitment input, combat actions/digest, and reproducible RPC requests/results. The card is rendered locally and does not publish or persist run data. The JSON proves contract state at the recorded snapshot block; it does not claim that this is the block containing the transaction that originally finalized that state.
 
 ## Metadata, settlement, and combat boundaries
 
@@ -117,7 +119,7 @@ The stateless combat check proves that the submitted action sequence is valid un
 ## Cache and security limits
 
 - Replay responses use `Cache-Control: private, no-store, max-age=0`; active market and settlement responses use `no-store`.
-- Global response headers set a deny-by-default CSP, block framing and MIME sniffing, restrict referrers and unused browser capabilities, and enable HSTS in production. Client connections are limited to the same origin and the fixed Somnia mainnet RPC used for the independent browser proof. Next.js hydration and the UI's dynamic progress styles require the documented `unsafe-inline` script/style allowances; development alone additionally permits eval, WebSocket connections and Vercel's analytics debug-script origin for the local toolchain.
+- Global response headers set a deny-by-default CSP, block framing and MIME sniffing, restrict referrers and unused browser capabilities, and enable HSTS in production. Client connections are limited to the same origin and the fixed Somnia mainnet and Shannon RPCs used for the independent browser proof. Next.js hydration and the UI's dynamic progress styles require the documented `unsafe-inline` script/style allowances; development alone additionally permits eval, WebSocket connections and Vercel's analytics debug-script origin for the local toolchain.
 - Reveal ingress is capped at 8 KiB measured as UTF-8 bytes rather than JavaScript characters. Oversize `Content-Length` is rejected without reading the request stream; an absent or understated length falls back to incremental reads that cancel the stream as soon as the cap is crossed.
 - Judge Replay candidate rows have a 15-second server-side cache with in-flight request sharing. The selected market remains random per start and is never exposed before reveal. The browser refreshes active discovery and CLOB odds every 15 seconds and polls live settlement every five seconds after expiry.
 - The SDK 0.29 top-of-book read uses its own aborting GraphQL timeout. The former outer four-second `Promise.race` was removed because it returned without cancelling the underlying SDK request. If the SDK read fails, market loading and gameplay continue using the existing verified metadata path; the odds module falls back to a valid last trade or displays an unavailable state.

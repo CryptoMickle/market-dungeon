@@ -1,17 +1,15 @@
-# Market Dungeon — Shannon Judge release candidate
+# Market Dungeon — Shannon Judge release record
 
-Status: **branch-published release candidate; final tag, Production, human, and
-independent validation still pending**
+Status: **released in v11; human validation remains open; newer mobile sharing
+changes are local and require their own release and device checks.**
 
-Prepared: 7 September 2026
+Updated: 7 September 2026.
 
-Initial implementation commit: `2dfe0f484822a8ffcc7f7c2303cdc80f66896829`.
-The final source identity is intentionally assigned only by the next immutable
-post-v10 release tag and its matching public `/api/build` response.
-
-This record separates what the local Shannon candidate proves from what still
-depends on a public deployment or independent people. It does not replace the
-immutable v10 mainnet release.
+Released source: `f30b9a56532eb6e3147e7ae8473242545635d0ef`.
+Release: [hackathon-submission-2026-v11](https://github.com/CryptoMickle/market-dungeon/releases/tag/hackathon-submission-2026-v11).
+Initial implementation checkpoint: `2dfe0f484822a8ffcc7f7c2303cdc80f66896829`.
+The filename is retained for existing links. See [release and recording status](RELEASE_STATUS_2026-09-07.md) for the distinction
+between this published baseline and unshipped working-tree changes.
 
 ## Product surface
 
@@ -109,37 +107,35 @@ does not prove this candidate is publicly deployed or continuously available.
   case-sensitively with the indexer's lowercase address value.
 - Release was halted. The filter now emits canonical lowercase address values,
   a regression assertion covers the query, and a fresh local call against the
-  real Shannon indexer returns a balanced 5-minute pool. The corrected commit
-  still requires a new exact-identity Preview and both live gates.
+  real Shannon indexer returned a balanced 5-minute pool. The corrected final
+  commit subsequently passed both live gates, as recorded below.
 
 This failed first Preview is release-engineering evidence, not a successful
 Shannon deployment claim.
 
-## Remaining external gates
+## Corrected v11 release outcome
 
-- No final release tag or matching Production deployment exists for the
-  corrected candidate.
-- The corrected candidate has not yet passed its exact-identity public Preview
-  or Production gates.
-- Participant-invitation channel posts: `1`; known people invited or replied:
-  `0`; participants: `0`; sessions: `0`. A public channel post is not a known
-  person, participant, response, or usability result.
-- Independent validator invitations: `0`; validators: `0`.
-- The one participant invitation was published only after separate manual user
-  approval. Administrative routing evidence is retained privately and is not
-  product-quality, participant, endorsement, or validation evidence.
+The exact source commit above passed 40/40 Preview and 40/40 Production live
+round-trips: 20 mainnet plus 20 Shannon in each environment, sequential with
+zero retries. Each round included a newly exported proof and standalone
+verification. The Production identity and all four routes were checked at the
+release gate. These are time-bounded automated results, not an uptime promise.
+The failed first Preview above is retained as historical evidence.
 
-Until those facts change, describe the candidate as **branch-published, locally
-verified, and independently reproducible by design**, not finally released,
-user-validated, independently validated, or audited.
+## Remaining evidence and recording gates
 
-## Release order
+- Latest retained pilot ledger: one voluntary reply, zero qualified participants,
+  zero completed sessions, zero independent external validators. These are
+  recorded counts, not a fresh Discord or analytics check.
+- Neither a moderator's routing permission nor an open recruitment post is an
+  endorsement or a usability result.
+- The mobile issue reported by the developer concerns iPhone image sharing and
+  Photos saving. A desktop-sized/mobile-width Chromium check did not establish
+  either of those native device behaviors.
+- The newer local sharing fix must pass physical iPhone Safari/X checks and its
+  own approved release process before final video footage can claim it is live.
+- Do not move v11. A later product change needs a new source identity, Preview
+  and Production checks, and updated recording metadata.
 
-1. Confirm a new Preview `/api/build` matches the corrected candidate commit.
-2. Run the documented zero-retry Preview gate on both the intended Shannon
-   entry and the preserved mainnet regression path.
-3. Close the human-pilot window with actual results or an explicit zero-result.
-4. Create a new immutable release tag; never move v10.
-5. Deploy the identical commit to Production and repeat both live gates.
-6. Obtain qualified validator records if available, or disclose zero.
-7. Freeze public copy and only then begin the final video block.
+Describe v11 as **released and independently reproducible by design**, not
+human-validated, independently validated by a non-team person, or audited.

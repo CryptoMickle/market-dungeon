@@ -1,6 +1,7 @@
 'use client';
 
 import Image from 'next/image';
+import { RunSharePanel } from './run-share-panel';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -72,12 +73,6 @@ import {
   isChallengeEntry,
   MARKET_DUNGEON_PLAY_URL,
   MARKET_DUNGEON_SLOGAN,
-  runShareCardArtworkPath,
-  runShareCardDataUrl,
-  runShareCardFilename,
-  runShareCaption,
-  runShareClipboardText,
-  runShareXUrl,
   type RunShareCardInput,
 } from './share-run-card';
 import {
@@ -181,68 +176,6 @@ async function sha256Hex(value: string) {
   return `0x${Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('')}`;
 }
 
-async function renderRunCardPng(input: RunShareCardInput) {
-  const loadImage = async (source: string) => {
-    const image = new window.Image();
-    image.decoding = 'async';
-    image.src = source;
-    await image.decode();
-    return image;
-  };
-
-  const [artwork, overlay] = await Promise.all([
-    loadImage(runShareCardArtworkPath(input)),
-    loadImage(runShareCardDataUrl(input)),
-  ]);
-
-  const canvas = document.createElement('canvas');
-  canvas.width = 1200;
-  canvas.height = 675;
-  const context = canvas.getContext('2d');
-  if (!context) throw new Error('Canvas rendering unavailable');
-  context.fillStyle = '#09090b';
-  context.fillRect(0, 0, canvas.width, canvas.height);
-
-  const sourceRatio = artwork.naturalWidth / artwork.naturalHeight;
-  const targetRatio = canvas.width / canvas.height;
-  const sourceWidth = sourceRatio > targetRatio
-    ? artwork.naturalHeight * targetRatio
-    : artwork.naturalWidth;
-  const sourceHeight = sourceRatio > targetRatio
-    ? artwork.naturalHeight
-    : artwork.naturalWidth / targetRatio;
-  context.drawImage(
-    artwork,
-    (artwork.naturalWidth - sourceWidth) / 2,
-    (artwork.naturalHeight - sourceHeight) / 2,
-    sourceWidth,
-    sourceHeight,
-    0,
-    0,
-    canvas.width,
-    canvas.height,
-  );
-  context.drawImage(overlay, 0, 0, canvas.width, canvas.height);
-
-  const blob = await new Promise<Blob>((resolve, reject) => {
-    canvas.toBlob((value) => {
-      if (value) resolve(value);
-      else reject(new Error('PNG export unavailable'));
-    }, 'image/png');
-  });
-  return new File([blob], runShareCardFilename(input), { type: 'image/png' });
-}
-
-function downloadFile(file: File) {
-  const url = URL.createObjectURL(file);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = file.name;
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-  window.setTimeout(() => URL.revokeObjectURL(url), 0);
-}
 
 function getRegularTier(roomNumber: number) {
   if (roomNumber <= 9) return 0;
@@ -598,7 +531,6 @@ export default function MarketDungeon({
   const [mobileLogOpen, setMobileLogOpen] = useState(false);
   const [judgeActionLog, setJudgeActionLog] = useState<JudgeCombatAction[]>([]);
   const [liveBtcContext, setLiveBtcContext] = useState<LiveBtcContext | null>(null);
-  const [shareStatus, setShareStatus] = useState('');
   const [proofStatus, setProofStatus] = useState('');
   const [challengeEntry, setChallengeEntry] = useState(false);
   const [replayRevealRemaining, setReplayRevealRemaining] = useState(0);
@@ -815,7 +747,7 @@ export default function MarketDungeon({
     setCombatPotionUses(0); setBandageUsed(false); setMerchantPotions(2); setWeaponSold(false); setArmorSold(false);
     setOracleChecks(0); setOracleResult(null); setOracleBusy(false); oracleBusyRef.current = false; setLastReward('');
     setJudgeMode(false); setDeathCause('COMBAT');
-    setJudgeActionLog([]); setShareStatus(''); setProofStatus('');
+    setJudgeActionLog([]); setProofStatus('');
     setMarketEntryRemaining(remaining);
     setCombatLog([`${omenName} recorded: BTC ${direction} against live dreamDEX market #${market.marketId.slice(-4).toUpperCase()}. No order was sent.`]);
     setNotice(`${omenName} · DELVEWORN RUN STARTED`);
@@ -831,7 +763,7 @@ export default function MarketDungeon({
     resetShareAnalytics();
     emitAnalyticsEvent(judgeDemoEntryEvent('home'));
     setMarket(sealedReplay); setPhase('JUDGE_SETUP'); setJudgeMode(true); setDeathCause('COMBAT');
-    setJudgeActionLog([]); setShareStatus(''); setProofStatus('');
+    setJudgeActionLog([]); setProofStatus('');
     setReplayRevealRemaining(0);
     setJudgeStartRetryRemaining(0); setReplayRetryRemaining(0);
     setMarketEntryRemaining(null);
@@ -938,7 +870,7 @@ export default function MarketDungeon({
       setPotions(JUDGE_COMBAT.player.potions); setGold(62); setWeapon(JUDGE_COMBAT.player.weapon); setArmor(JUDGE_COMBAT.player.armor);
       setCombatPotionUses(0); setBandageUsed(false); setMerchantPotions(2); setWeaponSold(false); setArmorSold(false);
       setOracleChecks(0); setOracleResult(null); setOracleBusy(false); oracleBusyRef.current = false; setLastReward('');
-      setJudgeActionLog([]); setShareStatus(''); setProofStatus('');
+      setJudgeActionLog([]); setProofStatus('');
       setCombatLog([`${omenName} locked before market selection. Commitment ${replay.commitment.slice(0, 14)}… binds the encrypted replay; combat uses an independent seed.`]);
       setNotice(`JUDGE DEMO · ${omenName} LOCKED · DEFEAT THE WOUNDED GUARD`);
     } catch {
@@ -1342,7 +1274,7 @@ export default function MarketDungeon({
       const nextRoster = buildRoster();
       setMarket(sealedReplay); setRoster(nextRoster); setTier(1); setPhase('JUDGE_SETUP'); setRoom(0); setTurn(0); setHp(100); setMonsterHp(nextRoster[0].hp);
       setWeapon(1); setArmor(0); setCombatPotionUses(0); setLastReward(''); setJudgeMode(true); setJudgeLoading(false); setDeathCause('COMBAT');
-      setJudgeActionLog([]); setShareStatus(''); setProofStatus(''); setReplayRevealRemaining(0); setJudgeStartRetryRemaining(0); setReplayRetryRemaining(0);
+      setJudgeActionLog([]); setProofStatus(''); setReplayRevealRemaining(0); setJudgeStartRetryRemaining(0); setReplayRetryRemaining(0);
       setOracleChecks(0); setOracleResult(null); setOracleBusy(false); oracleBusyRef.current = false; setMarketEntryRemaining(null); setMarketOdds(null); setLiveBtcContext(null);
       resetShareAnalytics();
       setCombatLog(['Choose BTC UP or DOWN first. A fixed Shannon Testnet service will draw and seal a historical finalized market.']);
@@ -1356,7 +1288,7 @@ export default function MarketDungeon({
     setBandageUsed(false); setMerchantPotions(2); setWeaponSold(false); setArmorSold(false);
     setOracleChecks(0); setOracleResult(null); setOracleBusy(false); oracleBusyRef.current = false;
     setJudgeMode(false); setJudgeLoading(false); setDeathCause('COMBAT');
-    setJudgeActionLog([]); setShareStatus(''); setProofStatus('');
+    setJudgeActionLog([]); setProofStatus('');
     setReplayRevealRemaining(0);
     setJudgeStartRetryRemaining(0); setReplayRetryRemaining(0);
     setMarketEntryRemaining(null);
@@ -1459,70 +1391,6 @@ export default function MarketDungeon({
     emitAnalyticsEvent(challengeCreatedEvent());
   }
 
-  async function shareRunCard(input: RunShareCardInput) {
-    let card: File | null = null;
-    try {
-      card = await renderRunCardPng(input);
-    } catch {
-      setShareStatus('CARD RENDERING UNAVAILABLE · SHARE TEXT STILL READY');
-    }
-
-    if (card && typeof navigator.share === 'function') {
-      let canShareCard = false;
-      try {
-        canShareCard = typeof navigator.canShare === 'function' && navigator.canShare({ files: [card] });
-      } catch {
-        canShareCard = false;
-      }
-      if (canShareCard) {
-        try {
-          await navigator.share({
-            title: 'Market Dungeon — can you beat my run?',
-            text: runShareCaption(input),
-            url: judgeChallengeUrl,
-            files: [card],
-          });
-          trackShareAction(input, 'native-completed');
-          trackChallengeCreated(input);
-          setShareStatus('RUN CARD SHARED');
-          return;
-        } catch (error) {
-          if (error instanceof DOMException && error.name === 'AbortError') return;
-        }
-      }
-    }
-
-    if (card) {
-      downloadFile(card);
-      trackShareAction(input, 'card-downloaded');
-    }
-    try {
-      await navigator.clipboard.writeText(runShareClipboardText(input, judgeChallengeUrl));
-      trackShareAction(input, 'text-copied');
-      trackChallengeCreated(input);
-      setShareStatus(card
-        ? 'SHARING UNAVAILABLE · CARD DOWNLOADED + CHALLENGE TEXT COPIED'
-        : 'SHARING UNAVAILABLE · CHALLENGE TEXT COPIED');
-    } catch {
-      setShareStatus(card
-        ? 'SHARING UNAVAILABLE · CARD DOWNLOADED'
-        : 'SHARE FAILED · USE THE X LINK');
-    }
-  }
-
-  async function downloadRunCard(input: RunShareCardInput, forX = false) {
-    if (forX) {
-      trackShareAction(input, 'x-intent-opened');
-      trackChallengeCreated(input);
-    }
-    try {
-      downloadFile(await renderRunCardPng(input));
-      trackShareAction(input, 'card-downloaded');
-      setShareStatus(forX ? 'CARD DOWNLOADED · ATTACH IT IN THE X COMPOSER' : 'RUN CARD DOWNLOADED');
-    } catch {
-      setShareStatus(forX ? 'X OPENED · CARD DOWNLOAD FAILED' : 'CARD DOWNLOAD FAILED');
-    }
-  }
 
   async function copyVerifiedProof() {
     const proofInput = verifiedProofInput();
@@ -1564,49 +1432,13 @@ export default function MarketDungeon({
 
   const runShareInput = currentRunShareInput();
   const portableProofAvailable = Boolean(verifiedProofInput());
-  const runShareProgress = runShareInput?.mode === 'JUDGE_REPLAY'
-    ? `FINAL-TIER JUDGE REPLAY · ${Math.min(2, runShareInput.enemiesDefeated)}/2 REPLAY ENCOUNTERS`
-    : runShareInput
-      ? `ROOM ${runShareInput.reachedRoom}/${runShareInput.totalRooms} · ${runShareInput.enemiesDefeated} ENEMIES DEFEATED`
-      : '';
-  const runSharePanel = runShareInput ? (
-    <section className="run-share-panel" aria-label="Share your Market Dungeon result">
-      <div className="run-share-heading">
-        <span>YOUR MARKET DUNGEON RUN CARD</span>
-        <strong>{runShareProgress}</strong>
-        <small>{runShareInput.verifiedOnchain ? 'A social-ready summary of this verified replay. The portable proof is available in Evidence below.' : 'A social-ready snapshot of how far this expedition reached.'}</small>
-      </div>
-      <Image
-        className="run-share-card"
-        src={runShareCardDataUrl(runShareInput)}
-        style={{
-          backgroundImage: `url(${runShareCardArtworkPath(runShareInput)})`,
-          backgroundPosition: 'center',
-          backgroundRepeat: 'no-repeat',
-          backgroundSize: 'cover',
-        }}
-        alt={runShareInput.mode === 'JUDGE_REPLAY'
-          ? `Market Dungeon Judge Replay share card: ${Math.min(2, runShareInput.enemiesDefeated)} of 2 replay encounters`
-          : `Market Dungeon share card: room ${runShareInput.reachedRoom} of ${runShareInput.totalRooms}`}
-        width={1200}
-        height={675}
-        unoptimized
-      />
-      <div className="run-share-actions">
-        <button className="share-primary" type="button" onClick={() => void shareRunCard(runShareInput)}>↗ CHALLENGE A PLAYER</button>
-        <a
-          className="share-x"
-          href={runShareXUrl(runShareInput, judgeChallengeUrl)}
-          target="_blank"
-          rel="noopener noreferrer"
-          onClick={() => void downloadRunCard(runShareInput, true)}
-        >SHARE ON X ↗</a>
-        <button type="button" onClick={() => void downloadRunCard(runShareInput)}>DOWNLOAD CARD</button>
-      </div>
-      <small className="run-share-x-note">The link opens a fresh, separately sealed Judge replay. X opens with the challenge text filled in; attach the downloaded PNG card before posting.</small>
-      <small className="run-share-status" aria-live="polite">{shareStatus}</small>
-    </section>
-  ) : null;
+  const runSharePanel = runShareInput ? <RunSharePanel
+    key={JSON.stringify(runShareInput)}
+    input={runShareInput}
+    challengeUrl={judgeChallengeUrl}
+    onAction={(action) => trackShareAction(runShareInput, action)}
+    onChallenge={() => trackChallengeCreated(runShareInput)}
+  /> : null;
 
   const portableProofPanel = portableProofAvailable ? (
     <section className="portable-proof-panel" aria-label="Portable run verification">

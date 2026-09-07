@@ -100,6 +100,81 @@ async function expectNoHorizontalOverflow(page: Page) {
   }))).toEqual({ viewport: 390, content: 390 });
 }
 
+test('mobile sharing prepares a complete PNG before a gesture and keeps X as an explicit choice', async ({ context, page }) => {
+  await installDeterministicRoutes(context);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await completeJudgeDemo(page);
+  await page.evaluate(() => {
+    Object.defineProperty(navigator, 'canShare', { configurable: true, value: () => true });
+    Object.defineProperty(navigator, 'share', { configurable: true, value: async (data: ShareData) => {
+      const file = data.files?.[0];
+      Reflect.set(window, '__sharedCard', {
+        active: navigator.userActivation.isActive,
+        keys: Object.keys(data), type: file?.type, size: file?.size,
+        filename: file?.name,
+        signature: file ? Array.from(new Uint8Array(await file.slice(0, 8).arrayBuffer())) : [],
+      });
+    } });
+  });
+  const downloads: string[] = [];
+  page.on('download', (download) => downloads.push(download.suggestedFilename()));
+  const pagesBefore = context.pages().length;
+  await page.getByRole('button', { name: 'SHARE ON X ↗' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Share your run' });
+  await expect(dialog).toBeVisible();
+  const image = dialog.getByAltText('Your complete run card, ready to save or share');
+  await expect(image).toHaveAttribute('src', /^blob:/);
+  await expect.poll(() => image.evaluate((node: HTMLImageElement) => [node.naturalWidth, node.naturalHeight])).toEqual([1200, 675]);
+  await page.getByRole('button', { name: '2 · SHARE / SAVE IMAGE' }).click();
+  await expect(dialog.getByRole('status')).toContainText('no post is confirmed');
+  const shared = await page.evaluate(() => Reflect.get(window, '__sharedCard'));
+  expect(shared).toMatchObject({ active: true, keys: ['files'], type: 'image/png', filename: 'market-dungeon-run-12121212.png', signature: [137, 80, 78, 71, 13, 10, 26, 10] });
+  expect(shared.size).toBeGreaterThan(20_000);
+  expect(context.pages()).toHaveLength(pagesBefore);
+  expect(downloads).toEqual([]);
+  await expectNoHorizontalOverflow(page);
+  expect(await dialog.evaluate((node) => node.scrollWidth <= node.clientWidth)).toBe(true);
+  await page.screenshot({ path: 'test-results/mobile-share-dialog.png', fullPage: false });
+  await page.getByRole('button', { name: 'Close sharing options' }).click();
+  await expect(dialog).not.toBeVisible();
+  await expect(page.getByRole('button', { name: 'SHARE ON X ↗' })).toBeFocused();
+});
+
+test('cancelled native sharing does not download or open X and clipboard denial leaves selectable text', async ({ context, page }) => {
+  await installDeterministicRoutes(context);
+  await completeJudgeDemo(page);
+  await page.evaluate(() => {
+    Object.defineProperty(navigator, 'canShare', { configurable: true, value: () => true });
+    Object.defineProperty(navigator, 'share', { configurable: true, value: async () => { throw new DOMException('Cancelled', 'AbortError'); } });
+    Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: async () => { throw new Error('Denied'); } } });
+  });
+  const downloads: string[] = [];
+  page.on('download', (download) => downloads.push(download.suggestedFilename()));
+  await page.getByRole('button', { name: 'SAVE CARD', exact: true }).click();
+  const dialog = page.getByRole('dialog');
+  await page.getByRole('button', { name: '2 · SHARE / SAVE IMAGE' }).click();
+  await expect(dialog.getByRole('status')).toHaveText('Sharing cancelled. Your card is still here.');
+  await page.getByRole('button', { name: '1 · COPY CHALLENGE TEXT' }).click();
+  await expect(dialog.getByRole('status')).toContainText('Select and copy');
+  await expect(dialog.getByRole('textbox')).toHaveValue(/https:\/\/market-dungeon.vercel.app\/judge\?challenge=1/);
+  expect(context.pages()).toHaveLength(1);
+  expect(downloads).toEqual([]);
+});
+
+test('PNG preparation failure preserves text sharing without exporting an incomplete card', async ({ context, page }) => {
+  await installDeterministicRoutes(context);
+  await page.addInitScript(() => { HTMLCanvasElement.prototype.toBlob = (callback) => callback(null); });
+  await completeJudgeDemo(page);
+  await page.getByRole('button', { name: 'SAVE CARD', exact: true }).click();
+  const dialog = page.getByRole('dialog');
+  await expect(dialog.getByRole('status')).toContainText('Image preparation failed');
+  await expect(page.getByRole('button', { name: '2 · SHARE / SAVE IMAGE' })).toBeDisabled();
+  await expect(page.getByRole('button', { name: '1 · COPY CHALLENGE TEXT' })).toBeEnabled();
+  await page.getByText('Attach the card manually in X', { exact: true }).click();
+  await expect(page.getByRole('button', { name: 'DOWNLOAD PNG TO FILES' })).toBeDisabled();
+  await expect(page.getByRole('link', { name: 'OPEN X WITH TEXT ↗' })).toHaveAttribute('href', /intent\/tweet/);
+});
+
 test('completed mobile Judge result is truthful, ordered, and portable into the verifier', async ({ context, page }) => {
   await installDeterministicRoutes(context);
   await page.setViewportSize({ width: 390, height: 844 });
