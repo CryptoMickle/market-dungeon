@@ -117,11 +117,19 @@ test('/judge prerenders its primary Judge action before client hydration', async
 
 test('mobile Full Expedition starts cleanly and restores exact combat state after reload', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
+  const now = Math.floor(Date.now() / 1_000);
+  await page.route('**/api/market?interval=300', async (route) => {
+    await route.fulfill({ json: { market: { ...market, finalized: false, status: 'Trading', tradingStart: String(now), expiry: String(now + 300) } } });
+  });
 
   await page.goto('/');
   await page.getByRole('button', { name: 'ENTER THE DUNGEON' }).click();
   await expect(page.getByRole('region', { name: 'Tier progress' })).toBeVisible();
   await expect(page.getByText('T1 · 0/40')).toBeVisible();
+  await expect(page.getByText('$60,000.00')).toBeVisible();
+  await expect(page.getByText(/Grave Belle|Gary|Thud/)).toHaveCount(0);
+  await page.getByRole('button', { name: 'LOCK BTC UP · ENTER TIER 1' }).click();
+  await expect(page.locator('[class*="encounterCopy"] h2')).toHaveText(/Grave Belle|Gary|Thud/);
   const enemyHp = page.locator('[class*="enemyBar"] b');
   await page.getByRole('button', { name: /ATTACK/ }).click();
   const hpAfterAttack = await enemyHp.innerText();
@@ -136,20 +144,19 @@ test('mobile Full Expedition starts cleanly and restores exact combat state afte
 
 test('completed full expedition restores with an honest mobile run card', async ({ page }) => {
   const marketIds = [1, 2, 3, 4].map((value) => `0x${value.toString(16).padStart(64, '0')}`);
-  const commitments = [1, 2, 3, 4].map((value) => `0x${(value + 10).toString(16).padStart(64, '0')}`);
   const settlements = marketIds.map((marketId, index) => ({
     attemptId: `attempt_${index + 1}`,
     marketId,
     direction: index % 2 === 0 ? 'UP' as const : 'DOWN' as const,
     proofVersion: FULL_RUN_MARKET_PROOF_VERSION,
-    commitment: commitments[index],
+    commitment: null,
     outcome: 'BLESSED' as const,
   }));
   const session: FullRunSession = {
-    schema: 'market-dungeon/full-run-session/v1',
-    replay: null,
+    schema: 'market-dungeon/full-run-session/v2',
+    market: null,
     run: {
-      schema: 'market-dungeon/full-run/v2',
+      schema: 'market-dungeon/full-run/v3',
       game: {
         ...emptyGame(),
         hasStarted: true,
@@ -165,7 +172,7 @@ test('completed full expedition restores with an honest mobile run card', async 
       currentAttempt: null,
       pendingBossReward: null,
       usedMarketIds: marketIds,
-      usedCommitments: commitments,
+      usedCommitments: [],
       resolvedAttemptIds: settlements.map((settlement) => settlement.attemptId),
       settlements,
     },
@@ -290,30 +297,27 @@ test('Judge Demo rejects a malformed or direction-swapped start response before 
   await expect(page.getByRole('button', { name: 'LOCK OMEN & SEAL REPLAY' })).toBeEnabled();
 });
 
-test('full-run entry does not fetch or expose a market before a boss gate', async ({ page }) => {
+test('full-run entry fetches and exposes a five-minute reference before room one', async ({ page }) => {
   let marketRequests = 0;
+  const now = Math.floor(Date.now() / 1_000);
   await page.route('**/api/market**', async (route) => {
     marketRequests += 1;
-    await route.fulfill({ json: { market, odds: null } });
+    await route.fulfill({ json: { market: { ...market, finalized: false, status: 'Trading', tradingStart: String(now), expiry: String(now + 300) }, odds: null } });
   });
   await page.goto('/');
   await page.getByRole('button', { name: 'ENTER THE DUNGEON' }).click();
-  await expect(page.getByText('Room 1 opens. Survive forty rooms and four sealed boss fates.')).toBeVisible();
-  expect(marketRequests).toBe(0);
+  await expect(page.getByRole('heading', { name: 'Lock your omen before Room 1.' })).toBeVisible();
+  await expect(page.getByText('LIVE BTC OPENING REFERENCE')).toBeVisible();
+  await expect(page.getByText('$60,000.00')).toBeVisible();
+  expect(marketRequests).toBe(1);
 });
 
-test('full-run boss gate carries CURSED resources into a new market and releases one BLESSED relic', async ({ page }) => {
-  const markets = [1, 2].map((value) => `0x${value.toString(16).padStart(64, '0')}`);
-  const commitments = [1, 2].map((value) => `0x${(value + 20).toString(16).padStart(64, '0')}`);
-  const seals = [
-    `v2.${'A'.repeat(16)}.${'B'.repeat(43)}.${'C'.repeat(22)}`,
-    `v2.${'D'.repeat(16)}.${'E'.repeat(43)}.${'F'.repeat(22)}`,
-  ];
+test('full-run rematch locks a fresh live omen and preserves Delveworn boss identity', async ({ page }) => {
   const session: FullRunSession = {
-    schema: 'market-dungeon/full-run-session/v1',
-    replay: null,
+    schema: 'market-dungeon/full-run-session/v2',
+    market: null,
     run: {
-      schema: 'market-dungeon/full-run/v2',
+      schema: 'market-dungeon/full-run/v3',
       game: {
         ...emptyGame(),
         hasStarted: true,
@@ -323,12 +327,13 @@ test('full-run boss gate carries CURSED resources into a new market and releases
         baseMaxHp: 100,
         weaponLevel: 100,
         roomsCleared: 9,
-        monsterHp: 0,
-        monsterMaxHp: 0,
+        monsterType: 3,
+        monsterHp: 122,
+        monsterMaxHp: 122,
       },
       phase: 'boss-lock-required',
       attemptNumber: 0,
-      rematchRequired: false,
+      rematchRequired: true,
       currentAttempt: null,
       pendingBossReward: null,
       usedMarketIds: [],
@@ -341,58 +346,20 @@ test('full-run boss gate carries CURSED resources into a new market and releases
     key: FULL_RUN_STORAGE_KEY,
     value: serializeFullRunSession(session),
   });
-  let startCount = 0;
-  await page.route('**/api/full-run/replay/start', async (route) => {
-    const body = route.request().postDataJSON() as { direction: 'UP' | 'DOWN'; excludeMarketIds: string[] };
-    expect(body).toEqual({
-      direction: startCount === 0 ? 'UP' : 'DOWN',
-      excludeMarketIds: startCount === 0 ? [] : [markets[0]],
-    });
-    const index = startCount++;
-    const now = Math.floor(Date.now() / 1_000);
-    await route.fulfill({ json: { replay: {
-      seal: seals[index],
-      commitment: commitments[index],
-      lockedDirection: body.direction,
-      revealAfter: now - 1,
-      expiresAt: now + 1_800,
-    } } });
-  });
-  let revealCount = 0;
-  await page.route('**/api/full-run/replay/reveal', async (route) => {
-    const index = revealCount++;
-    expect(route.request().postDataJSON()).toEqual({ seal: seals[index] });
-    await route.fulfill({ json: { settlement: {
-      proofVersion: FULL_RUN_MARKET_PROOF_VERSION,
-      commitment: commitments[index],
-      marketId: markets[index],
-      direction: index === 0 ? 'UP' : 'DOWN',
-      outcome: index === 0 ? 'CURSED' : 'BLESSED',
-    } } });
+  const now = Math.floor(Date.now() / 1_000);
+  await page.route('**/api/market?interval=300', async (route) => {
+    await route.fulfill({ json: { market: { ...market, finalized: false, status: 'Trading', tradingStart: String(now), expiry: String(now + 300) } } });
   });
 
   await page.goto('/');
-  await expect(page.getByRole('heading', { name: 'Lock your omen before entering.' })).toBeVisible();
-  await page.getByRole('button', { name: 'LOCK BTC UP · OPEN BOSS GATE' }).click();
-  await expect(page.getByRole('heading', { name: 'Tier 1 Dungeon Lord' })).toBeVisible();
-  await page.getByRole('button', { name: /ATTACK/ }).click();
-  await page.getByRole('button', { name: 'REVEAL BOSS FATE' }).click();
-
-  await expect(page.getByRole('heading', { name: 'The boss has returned at full HP.' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'The boss is back. Lock a fresh omen.' })).toBeVisible();
   await expect(page.getByText('❤️ 100/100')).toBeVisible();
   await expect(page.getByText('CAMP BEFORE THE BOSS')).toHaveCount(0);
   await page.getByRole('button', { name: /SHADOWS RISE/ }).click();
-  await page.getByRole('button', { name: 'LOCK BTC DOWN · OPEN BOSS GATE' }).click();
+  await page.getByRole('button', { name: 'LOCK BTC DOWN · REMATCH BOSS' }).click();
+  await expect(page.getByRole('heading', { name: 'The Dungeon Lord' })).toBeVisible();
+  await expect(page.getByText('Dungeon Management · BOSS · ROOM 10')).toBeVisible();
   await expect(page.getByText('122/122')).toBeVisible();
-  await page.getByRole('button', { name: /ATTACK/ }).click();
-  await page.getByRole('button', { name: 'REVEAL BOSS FATE' }).click();
-
-  await expect(page.getByText(/BOSS RELIC/)).toBeVisible();
-  await page.getByRole('button', { name: 'CLAIM & EQUIP' }).click();
-  await expect(page.getByRole('heading', { name: /Loot secured|The path ahead is open/ })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'ENTER ROOM 11' })).toBeVisible();
-  expect(startCount).toBe(2);
-  expect(revealCount).toBe(2);
 });
 
 test('privacy, asset provenance, AI disclosure, and music credits are reachable from the game', async ({ page }) => {

@@ -1010,6 +1010,10 @@ footer a:focus-visible { outline: 2px solid #c4b5fd; outline-offset: 3px; }
   text-shadow: 0 14px 42px rgba(124, 58, 237, .2);
 }
 
+.judge-chamber-badge { display: inline-flex; align-items: center; gap: 9px; margin-top: 9px; padding: 6px 10px; border: 1px solid rgba(192,132,252,.4); border-radius: 999px; background: rgba(76,29,149,.28); }
+.judge-chamber-badge span { color: #e9d5ff; font-size: 8px; font-weight: 950; letter-spacing: .14em; }
+.judge-chamber-badge b { padding-left: 9px; border-left: 1px solid rgba(192,132,252,.3); color: #fdba74; font-size: 7px; letter-spacing: .09em; }
+
 .judge-mode .main-card,
 .judge-mode .action-dock,
 .judge-mode .judge-replay-banner,

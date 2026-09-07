@@ -1,6 +1,32 @@
 # Release and recording status — 7 September 2026
 
-## Restored Full Expedition v2 — local candidate, external gates pending
+## Active-market Full Expedition v3 — current local candidate
+
+The current working tree locks a visible active dreamDEX BTC five-minute Event
+Contract before every 10-room tier. Its real opening reference and countdown
+remain visible while the player fights. A boss defeated before expiry waits
+only for the remaining interval. A CURSED result restores only that boss at
+full HP, preserves depleted resources, and requires a fresh active five-minute
+market for the rematch. There is no historical or 15-minute fallback in the
+full game; provider or reference failure is shown honestly with retry and a
+Judge Demo link.
+
+The UI restores Delveworn's tier-specific Zombie, Goblin, Orc and boss
+personas, artwork, flavor, humorous Dungeon Log, combat-action order/colors and
+explicit relic unequip. The 45/35/20 regular-monster distribution is unchanged
+and covered by exact boundary tests. The `/judge` route remains the short
+historical cryptographic proof path and is not presented as proof of the
+40-room local-randomness run.
+
+At this checkpoint lint, TypeScript, 142 unit/integration tests, the optimized
+production build and all 38 Chromium cases pass. The full browser run found one
+outdated fixed-persona assertion after random spawning; correcting that test
+without changing product code passed its focused rerun. No new commit, push,
+Preview, Production deployment, DoraHacks update or video has been made. The
+previous Preview remains rejected. Physical owner iPhone, desktop and bounded
+live-provider checks remain required before one separately approved Preview.
+
+## Historical: restored Full Expedition v2 — rejected product direction
 
 The current working tree restores the 40-room Delveworn rules, random loot,
 shops/camps and all 15 relics. Every boss attempt locks a recently finalized

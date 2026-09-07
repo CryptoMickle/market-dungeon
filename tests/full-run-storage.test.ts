@@ -10,24 +10,28 @@ import {
 } from '../app/gameplay/full-run-storage.ts';
 
 const zero = () => 0;
-const replay = {
-  seal: `v2.${'A'.repeat(16)}.${'B'.repeat(43)}.${'C'.repeat(22)}`,
-  revealAfter: 2_000,
-  expiresAt: 3_000,
+const market = {
+  marketId: `0x${'ab'.repeat(32)}`,
+  intervalSec: 300 as const,
+  question: 'BTC closes at or above its opening price',
+  strikeUsd: '100000.00',
+  tradingStart: 1_700_000_000,
+  expiry: 1_700_000_300,
+  lockedAt: 1_700_000_001,
 };
 
 function session(): FullRunSession {
   return {
-    schema: 'market-dungeon/full-run-session/v1',
+    schema: 'market-dungeon/full-run-session/v2',
     run: createMarketDungeonRun(zero),
-    replay: null,
+    market: null,
   };
 }
 
 test('new versioned full-run session round-trips without touching the legacy profile key', () => {
   const current = session();
   assert.equal(parseFullRunSession(serializeFullRunSession(current))?.run.game.monsterHp, 30);
-  assert.equal(FULL_RUN_STORAGE_KEY, 'market-dungeon/full-run-session/v1');
+  assert.equal(FULL_RUN_STORAGE_KEY, 'market-dungeon/full-run-session/v2');
   assert.notEqual(FULL_RUN_STORAGE_KEY, 'market-dungeon/profile/v1');
 });
 
@@ -56,25 +60,25 @@ test('malformed, oversized, impossible, and unknown session states fail closed',
   })), null);
 });
 
-test('historical combat and settlement cannot resume without their matching opaque seal', () => {
+test('active tier progress cannot resume without its exact five-minute market context', () => {
   const current = session();
   const lock = {
     attemptId: 'attempt_1',
-    marketId: null,
+    marketId: market.marketId,
     direction: 'UP' as const,
-    mode: 'historical' as const,
+    mode: 'live' as const,
     proofVersion: FULL_RUN_MARKET_PROOF_VERSION,
-    commitment: `0x${'ab'.repeat(32)}`,
+    commitment: null,
   };
   const bossCombat: FullRunSession = {
     ...current,
-    replay,
+    market,
     run: {
       ...current.run,
       phase: 'boss-combat',
       attemptNumber: 1,
       currentAttempt: lock,
-      usedCommitments: [lock.commitment],
+      usedCommitments: [],
       game: {
         ...current.run.game,
         roomsCleared: 9,
@@ -85,8 +89,8 @@ test('historical combat and settlement cannot resume without their matching opaq
     },
   };
   assert.ok(parseFullRunSession(JSON.stringify(bossCombat)));
-  assert.equal(parseFullRunSession(JSON.stringify({ ...bossCombat, replay: null })), null);
-  assert.equal(parseFullRunSession(JSON.stringify({ ...bossCombat, replay: { ...replay, seal: 'tampered' } })), null);
+  assert.equal(parseFullRunSession(JSON.stringify({ ...bossCombat, market: null })), null);
+  assert.equal(parseFullRunSession(JSON.stringify({ ...bossCombat, market: { ...market, marketId: `0x${'cd'.repeat(32)}` } })), null);
 });
 
 test('tampered completed rewards and duplicate identities are rejected', () => {

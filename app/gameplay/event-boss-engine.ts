@@ -50,7 +50,7 @@ export type SettledBossAttempt = Pick<
 >;
 
 export type MarketDungeonRun = {
-  schema: 'market-dungeon/full-run/v2';
+  schema: 'market-dungeon/full-run/v3';
   game: DelvewornGame;
   phase: FullRunPhase;
   attemptNumber: number;
@@ -88,12 +88,18 @@ function rejected(run: MarketDungeonRun, reason: string): MarketDungeonTransitio
   return { run, accepted: false, reason };
 }
 
-function nextPhase(game: DelvewornGame): FullRunPhase {
+function nextPhase(game: DelvewornGame, currentAttempt: BossPredictionLock | null): FullRunPhase {
   if (!game.active) return 'dead';
   if (game.relicOfferAvailable) return 'boss-reward';
   if (game.roomsCleared >= 40) return 'complete';
-  if (game.monsterHp === 0 && game.roomsCleared > 0 && game.roomsCleared % 10 === 9) {
+  if (!currentAttempt && (
+    (game.roomsCleared === 0 && game.monsterHp > 0)
+    || (game.roomsCleared > 0 && game.roomsCleared % 10 === 0 && game.monsterHp === 0)
+  )) {
     return 'boss-lock-required';
+  }
+  if (currentAttempt && game.monsterType === 3 && game.monsterHp > 0 && game.roomsCleared % 10 === 9) {
+    return 'boss-combat';
   }
   return 'exploring';
 }
@@ -135,9 +141,9 @@ function validSettlement(settlement: VerifiedBossSettlement): boolean {
 
 export function createMarketDungeonRun(random: GameplayRandom): MarketDungeonRun {
   return {
-    schema: 'market-dungeon/full-run/v2',
+    schema: 'market-dungeon/full-run/v3',
     game: startRun(random),
-    phase: 'exploring',
+    phase: 'boss-lock-required',
     attemptNumber: 0,
     rematchRequired: false,
     currentAttempt: null,
@@ -166,21 +172,27 @@ function lockBoss(
   if (run.resolvedAttemptIds.includes(lock.attemptId)) return rejected(run, 'Attempt identifier already resolved');
 
   let game = run.game;
-  if (game.monsterHp === 0) {
+  if (run.rematchRequired) {
+    if (game.monsterType !== 3 || game.monsterHp <= 0 || game.roomsCleared % 10 !== 9) {
+      return rejected(run, 'Boss rematch state is inconsistent');
+    }
+  } else if (game.monsterHp === 0 && game.roomsCleared > 0 && game.roomsCleared % 10 === 0) {
     game = enterNextRoom(game, random);
-  } else if (game.monsterType !== 3 || game.roomsCleared % 10 !== 9) {
-    return rejected(run, 'Boss rematch state is inconsistent');
+  } else if (!(game.roomsCleared === 0 && game.monsterHp > 0 && game.monsterType !== 3)) {
+    return rejected(run, 'Tier omen state is inconsistent');
   }
-  if (game.monsterType !== 3 || game.monsterHp <= 0) return rejected(run, 'Boss did not open');
+  if (game.monsterHp <= 0) return rejected(run, 'The next encounter did not open');
+
+  const currentAttempt = { ...lock, marketId, commitment };
 
   return accepted({
     ...run,
     game,
-    phase: 'boss-combat',
+    phase: game.monsterType === 3 ? 'boss-combat' : 'exploring',
     attemptNumber: run.attemptNumber + 1,
-    currentAttempt: { ...lock, marketId, commitment },
+    currentAttempt,
     usedCommitments: commitment ? [...run.usedCommitments, commitment] : run.usedCommitments,
-  }, 'Boss prediction locked');
+  }, run.rematchRequired ? 'Rematch omen locked' : 'Tier omen locked');
 }
 
 function gameplay(
@@ -195,13 +207,13 @@ function gameplay(
   if (run.phase === 'boss-reward') {
     if (action.type !== 'claim-relic') return rejected(run, 'Claim the boss relic first');
     const game = reduceGameplay(run.game, action, random);
-    return accepted({ ...run, game, phase: nextPhase(game) }, 'Boss relic claimed');
+    return accepted({ ...run, game, phase: nextPhase(game, null) }, 'Boss relic claimed');
   }
 
   if (run.phase === 'boss-lock-required') {
     if (run.rematchRequired) return rejected(run, 'Lock a new market before the rematch');
     if (!['use-potion', 'equip-relic', 'buy'].includes(action.type)) {
-      return rejected(run, 'Lock a market before entering the boss room');
+      return rejected(run, run.rematchRequired ? 'Lock a new market before the rematch' : 'Lock an omen before entering the tier');
     }
     const game = reduceGameplay(run.game, action, random);
     return accepted({ ...run, game }, 'Pre-boss preparation applied');
@@ -211,7 +223,7 @@ function gameplay(
     if (!run.currentAttempt) return rejected(run, 'Boss combat has no bound market attempt');
     if (action.type === 'use-potion') {
       const game = drinkPotion(run.game, random);
-      return accepted({ ...run, game, phase: nextPhase(game) === 'dead' ? 'dead' : 'boss-combat' }, 'Boss combat action applied');
+      return accepted({ ...run, game, phase: nextPhase(game, run.currentAttempt) === 'dead' ? 'dead' : 'boss-combat' }, 'Boss combat action applied');
     }
     if (action.type !== 'attack' && action.type !== 'storm') {
       return rejected(run, 'Only combat actions are allowed during the boss fight');
@@ -234,9 +246,10 @@ function gameplay(
     return accepted({ ...run, game: result.game }, 'Boss combat action applied');
   }
 
+  if (!run.currentAttempt) return rejected(run, 'Lock a tier omen before exploring');
   if (action.type === 'claim-relic') return rejected(run, 'No boss relic is awaiting a claim');
   const game = reduceGameplay(run.game, action, random);
-  return accepted({ ...run, game, phase: nextPhase(game) }, 'Gameplay action applied');
+  return accepted({ ...run, game, phase: nextPhase(game, run.currentAttempt) }, 'Gameplay action applied');
 }
 
 function settleBoss(
@@ -297,7 +310,7 @@ function settleBoss(
     ...run,
     ...shared,
     game,
-    phase: nextPhase(game),
+    phase: nextPhase(game, null),
     rematchRequired: false,
   }, settlement.outcome === 'VOID'
     ? 'Voided market; ordinary boss progression granted'

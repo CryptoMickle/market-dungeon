@@ -1,83 +1,84 @@
-# Full Expedition rules — local v2 candidate
+# Full Expedition rules — active-market local candidate
 
 Status: implemented and locally verified on 7 September 2026. This document
-describes the unreleased working-tree candidate, not the currently deployed
-Vercel build.
+describes the unreleased working-tree candidate. The earlier public Preview is
+rejected and does not represent these rules.
 
 ## Run structure
 
-- A run contains 40 rooms and four tiers. Rooms 10, 20, 30 and 40 are bosses.
+- One run contains 40 rooms in four tiers. Rooms 10, 20, 30 and 40 are bosses.
 - A new run starts with 100 HP, three potions, zero gold, weapon level zero,
-  armor level zero and no relic. The earlier cross-run gold/profile behavior is
-  not used by this mode; its old browser key is left untouched.
-- Non-boss rooms draw Zombie, Goblin or Orc at the frozen Delveworn
-  probabilities. Enemy health, damage, combat, critical hits, armor, potions,
-  loot, supply stops and camps follow the ported Delveworn Practice rules.
-- All 15 Delveworn relics are available. One relic can be equipped at a time;
-  duplicates are counted but effects do not stack. A relic revive is usable
-  once per run and remains spent through a market-forced boss rematch.
+  armor level zero and no relic.
+- Regular rooms use the frozen Delveworn 45% Zombie, 35% Goblin and 20% Orc
+  distribution. Each tier uses its own Delveworn persona, artwork, flavor and
+  Dungeon Log copy rather than repeating the Tier 1 character.
+- Health, damage, critical hits, armor, potions, random loot, supply stops,
+  camps and all 15 relics follow the ported Delveworn Practice rules. One relic
+  can be active at a time and can be explicitly unequipped between rooms.
+- A relic revive is usable once per run and remains spent through a boss
+  rematch.
 
-The exact formulas and deterministic parity vectors live in
-`app/gameplay/` and `tests/delveworn-gameplay-parity.test.ts`.
+The exact formulas and deterministic parity vectors live in `app/gameplay/`
+and `tests/delveworn-gameplay-parity.test.ts`.
 
-## Event Contract boss gate
+## Active five-minute omen loop
 
-1. Rooms before a boss remain playable without market availability.
-2. At each boss gate, the player chooses BTC UP or DOWN first.
-3. The server then selects a recent finalized dreamDEX Event Contract from a
-   balanced historical pool. Its market identity and result remain inside an
-   opaque seal until the boss is defeated. No wallet, order or transaction is
-   requested.
-4. The boss must be defeated through the full Delveworn combat rules before
-   the sealed market can be revealed and checked against Somnia.
+1. Before Room 1—and again before Rooms 11, 21 and 31—the player chooses BTC
+   UP or DOWN against a currently active dreamDEX BTC five-minute Event
+   Contract. Its real opening/reference price and remaining time are visible.
+2. The exact market ID and direction are stored with the browser-local run.
+   This is a local game lock, not a server-signed Judge receipt and not a trade.
+3. The five-minute interval continues while the player fights Rooms 1–10 of
+   that tier. No initial waiting period is added.
+4. When the boss reaches zero HP, settlement can be checked immediately if the
+   interval has ended. If it is still active, the player waits only for the
+   remaining time.
+5. The result is applied only after the indexed terminal state matches a strict
+   direct Somnia settlement proof and the browser independently reproduces the
+   canonical block and both raw contract calls.
+
+If no active five-minute market with a valid BTC opening reference is
+available, the full run fails closed with a retry and a link to the historical
+Judge Demo. It never silently substitutes a historical or 15-minute market.
 
 ### Settlement consequences
 
-- **BLESSED:** the prediction matches. The ordinary boss gold, random loot and
-  one relic are granted exactly once, then the next tier opens.
-- **CURSED:** the prediction misses. No boss reward is granted. The same boss
-  returns at full scaled HP; the player retains current HP, potions, gold,
-  equipment, relics and used-revive state. Camp does not reopen. A different
-  Event Contract must be sealed before the rematch.
-- **VOID:** the player is not penalized. Ordinary boss reward and progression
+- **BLESSED:** the prediction matches. Ordinary boss gold, random loot and one
+  relic are granted exactly once, then the next tier's fresh omen screen opens.
+- **CURSED:** no boss reward is granted. Only the same boss returns at full
+  scaled HP. Current HP, potions, gold, equipment, relics and spent revive are
+  preserved; camp does not reopen. The player locks a different active
+  five-minute market and fights the boss again while that interval runs.
+- **VOID:** the player is not penalized; ordinary boss reward and progression
   are granted.
-- **Unavailable, pending or not provable:** the run remains frozen without a
-  win, loss, replacement result or resource change. The same reveal can be
-  retried safely.
+- **Pending, unavailable or not provable:** the defeated boss and run remain
+  frozen without a win, loss or resource change. Verification can be retried.
 
-There is no separate 50-gold prediction bonus and no hidden rematch limit.
+There is no separate prediction-gold bonus and no hidden rematch limit.
 Ordinary combat death still ends the run.
 
-## Proof and mode boundary
+## Judge boundary
 
-The full expedition uses local gameplay randomness and verified historical
-Event Contract settlement. The separate `/judge` route remains the legacy
-two-encounter `judge-combat/v1` proof walkthrough. Its deterministic combat
-proof does not claim to prove the 40-room run. The full-run reveal response is
-explicitly scoped to `historical-event-contract-settlement` and exports no
-`combatProof` field.
-
-The full-run candidate does not currently expose the earlier live-market mode.
-That is a deliberate stability boundary for this unreleased candidate, not a
-claim that live dreamDEX markets no longer exist. The Judge page may still show
-separate live context when its public data source is available.
+The separate `/judge` route remains the two-encounter historical Judge Replay.
+It demonstrates a server-authenticated pre-selection lock, deterministic combat
+replay, commitment verification and hash-pinned Somnia settlement proof in
+about two minutes. It does not claim that its combat proof covers the local
+40-room run. Conversely, the full expedition calls its omen lock local and
+claims direct proof only for the final dreamDEX settlement.
 
 ## Persistence and sharing
 
-- Full-run state is stored in the versioned browser-local key
-  `market-dungeon/full-run-session/v1` and validated before restore.
-- A historical boss fight or pending settlement restores only together with
-  its matching opaque seal. Malformed or impossible stored state fails closed.
-- Completed expeditions, and defeats after at least one market lock, can render
-  the existing 1200×675 run card with actual room, enemies, gold and direction.
-  The card is a social summary, not portable proof. Judge proof JSON and the
-  independent verifier remain separate Judge-only evidence.
+- Full-run state uses `market-dungeon/full-run-session/v2`. The exact active
+  five-minute market context must accompany every live attempt; malformed or
+  mismatched state fails closed.
+- Completed expeditions and relevant defeats can render the 1200×675 run card
+  with actual room, enemies, gold and direction. The card is a social summary,
+  not portable proof. Judge proof JSON and `/verify` remain Judge-only evidence.
 
 ## Verification record
 
-At the local candidate checkpoint: 141/141 unit tests, 7/7 Shannon proof-kernel
-tests and 38/38 Chromium tests passed; lint, TypeScript and the optimized
-production build also passed. A 390×844 browser check found no horizontal
-overflow and confirmed exact combat restoration after reload. Physical iPhone
-acceptance, public Preview, live-provider smoke and independent human testing
-remain external gates.
+At this checkpoint: 142/142 unit tests, the optimized production build and
+38/38 Chromium checks pass (the one updated mobile assertion was corrected and
+rerun after the full suite). Lint and TypeScript pass. No new Vercel Preview has
+been created; physical iPhone and desktop acceptance plus live-provider smoke
+remain release gates.

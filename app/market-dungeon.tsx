@@ -1496,8 +1496,9 @@ function LegacyMarketDungeon({
         <header className="game-header">
           <p className="eyebrow">DELVEWORN · EVENT CONTRACTS EDITION</p>
           <h1>MARKET DUNGEON</h1>
+          {judgeMode && <div className="judge-chamber-badge"><span>JUDGE PROOF CHAMBER</span><b>2 ENCOUNTERS · 5 VERIFICATION STEPS</b></div>}
           <p className="subtitle">{subtitle}</p>
-          <div className="safety-line"><span className="live-dot" /> {shannonJudge ? 'SHANNON TESTNET' : 'SOMNIA MAINNET'} <i /> {shannonJudge ? 'HISTORICAL DREAMDEX REPLAY' : 'LIVE DREAMDEX DATA'} <i /> NO TRANSACTIONS</div>
+          <div className="safety-line"><span className="live-dot" /> {shannonJudge ? 'SHANNON TESTNET' : 'SOMNIA MAINNET'} <i /> {judgeMode ? shannonJudge ? 'HISTORICAL DREAMDEX REPLAY' : 'HISTORICAL PROOF · LIVE CONTEXT' : 'LIVE DREAMDEX DATA'} <i /> NO TRANSACTIONS</div>
         </header>
 
         {phase === 'SETUP' && (

@@ -31,10 +31,10 @@ for Event Contracts, backed by independently reproducible Somnia evidence**.
 
 ## Product surfaces that must not be confused
 
-- **Full expedition:** the complete four-tier roguelite. It prefers a fresh BTC
-  5-minute Event Contract for each tier, falls back to 15 minutes when needed,
-  and demonstrates progression, resources, merchants, combat, and repeated
-  market exposure.
+- **Full expedition:** the complete four-tier roguelite. It requires a fresh
+  active BTC 5-minute Event Contract before each tier and CURSED rematch, with
+  no silent historical or 15-minute fallback, and demonstrates progression,
+  resources, merchants, combat, and repeated market exposure.
 - **Judge replay:** a short, finalized historical replay selected only after the
   player locks a direction. It exists so a judge can see the entire commitment,
   combat, settlement, proof-export, and verification loop without waiting for a
@@ -89,7 +89,7 @@ candidate before the video is captured.
 - [x] A ten-second thesis and category position are frozen.
 - [x] Exactly five judge-facing claims are defined, one per official criterion.
 - [x] Full expedition and short Judge replay are explicitly distinguished.
-- [x] Read-only, historical-replay, analytics, and trading-volume boundaries are explicit.
+- [x] Read-only, active-full-game, historical-Judge, analytics, and trading-volume boundaries are explicit.
 - [x] The no-go list prevents late feature expansion and contradictory claims.
 - [x] Every current product claim maps to an existing route, release artifact,
       test surface, or measurement contract; future evidence is labeled as a

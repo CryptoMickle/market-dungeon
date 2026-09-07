@@ -5,6 +5,13 @@ import {
   getRelicMaxHpModifier,
   RELIC_MIN_MAX_HP,
 } from './relics.ts';
+import {
+  attackLogs,
+  defeatLogs,
+  encounterLog,
+  getDelvewornPersona,
+  stormLogs,
+} from './delveworn-personas.ts';
 
 // Gameplay-only port of Delveworn practice mode at commit
 // 00932e83dc89af85b2f3986a08bca2c5b6e6bc1c. Presentation copy deliberately
@@ -262,7 +269,7 @@ function spawnMonster(state: DelvewornGame, random: GameplayRandom): DelvewornGa
     lastPlayerDamage: 0,
     lastMonsterDamage: 0,
     lastCritical: false,
-  }, `Entered room ${room}: ${MONSTER_NAMES[monsterType]}.`);
+  }, ...encounterLog(monsterType, room));
 }
 
 function takeDamage(state: DelvewornGame, damage: number): DelvewornGame {
@@ -395,7 +402,7 @@ function defeatMonster(
       campPotionsBought: 0,
     };
   }
-  return withLog(next, `${MONSTER_NAMES[state.monsterType]} defeated.`, `Base reward: ${reward} gold.`);
+  return withLog(next, ...defeatLogs(state.monsterType, room, reward));
 }
 
 export function startRun(random: GameplayRandom = cryptoRandom): DelvewornGame {
@@ -438,7 +445,7 @@ export function attackTransition(
   const incoming = rollMonsterDamage(next, random);
   const wasReviveUnused = !state.relicReviveUsed;
   next = takeDamage({ ...next, lastMonsterDamage: incoming }, incoming);
-  const messages = [`Attack dealt ${actual}.`, `Enemy dealt ${incoming}.`];
+  const messages = attackLogs(state.monsterType, state.roomsCleared + 1, actual, incoming, critical);
   if (wasReviveUnused && next.relicReviveUsed) {
     messages.push(`${getRelicDefinition(next.equippedRelic).name} revived you.`);
   }
@@ -472,7 +479,13 @@ export function stormTransition(
   next = { ...next, monsterHp: state.monsterHp - damage };
   const incoming = rollMonsterDamage(next, random);
   next = takeDamage({ ...next, lastMonsterDamage: incoming }, incoming);
-  return { game: withLog(next, `Storm dealt ${actual}.`, `Enemy dealt ${incoming}.`), deferredBossReward: null };
+  return {
+    game: withLog(
+      next,
+      ...stormLogs(state.monsterType, state.roomsCleared + 1, actual, maximum, incoming),
+    ),
+    deferredBossReward: null,
+  };
 }
 
 export function drinkPotion(state: DelvewornGame, random: GameplayRandom = cryptoRandom): DelvewornGame {
@@ -488,7 +501,7 @@ export function drinkPotion(state: DelvewornGame, random: GameplayRandom = crypt
       lastPlayerDamage: 0,
       lastMonsterDamage: 0,
       lastCritical: false,
-    }, `Potion restored ${hp - state.hp} HP.`);
+    }, `🧪 Potion restores ${hp - state.hp} HP. The label remains legally vague.`);
   }
   const limit = state.monsterType === 3 ? 3 : 2;
   if (state.combatPotionsUsed >= limit) return withLog(state, 'Combat potion limit reached.');
@@ -504,7 +517,8 @@ export function drinkPotion(state: DelvewornGame, random: GameplayRandom = crypt
     lastCritical: false,
   };
   if (hp === 0) next = takeDamage(next, 0);
-  return withLog(next, `Potion used; enemy dealt ${incoming}.`);
+  const persona = getDelvewornPersona(state.monsterType, state.roomsCleared + 1);
+  return withLog(next, `🧪 Potion used. ${persona.name} deals ${incoming} DAMAGE while you negotiate with the cork.`);
 }
 
 export function enterNextRoom(state: DelvewornGame, random: GameplayRandom = cryptoRandom): DelvewornGame {
@@ -537,7 +551,11 @@ export function claimRelic(state: DelvewornGame, equip: boolean): DelvewornGame 
     relicOfferRarity: 0,
     relicOfferId: 0,
   };
-  return equip ? equipRelic(acquired, relicId, !alreadyOwned) : acquired;
+  const relic = getRelicDefinition(relicId);
+  return withLog(
+    equip ? equipRelic(acquired, relicId, !alreadyOwned) : acquired,
+    equip ? `◆ ${relic.name} equipped. This seems powerful and therefore suspicious.` : `◆ ${relic.name} added to the collection. Kevin files the receipt.`,
+  );
 }
 
 export function equipOwnedRelic(state: DelvewornGame, relicId: number): DelvewornGame {
@@ -545,7 +563,10 @@ export function equipOwnedRelic(state: DelvewornGame, relicId: number): Delvewor
   if (state.monsterHp > 0) return withLog(state, 'Relics can only be changed between rooms.');
   if (relicId !== 0 && !state.ownedRelics.includes(relicId)) return withLog(state, 'You do not own that relic.');
   if (relicId === state.equippedRelic) return state;
-  return equipRelic(state, relicId, false);
+  return withLog(
+    equipRelic(state, relicId, false),
+    relicId === 0 ? '◇ Active relic unequipped. You feel responsibly ordinary.' : `◆ ${getRelicDefinition(relicId).name} equipped.`,
+  );
 }
 
 export function supplyAvailable(state: DelvewornGame): boolean {

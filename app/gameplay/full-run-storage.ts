@@ -7,23 +7,26 @@ import type {
 import type { DeferredBossReward, DelvewornGame } from './delveworn-engine.ts';
 import { getMaxHpForRelic } from './relics.ts';
 
-export const FULL_RUN_STORAGE_KEY = 'market-dungeon/full-run-session/v1';
+export const FULL_RUN_STORAGE_KEY = 'market-dungeon/full-run-session/v2';
 
-export type ActiveHistoricalReplay = {
-  seal: string;
-  revealAfter: number;
-  expiresAt: number;
+export type ActiveLiveMarket = {
+  marketId: string;
+  intervalSec: 300;
+  question: string;
+  strikeUsd: string;
+  tradingStart: number;
+  expiry: number;
+  lockedAt: number;
 };
 
 export type FullRunSession = {
-  schema: 'market-dungeon/full-run-session/v1';
+  schema: 'market-dungeon/full-run-session/v2';
   run: MarketDungeonRun;
-  replay: ActiveHistoricalReplay | null;
+  market: ActiveLiveMarket | null;
 };
 
 const HEX_32 = /^0x[0-9a-f]{64}$/;
 const ATTEMPT_ID = /^[A-Za-z0-9_-]{8,128}$/;
-const SEAL = /^v[23]\.[A-Za-z0-9_-]{16}\.[A-Za-z0-9_-]{43,4000}\.[A-Za-z0-9_-]{22}$/;
 const PHASES: FullRunPhase[] = [
   'exploring', 'boss-lock-required', 'boss-combat', 'settlement-pending',
   'boss-reward', 'complete', 'dead',
@@ -121,7 +124,7 @@ function validGame(value: unknown): value is DelvewornGame {
 
 function validRun(value: unknown): value is MarketDungeonRun {
   if (!record(value)
-    || value.schema !== 'market-dungeon/full-run/v2'
+    || value.schema !== 'market-dungeon/full-run/v3'
     || !validGame(value.game)
     || !PHASES.includes(value.phase as FullRunPhase)
     || !integer(value.attemptNumber, 0, 10_000)
@@ -149,20 +152,20 @@ function validRun(value: unknown): value is MarketDungeonRun {
     || run.settlements.filter((settlement) => settlement.outcome !== 'CURSED').length !== Math.floor(run.game.roomsCleared / 10)
     || (run.currentAttempt !== null && run.resolvedAttemptIds.includes(run.currentAttempt.attemptId))) return false;
 
-  if (run.phase === 'boss-combat') return run.currentAttempt !== null && run.pendingBossReward === null && run.game.monsterType === 3 && run.game.monsterHp > 0 && run.game.roomsCleared % 10 === 9;
+  if (run.phase === 'boss-combat') return run.currentAttempt?.mode === 'live' && run.pendingBossReward === null && run.game.monsterType === 3 && run.game.monsterHp > 0 && run.game.roomsCleared % 10 === 9;
   if (run.phase === 'settlement-pending') return run.currentAttempt !== null && run.pendingBossReward !== null && run.game.monsterType === 3 && run.game.monsterHp === 0 && run.game.roomsCleared % 10 === 9;
   if (run.phase === 'boss-reward') return run.currentAttempt === null && run.pendingBossReward === null && run.game.relicOfferAvailable && run.game.roomsCleared > 0 && run.game.roomsCleared % 10 === 0;
   if (run.phase === 'boss-lock-required') {
     return run.currentAttempt === null
       && run.pendingBossReward === null
-      && run.game.roomsCleared % 10 === 9
       && (run.rematchRequired
-        ? run.game.monsterType === 3 && run.game.monsterHp === run.game.monsterMaxHp && run.game.monsterHp > 0
-        : run.game.monsterHp === 0);
+        ? run.game.roomsCleared % 10 === 9 && run.game.monsterType === 3 && run.game.monsterHp === run.game.monsterMaxHp && run.game.monsterHp > 0
+        : (run.game.roomsCleared === 0 && run.game.monsterType !== 3 && run.game.monsterHp > 0)
+          || (run.game.roomsCleared > 0 && run.game.roomsCleared < 40 && run.game.roomsCleared % 10 === 0 && run.game.monsterHp === 0));
   }
   if (run.phase === 'dead') return !run.game.active;
   if (run.phase === 'complete') return run.game.roomsCleared === 40 && !run.game.relicOfferAvailable && run.currentAttempt === null;
-  return run.currentAttempt === null
+  return run.currentAttempt?.mode === 'live'
     && run.pendingBossReward === null
     && run.game.active
     && !run.game.relicOfferAvailable
@@ -170,12 +173,18 @@ function validRun(value: unknown): value is MarketDungeonRun {
     && (run.game.monsterHp === 0 || run.game.monsterType !== 3);
 }
 
-function validReplay(value: unknown): value is ActiveHistoricalReplay {
+function validMarket(value: unknown): value is ActiveLiveMarket {
   return record(value)
-    && typeof value.seal === 'string' && SEAL.test(value.seal)
-    && integer(value.revealAfter, 1, Number.MAX_SAFE_INTEGER)
-    && integer(value.expiresAt, 1, Number.MAX_SAFE_INTEGER)
-    && Number(value.revealAfter) < Number(value.expiresAt);
+    && typeof value.marketId === 'string' && HEX_32.test(value.marketId)
+    && value.intervalSec === 300
+    && typeof value.question === 'string' && value.question.length > 0 && value.question.length <= 500
+    && typeof value.strikeUsd === 'string' && /^(?:0|[1-9]\d{0,11})(?:\.\d{1,8})?$/.test(value.strikeUsd)
+    && Number(value.strikeUsd) > 0
+    && integer(value.tradingStart, 1, Number.MAX_SAFE_INTEGER)
+    && integer(value.expiry, 1, Number.MAX_SAFE_INTEGER)
+    && integer(value.lockedAt, 1, Number.MAX_SAFE_INTEGER)
+    && Number(value.tradingStart) < Number(value.expiry)
+    && Number(value.lockedAt) < Number(value.expiry);
 }
 
 export function parseFullRunSession(raw: string | null): FullRunSession | null {
@@ -183,13 +192,13 @@ export function parseFullRunSession(raw: string | null): FullRunSession | null {
   try {
     const value = JSON.parse(raw) as unknown;
     if (!record(value)
-      || value.schema !== 'market-dungeon/full-run-session/v1'
+      || value.schema !== 'market-dungeon/full-run-session/v2'
       || !validRun(value.run)
-      || !(value.replay === null || validReplay(value.replay))) return null;
+      || !(value.market === null || validMarket(value.market))) return null;
     const session = value as unknown as FullRunSession;
-    const needsReplay = session.run.currentAttempt?.mode === 'historical'
-      && (session.run.phase === 'boss-combat' || session.run.phase === 'settlement-pending');
-    if (needsReplay !== (session.replay !== null)) return null;
+    const needsMarket = session.run.currentAttempt?.mode === 'live';
+    if (needsMarket !== (session.market !== null)) return null;
+    if (session.market && session.run.currentAttempt?.marketId !== session.market.marketId) return null;
     return session;
   } catch {
     return null;

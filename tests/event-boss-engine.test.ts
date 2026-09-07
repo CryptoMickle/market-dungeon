@@ -28,18 +28,14 @@ function marketId(number: number): string {
   return `0x${number.toString(16).padStart(64, '0')}`;
 }
 
-function commitment(number: number): string {
-  return `0x${(number + 100).toString(16).padStart(64, '0')}`;
-}
-
 function lock(number: number): BossPredictionLock {
   return {
     attemptId: `attempt_${number}`,
-    marketId: null,
+    marketId: marketId(number),
     direction: number % 2 === 0 ? 'DOWN' : 'UP',
-    mode: 'historical',
+    mode: 'live',
     proofVersion: FULL_RUN_MARKET_PROOF_VERSION,
-    commitment: commitment(number),
+    commitment: null,
   };
 }
 
@@ -48,13 +44,15 @@ function nearBoss(overrides: Partial<ReturnType<typeof emptyGame>> = {}): Market
   return {
     ...run,
     phase: 'boss-lock-required',
+    rematchRequired: true,
     game: {
       ...emptyGame(),
       hasStarted: true,
       active: true,
       roomsCleared: 9,
-      monsterHp: 0,
-      monsterMaxHp: 0,
+      monsterType: 3,
+      monsterHp: 122,
+      monsterMaxHp: 122,
       ...overrides,
     },
   };
@@ -116,7 +114,7 @@ test('BLESSED grants exactly one ordinary boss reward and relic after a bound at
     type: 'gameplay',
     action: { type: 'claim-relic', equip: false },
   }, noRolls());
-  assert.equal(claimed.run.phase, 'exploring');
+  assert.equal(claimed.run.phase, 'boss-lock-required');
   assert.deepEqual(claimed.run.game.ownedRelics, [1]);
 });
 
@@ -236,17 +234,29 @@ test('combat death ends the run and a spent revive remains spent across a rematc
   assert.deepEqual([death.run.phase, death.run.game.active, death.run.game.hp], ['dead', false, 0]);
 });
 
-test('historical locks require canonical, unique market and commitment bindings', () => {
+test('live locks require a canonical market identity before combat', () => {
   const run = nearBoss();
   const malformed = transitionMarketDungeon(run, {
     type: 'lock-boss',
-    lock: { ...lock(1), commitment: null },
+    lock: { ...lock(1), marketId: null },
   }, noRolls());
   assert.equal(malformed.accepted, false);
 
   const locked = applyLock(run, 1);
-  assert.equal(locked.currentAttempt?.marketId, null);
-  assert.equal(locked.currentAttempt?.commitment, commitment(1));
+  assert.equal(locked.currentAttempt?.marketId, marketId(1));
+  assert.equal(locked.currentAttempt?.commitment, null);
   assert.equal(locked.currentAttempt?.proofVersion, FULL_RUN_MARKET_PROOF_VERSION);
   assert.equal(locked.game.monsterHp, 122);
+});
+
+test('a live omen is locked before room one and remains bound through the tier', () => {
+  const fresh = createMarketDungeonRun(sequence(0));
+  assert.equal(fresh.phase, 'boss-lock-required');
+  assert.equal(fresh.game.roomsCleared, 0);
+  assert.equal(fresh.game.monsterHp, 30);
+
+  const opened = transitionMarketDungeon(fresh, { type: 'lock-boss', lock: lock(1) }, noRolls());
+  assert.equal(opened.accepted, true, opened.reason);
+  assert.equal(opened.run.phase, 'exploring');
+  assert.equal(opened.run.currentAttempt?.marketId, marketId(1));
 });

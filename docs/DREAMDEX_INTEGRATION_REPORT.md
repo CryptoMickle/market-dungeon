@@ -1,6 +1,6 @@
 # dreamDEX Integration Report
 
-Released implementation snapshot: 7 September 2026, v11. Local candidate addendum: restored Full Expedition v2.
+Released implementation snapshot: 7 September 2026, v11. Local candidate addendum: active-market Full Expedition v3.
 
 Status: **The published baseline is `hackathon-submission-2026-v11`, commit
 `f30b9a56532eb6e3147e7ae8473242545635d0ef`. It includes read-only mainnet
@@ -22,8 +22,8 @@ This document also serves as the hackathon submission's optional SDK and documen
 
 ## Judge summary
 
-- The released v11 surface includes active BTC market discovery and official-SDK CLOB context. The local restored full expedition instead starts immediately and selects a finalized historical Event Contract only after the player chooses at each boss gate.
-- The local full-run path prefers a balanced recent 5-minute replay pool and falls back to 15 minutes; market identity and result stay sealed until the full-strength boss is defeated.
+- The released v11 surface includes active BTC market discovery and official-SDK CLOB context. The local full expedition now requires an active BTC five-minute market with a valid opening reference before every tier and CURSED rematch.
+- The exact market and direction remain bound to the browser-local run while its interval proceeds during combat. There is no silent 15-minute or historical fallback in Full Expedition.
 - The Judge Replay locks the player's direction before a balanced, cryptographically random finalized market is selected.
 - The selected market and direction are authenticated inside an AES-256-GCM seal; the browser receives no identifying market metadata before reveal.
 - The reveal route deterministically replays the bounded combat transcript and rejects the request unless both the guard and boss were defeated and the player survived.
@@ -89,23 +89,24 @@ At reveal, the authenticated seal supplies the committed market ID and metadata 
 
 The lightweight live-settlement lookup requests only `marketId`, `clobStatus`, `finalized`, `voided`, `winningOutcome`, `payoutNumerators`, `payoutDenominator`, and `resolvedAtTimestamp`.
 
-### Restored full-expedition settlement adapter — local candidate
+### Active full-expedition settlement adapter — local candidate
 
-The full expedition reuses the hardened historical selection and seal format
-through separate `/api/full-run/replay/start` and
-`/api/full-run/replay/reveal` routes. Start additionally accepts at most 40
-canonical, unique previously revealed market IDs so a CURSED rematch cannot
-reuse an earlier Event Contract. The standard Judge start schema remains
-unchanged and rejects that extension.
+Full Expedition calls `/api/market?interval=300` before Rooms 1, 11, 21 and 31
+and before every CURSED rematch. The explicit query accepts only 300 seconds;
+if no active BTC five-minute market or valid opening reference is available,
+the UI fails closed with retry and a link to Judge Demo. The selected market ID,
+opening reference, trading window and direction are persisted locally with the
+run. This is deliberately described as a local gameplay lock, not the
+server-authenticated Judge receipt.
 
-The full-run reveal request contains only the opaque seal and is capped at
-4 KiB. It enforces the same anti-peek hold, expiry, rate limit, authenticated
-claims and Somnia settlement hydration. Its response labels the proof scope as
-`historical-event-contract-settlement` and intentionally contains no
-`combatProof`: the 40-room gameplay uses local randomness and is not passed off
-as the deterministic Judge-v1 transcript. BLESSED, CURSED and VOID are applied
-only after the returned market ID, commitment, direction and proof version
-match the active boss attempt. Provider errors leave the run frozen for retry.
+Combat proceeds while the market is live. After the boss falls, the UI waits
+only until the recorded expiry and fetches the same ID through
+`/api/market?marketId=…`. BLESSED, CURSED or VOID is applied only when a strict
+direct settlement proof matches that market and the browser independently
+re-fetches the canonical block plus both exact Somnia contract results. Pending
+or unavailable proof leaves the boss down and the run frozen for safe retry.
+The retained `/api/full-run/replay/*` source is a pre-release historical
+adapter and is not called by the active Full Expedition.
 
 ## Chain 5031 and RPC verification
 
@@ -127,8 +128,8 @@ The build's revealed proof includes the RPC verification snapshot block number/h
 
 ## Metadata, settlement, and combat boundaries
 
-- Active-market metadata remains available to the released legacy surface and as separate Judge-page context. It does not drive the local restored full expedition.
-- The restored full expedition exposes no selected market identity before a boss choice and seal. A different verified historical market is required after every CURSED result.
+- Active-market metadata drives the local Full Expedition. The player sees the opening reference and remaining five-minute interval before choosing a tier omen.
+- The exact selected market and direction are bound locally through the tier. A different active five-minute market is required after every CURSED result.
 - Judge Replay returns no selected replay market identifier, address, strike, expiry, or outcome before reveal. Those values are authenticated inside an AES-256-GCM seal under a server-only environment key.
 - The start route also signs an Ed25519 receipt over the salted commitment, locked direction, and lock-window timestamps. The browser verifies that receipt against the fixed same-origin public-key endpoint before accepting the lock, and reveal must return the byte-identical receipt. This prevents a client from fabricating a post-hoc portable proof, but it is a Market Dungeon server authentication boundary—not an external timestamp, decentralized attestation, or proof of server honesty.
 - The version-2 pre-reveal SHA-256 commitment binds market ID, binary/BTC template, interval, canonical question, trading window, finalized status, trade count, last trade, operator, venue, context, oracle question ID, creator, creation transaction, recorded outcome, locked direction, independent `gameSeed`, replay timestamps, and a hidden random salt.

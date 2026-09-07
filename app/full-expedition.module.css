@@ -33,6 +33,11 @@
 .hud strong { display: block; margin-top: 5px; overflow: hidden; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
 .hud i { display: block; height: 3px; margin-top: 6px; overflow: hidden; border-radius: 9px; background: #27272a; }
 .hud i b { display: block; height: 100%; background: #34d399; }
+.omenStrip { display: grid; grid-template-columns: 1.35fr 1fr .7fr; margin-bottom: 10px; overflow: hidden; border: 1px solid #6d28d9; border-radius: 14px; background: linear-gradient(135deg,rgba(76,29,149,.38),rgba(17,15,24,.98)); }
+.omenStrip > div { min-width: 0; padding: 11px; border-right: 1px solid rgba(139,92,246,.25); }
+.omenStrip > div:last-child { border-right: 0; }
+.omenStrip span { display: block; color: #a78bfa; font-size: 7px; font-weight: 950; letter-spacing: .12em; }
+.omenStrip strong { display: block; margin-top: 5px; overflow: hidden; font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
 .gold { display: inline-block !important; width: 1.15em; height: 1.15em; vertical-align: -.18em; background: url('/assets/delveworn-gold-coin.webp') center/contain no-repeat; }
 .panel { margin-bottom: 10px; }
 .encounterArt { position: relative; aspect-ratio: 16/8.3; background: #0c0a09; border-bottom: 1px solid #352c28; }
@@ -42,6 +47,7 @@
 .encounterCopy, .cleared { padding: 20px; }
 .encounterCopy > p, .cleared > p { margin: 0; color: #fb923c; font-size: 8px; font-weight: 950; letter-spacing: .2em; }
 .encounterCopy h2, .cleared h2 { margin: 7px 0 0; font-size: 27px; letter-spacing: -.03em; }
+.encounterCopy blockquote { margin: 8px 0 0; color: #a1a1aa; font-size: 11px; font-style: italic; line-height: 1.45; }
 .enemyBar { margin-top: 17px; }
 .enemyBar > b { float: right; margin-top: -10px; font-size: 11px; }
 .enemyBar i { display: block; clear: both; height: 7px; margin-top: 8px; overflow: hidden; border-radius: 99px; background: #27272a; }
@@ -49,10 +55,14 @@
 .ranges { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px; }
 .ranges div { padding: 10px; border: 1px solid #29292f; border-radius: 10px; background: rgba(0,0,0,.24); }
 .ranges b { display: block; margin-top: 5px; font-size: 13px; }
-.actions { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; margin-top: 15px; }
-.actions button { min-height: 66px; padding: 11px; border: 1px solid #3f3f46; border-radius: 11px; background: #18181b; color: white; cursor: pointer; text-align: left; }
-.actions button:last-child { grid-column: 1/-1; }
-.actions button:hover:not(:disabled) { border-color: #f97316; background: #231a16; }
+.actions { position: sticky; bottom: 8px; z-index: 40; display: grid; grid-template-columns: repeat(3,1fr); gap: 9px; margin: 0 0 10px; padding: 10px; border: 1px solid #3f3f46; border-radius: 15px; background: rgba(9,9,11,.95); backdrop-filter: blur(18px); box-shadow: 0 18px 44px rgba(0,0,0,.5); }
+.actions button { min-height: 66px; padding: 11px; border: 0; border-radius: 11px; cursor: pointer; text-align: left; }
+.actions .stormAction { background: #6d28d9; color: white; }
+.actions .potionAction { border: 1px solid rgba(167,243,208,.8); background: linear-gradient(145deg,#fff,#d1fae5); color: #064e3b; }
+.actions .attackAction { background: #f97316; color: #09090b; }
+.actions .stormAction:hover:not(:disabled) { background: #7c3aed; }
+.actions .potionAction:hover:not(:disabled) { background: #ecfdf5; }
+.actions .attackAction:hover:not(:disabled) { background: #fb923c; }
 .actions b, .actions small { display: block; }
 .actions b { font-size: 11px; }
 .actions small { margin-top: 5px; color: #8f8f99; font-size: 8px; line-height: 1.35; }
@@ -67,6 +77,17 @@
 .predictions .upSelected { border-color: #10b981; background: rgba(6,78,59,.35); }
 .predictions .downSelected { border-color: #e11d48; background: rgba(136,19,55,.28); }
 .oraclePanel .primary { border-color: #a855f7; background: linear-gradient(135deg,#7c3aed,#c026d3); box-shadow: 0 14px 34px rgba(126,34,206,.3); }
+.marketReference { display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; margin-top: 18px; padding: 14px; border: 1px solid #0369a1; border-radius: 13px; background: rgba(8,47,73,.38); text-align: left; }
+.marketReference span { color: #7dd3fc; font-size: 8px; font-weight: 950; letter-spacing: .13em; }
+.marketReference strong { grid-column: 1; font-size: 24px; }
+.marketReference b { grid-column: 2; grid-row: 1/3; align-self: center; color: #67e8f9; font-size: 9px; }
+.marketReference small { grid-column: 1/-1; color: #94a3b8; font-size: 9px; line-height: 1.4; }
+.marketLoading { margin-top: 18px; padding: 17px; border: 1px solid #3f3f46; border-radius: 13px; color: #a1a1aa; font-size: 9px; font-weight: 900; letter-spacing: .08em; }
+.marketUnavailable { display: grid; gap: 8px; margin-top: 18px; padding: 14px; border: 1px solid #9f1239; border-radius: 13px; background: rgba(76,5,25,.3); text-align: left; }
+.marketUnavailable b { color: #fda4af; font-size: 9px; letter-spacing: .08em; }
+.marketUnavailable span { color: #a1a1aa; font-size: 9px; line-height: 1.4; }
+.marketUnavailable button { min-height: 38px; border: 1px solid #be123c; border-radius: 9px; background: #4c0519; color: white; font-size: 8px; font-weight: 950; }
+.marketUnavailable a { color: #c4b5fd; font-size: 8px; font-weight: 900; text-decoration: none; }
 .disclosure { display: block; margin-top: 9px; color: #8b7cac; font-size: 8px; line-height: 1.4; }
 .commitment { margin-top: 18px; padding: 12px; border: 1px solid rgba(192,132,252,.33); border-radius: 11px; background: rgba(0,0,0,.25); text-align: left; }
 .commitment b, .commitment code { display: block; margin-top: 5px; }
@@ -91,6 +112,7 @@
 .collection > div { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; margin-top: 11px; }
 .collection button { display: flex; align-items: center; gap: 8px; min-width: 0; padding: 8px; border: 1px solid #29292f; border-radius: 10px; background: #111113; color: white; text-align: left; }
 .collection button img { width: 52px; height: auto; flex: 0 0 auto; object-fit: contain; }
+.noRelic { display: grid; width: 52px; height: 44px; place-items: center; border: 1px dashed #52525b; border-radius: 9px; color: #a1a1aa; font-size: 25px; font-style: normal; }
 .collection button span { min-width: 0; }
 .collection button b, .collection button small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .collection button b { font-size: 9px; }
@@ -119,8 +141,14 @@
   .hud strong { font-size: 9px; }
   .encounterCopy, .cleared, .oraclePanel { padding: 18px; }
   .startCopy h2, .panel h2 { font-size: 26px; }
-  .actions { grid-template-columns: 1fr; }
-  .actions button:last-child { grid-column: auto; }
+  .omenStrip { grid-template-columns: 1.4fr 1fr; }
+  .omenStrip > div:nth-child(2) { border-right: 0; }
+  .omenStrip > div:last-child { grid-column: 1/-1; border-top: 1px solid rgba(139,92,246,.25); text-align: center; }
+  .actions { grid-template-columns: 1fr 1fr; }
+  .actions { bottom: 0; padding: 7px 7px calc(7px + env(safe-area-inset-bottom)); }
+  .actions .stormAction { order: 1; }
+  .actions .attackAction { order: 2; }
+  .actions .potionAction { grid-column: 1/-1; order: 3; }
   .collection > div { grid-template-columns: 1fr; }
   .rewardActions { grid-template-columns: 1fr; }
 }
