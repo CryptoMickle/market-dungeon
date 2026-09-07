@@ -101,3 +101,28 @@ test('an exhausted candidate budget prevents a second request', async (t) => {
     { timeoutMs: 12_000, totalBudgetMs: 15_000 }), isRetryableUpstreamError);
   assert.equal(calls, 1);
 });
+
+test('terminal read diagnostics expose provider timing but no request, response, or error contents', async (t) => {
+  const warnings: unknown[][] = [];
+  t.mock.method(console, 'warn', (...args: unknown[]) => { warnings.push(args); });
+  globalThis.fetch = async () => { throw new DOMException('PRIVATE error body', 'TimeoutError'); };
+  await assert.rejects(graphql('query PrivateQuery { Market { marketId } }', { id: 'PRIVATE market ID' }), isRetryableUpstreamError);
+  assert.equal(warnings.length, 1);
+  assert.equal(warnings[0][0], 'market_dungeon_upstream_read_failed');
+  const diagnostic = warnings[0][1] as Record<string, unknown>;
+  assert.deepEqual(Object.keys(diagnostic).sort(), ['attempts', 'elapsedMs', 'retryable', 'source', 'status', 'timeout']);
+  assert.equal(diagnostic.source, 'dreamDEX indexer');
+  assert.equal(diagnostic.attempts, 2);
+  assert.equal(diagnostic.status, null);
+  assert.equal(diagnostic.timeout, true);
+  assert.equal(diagnostic.retryable, true);
+  assert.doesNotMatch(JSON.stringify(warnings), /PRIVATE|PrivateQuery|marketId|https:/);
+});
+
+test('successful reads emit no upstream failure diagnostic', async (t) => {
+  const warnings: unknown[][] = [];
+  t.mock.method(console, 'warn', (...args: unknown[]) => { warnings.push(args); });
+  globalThis.fetch = async () => Response.json({ data: { Market: [] } });
+  await graphql('query Healthy { Market { marketId } }');
+  assert.equal(warnings.length, 0);
+});

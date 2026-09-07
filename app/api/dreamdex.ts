@@ -52,13 +52,29 @@ async function postJsonRead<T>(
   totalBudgetMs?: number,
 ): Promise<T> {
   let lastError: UpstreamReadError | undefined;
+  let lastStatus: number | undefined;
+  const started = performance.now();
   const deadline = totalBudgetMs === undefined ? undefined : performance.now() + totalBudgetMs;
+  function fail(error: UpstreamReadError, attempts: number): never {
+    // Diagnose provider failures without logging queries, market IDs, seals,
+    // request headers, response bodies, or potentially sensitive error text.
+    console.warn('market_dungeon_upstream_read_failed', {
+      source,
+      attempts,
+      elapsedMs: Math.round(performance.now() - started),
+      status: lastStatus ?? null,
+      timeout: error.cause instanceof Error && ['TimeoutError', 'AbortError'].includes(error.cause.name),
+      retryable: error.retryable,
+    });
+    throw error;
+  }
 
   for (let attempt = 1; attempt <= MAX_READ_ATTEMPTS; attempt += 1) {
     const remainingMs = deadline === undefined ? timeoutMs : Math.ceil(deadline - performance.now());
     if (remainingMs <= 0) {
-      throw lastError ?? new UpstreamReadError(`${source} read budget exhausted`, { retryable: true });
+      fail(lastError ?? new UpstreamReadError(`${source} read budget exhausted`, { retryable: true }), attempt - 1);
     }
+    lastStatus = undefined;
     try {
       const response = await fetch(url, {
         method: 'POST',
@@ -67,6 +83,7 @@ async function postJsonRead<T>(
         cache: 'no-store',
         signal: AbortSignal.timeout(Math.min(timeoutMs, remainingMs)),
       });
+      lastStatus = response.status;
       if (!response.ok) {
         throw new UpstreamReadError(`${source} returned HTTP ${response.status}`, {
           retryable: retryableStatus(response.status),
@@ -82,7 +99,7 @@ async function postJsonRead<T>(
       lastError = cause instanceof UpstreamReadError
         ? cause
         : new UpstreamReadError(`${source} read timed out or failed`, { retryable: true, cause });
-      if (!lastError.retryable || attempt === MAX_READ_ATTEMPTS) throw lastError;
+      if (!lastError.retryable || attempt === MAX_READ_ATTEMPTS) fail(lastError, attempt);
     }
   }
 
