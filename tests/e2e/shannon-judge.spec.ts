@@ -69,8 +69,8 @@ test('Shannon Judge flow remains profile-bound through replay, sharing, reset, c
   await expect(page).toHaveURL(/\/shannon\/judge$/);
   await expect(page.locator('.safety-line')).toContainText('SHANNON TESTNET');
   await expect(page.locator('.safety-line')).toContainText('HISTORICAL DREAMDEX REPLAY');
-  await expect(page.locator('.judge-lock-context')).toContainText('OPENING PRICE SEALED');
-  await expect(page.locator('.judge-lock-context')).toContainText('No live price feed in Shannon replay');
+  await expect(page.locator('.judge-lock-context')).toContainText('NO LIVE PRICE FEED');
+  await expect(page.locator('.judge-lock-context')).toContainText('the opening price is not supplied');
   await expect(page.getByText('REFERENCE UNAVAILABLE', { exact: true })).toHaveCount(0);
   await expect(page.getByText('SEALED BTC 5-MIN REPLAY · 15M FALLBACK · SHANNON TESTNET')).toHaveCount(1);
 

@@ -1,4 +1,5 @@
 import { decodeFunctionResult, encodeFunctionData } from 'viem';
+import type { ReplayMarketProvenance } from '../replay-proof.ts';
 
 import {
   SOMNIA_MAINNET_PROFILE,
@@ -228,6 +229,17 @@ export async function verifyDirectSettlement(
   verifiedChainId?: number,
   profile: JudgeNetworkProfile = SOMNIA_MAINNET_PROFILE,
 ): Promise<DirectOnchainSettlementProof> {
+  return readAndVerifySettlement(market, verifiedChainId, profile, false);
+}
+
+// Only the authenticated replay path derives these fields from the fixed
+// module contract. Ordinary indexed-market verification keeps strict equality.
+async function readAndVerifySettlement(
+  market: Record<string, unknown>,
+  verifiedChainId: number | undefined,
+  profile: JudgeNetworkProfile,
+  deriveModuleBindings: boolean,
+): Promise<DirectOnchainSettlementProof> {
   const marketId = String(market.marketId ?? '').toLowerCase();
   if (!/^0x[0-9a-f]{64}$/.test(marketId) || !isTerminalSettlementMarket(market)) throw new Error('Terminal market required');
   const chainId = verifiedChainId ?? Number(BigInt(await rpc<string>('eth_chainId', [], profile)));
@@ -261,6 +273,10 @@ export async function verifyDirectSettlement(
   const yesId = moduleRecord[10];
   const noId = moduleRecord[11];
   const moduleCollateral = moduleRecord[3];
+  if (deriveModuleBindings) {
+    market = { ...market, marketAddress, poolAddress, collateral: moduleCollateral,
+      yesTokenId: yesId.toString(), noTokenId: noId.toString() };
+  }
   if (moduleRecord[1] !== 2 || yesId === 0n || noId !== yesId + 1n
     || !sameAddress(market.marketAddress, marketAddress) || !sameAddress(market.poolAddress, poolAddress)
     || !sameAddress(market.collateral, moduleCollateral)
@@ -360,6 +376,43 @@ export async function verifyDirectSettlement(
         result: settlementResult,
       },
     },
+  };
+}
+
+export async function hydrateSealedReplay(
+  claims: ReplayMarketProvenance & { marketId: string; winningOutcome: 0 | 1 },
+  profile: JudgeNetworkProfile,
+) {
+  // Metadata was authenticated at lock time; it is not a fresh indexer read
+  // or proof of trades, market text or the creation transaction.
+  const metadata = {
+    marketId: claims.marketId, marketType: claims.marketType, asset: claims.asset,
+    intervalSec: claims.intervalSec, question: claims.question,
+    tradingStart: String(claims.tradingStart), expiry: String(claims.marketExpiry),
+    status: claims.marketStatus, tradeCount: String(claims.tradeCount),
+    lastTradeAt: String(claims.lastTradeAt), operatorId: String(claims.operatorId),
+    venueId: claims.venueId, context: claims.marketContext,
+    oracleQuestionId: claims.oracleQuestionId, creator: claims.creator,
+    createdByTx: claims.createdByTx, winningOutcome: claims.winningOutcome,
+    finalized: true, voided: false,
+  };
+  const proof = await readAndVerifySettlement(metadata, undefined, profile, true);
+  return {
+    market: {
+      ...metadata,
+      marketAddress: proof.marketAddress, poolAddress: proof.poolAddress,
+      collateral: proof.collateralToken, yesTokenId: proof.yesId, noTokenId: proof.noId,
+      winningOutcome: proof.winningOutcome, finalized: proof.finalized, voided: proof.voided,
+      payoutNumerators: proof.payoutNumerators, payoutDenominator: proof.payoutDenominator,
+      strikeUsd: 'UNAVAILABLE', openingPriceStatus: 'unavailable',
+      metadataSource: 'SEALED_AT_START',
+      expiryIso: new Date(claims.marketExpiry * 1_000).toISOString(), demoReplay: true,
+    },
+    network: profile.id === SOMNIA_MAINNET_PROFILE.id
+      ? { name: profile.name, chainId: profile.chainId }
+      : { name: profile.name, chainId: profile.chainId, profileId: profile.id },
+    onchainSettlement: proof,
+    safety: { mode: 'DRY_RUN', writesEnabled: false },
   };
 }
 

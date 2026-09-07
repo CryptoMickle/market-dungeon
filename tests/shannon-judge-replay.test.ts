@@ -348,7 +348,7 @@ test('Shannon reveal remains on its fixed profile through market hydration and h
   assert.equal(payload.replayProof.chainId, SHANNON_TESTNET_PROFILE.chainId);
   assert.equal(payload.onchainSettlement.chainId, SHANNON_TESTNET_PROFILE.chainId);
   assert.equal(payload.onchainSettlement.collateralToken, SHANNON_TESTNET_PROFILE.collateral);
-  assert.equal(urls.filter((url) => url === SHANNON_TESTNET_PROFILE.indexer).length, 1);
+  assert.equal(urls.filter((url) => url === SHANNON_TESTNET_PROFILE.indexer).length, 0);
   assert.ok(urls.filter((url) => url === SHANNON_TESTNET_PROFILE.rpc).length >= 5);
   assert.equal(urls.includes(SOMNIA_MAINNET_PROFILE.indexer), false);
   assert.equal(urls.includes(SOMNIA_MAINNET_PROFILE.rpc), false);

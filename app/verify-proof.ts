@@ -559,7 +559,7 @@ export async function verifyProofArtifact(
       const signaturePasses = await verifyReplayLockAttestation(artifact.lockAttestation, trustedKey);
       attestationStatus = signaturePasses ? 'PASS' : 'FAIL';
       attestationDetail = signaturePasses
-        ? 'A server-authenticated Ed25519 receipt binds this commitment, direction, and lock-window timestamps. It is not an external timestamp.'
+        ? 'A server-authenticated Ed25519 receipt binds this commitment, direction, and lock-window timestamps. It is not an external timestamp. Market text and trade history are metadata authenticated at lock time; the settlement is checked separately against Somnia.'
         : 'The lock receipt signature is invalid under the matching Market Dungeon public key.';
     }
   }

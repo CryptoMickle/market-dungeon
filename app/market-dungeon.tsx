@@ -213,6 +213,11 @@ function gateTime(expiryIso: string) {
   return new Date(expiryIso).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hourCycle: 'h23', timeZone: 'UTC' });
 }
 
+function marketPriceLabel(strikeUsd: string) {
+  return Number.isFinite(Number(strikeUsd)) && Number(strikeUsd) > 0
+    ? `$${strikeUsd}` : 'UNAVAILABLE';
+}
+
 function receiptUtc(timestamp: number) {
   return new Date(timestamp * 1_000).toISOString().replace('T', ' ').slice(0, 19) + 'Z';
 }
@@ -1083,7 +1088,7 @@ export default function MarketDungeon({
             : `SOMNIA READ TEMPORARILY BUSY · RETRY IN ${retryAfter}S`);
           addLog(response.status === 429
             ? 'The reveal rate guard paused repeated requests. Your sealed replay and completed combat remain intact.'
-            : 'The indexer or RPC did not answer within its bounded read window. Your sealed replay remains intact and no outcome was applied.');
+            : 'Somnia RPC did not answer within its bounded read window. Your sealed replay remains intact and no outcome was applied.');
           return;
         }
         if (judgeMode && [400, 409, 410, 422].includes(response.status)) {
@@ -1513,8 +1518,8 @@ export default function MarketDungeon({
               <small>Choose BTC UP or DOWN. The hidden onchain outcome decides whether your combat victory becomes permanent.</small>
               <div className="judge-lock-context" aria-live="polite">
                 <span>{shannonJudge ? 'HISTORICAL BTC REPLAY' : 'LIVE BTC CONTEXT'}</span>
-                <strong>{shannonJudge ? 'OPENING PRICE SEALED' : liveBtcContext ? liveBtcContextPrice(liveBtcContext) : 'REFERENCE UNAVAILABLE'}</strong>
-                <small>{shannonJudge ? 'No live price feed in Shannon replay. The historical opening price is revealed after combat.' : liveBtcContext ? `dreamDEX ${eventContractIntervalName(liveBtcContext.intervalSec)} opening line · context only` : 'The sealed replay remains available.'}</small>
+                <strong>{shannonJudge ? 'NO LIVE PRICE FEED' : liveBtcContext ? liveBtcContextPrice(liveBtcContext) : 'REFERENCE UNAVAILABLE'}</strong>
+                <small>{shannonJudge ? 'Predict the hidden historical outcome. The result is verified onchain; the opening price is not supplied.' : liveBtcContext ? `dreamDEX ${eventContractIntervalName(liveBtcContext.intervalSec)} opening line · context only` : 'The sealed replay remains available.'}</small>
               </div>
             </div>
             <div className="judge-quick-choice" aria-label="Choose BTC direction">
@@ -1540,7 +1545,7 @@ export default function MarketDungeon({
 
         <section className="market-ribbon" aria-label="Live dreamDEX Event Contract">
           <div><span>BTC · {marketIntervalLabel.toUpperCase()}</span><strong>{market.status}</strong><small>{judgeMode ? 'FINALIZED ONCHAIN REPLAY' : marketEntryRemaining !== null ? `LOCKED WITH ${formatTime(marketEntryRemaining)} LEFT` : 'STARTS IMMEDIATELY · LIVE MARKET'}</small></div>
-          <div><span>{judgeMode && phase === 'JUDGE_SETUP' ? 'LIVE CONTEXT LINE' : 'LINE'}</span><strong>{replaySealed ? 'HIDDEN' : `$${market.strikeUsd}`}</strong></div>
+          <div><span>{judgeMode && phase === 'JUDGE_SETUP' ? 'LIVE CONTEXT LINE' : 'LINE'}</span><strong>{replaySealed ? 'HIDDEN' : marketPriceLabel(market.strikeUsd)}</strong></div>
           <div><span>EXPIRY</span><strong>{replaySealed ? 'FINALIZED' : formatTime(remaining)}</strong><small>{replaySealed ? expiryLabel : `${expiryLabel} UTC`}</small></div>
           <div><span>DUNGEON OMEN</span><strong className={direction === 'UP' ? 'text-up' : 'text-down'}>{omenIcon} {omenName}</strong><small>BTC {direction}</small></div>
         </section>
@@ -1601,7 +1606,7 @@ export default function MarketDungeon({
                   <p className="muted">Each tier has ten combat rooms and a fresh BTC prediction. A boss victory only becomes permanent when the dreamDEX prediction is also correct; otherwise the boss delivers a fatal last strike.</p>
                   <div className="legacy-inventory"><div><span>PERSISTENT GOLD</span><strong><GoldIcon /> {gold}</strong></div><div><span>NEXT-RUN POTIONS</span><strong>🧪 {potions}/{MAX_POTIONS}</strong></div><small>Gold and potions above the starting amount survive a new run. Attack and defense reset.</small></div>
                   <div className="prediction-card">
-                    <span>TIER 1 PREDICTION · MARKET #{marketCode || '—'}</span><strong>${market.strikeUsd}</strong><p>{market.question}</p>
+                    <span>TIER 1 PREDICTION · MARKET #{marketCode || '—'}</span><strong>{marketPriceLabel(market.strikeUsd)}</strong><p>{market.question}</p>
                     <LiveMarketOdds odds={marketOdds} direction={direction} />
                     <div className="prediction-buttons">
                       <button aria-pressed={direction === 'UP'} className={direction === 'UP' ? 'up selected' : 'up'} onClick={() => setDirection('UP')}><b><GoldIcon /> GOLD AWAKENS</b><small>BTC UP · finishes at or above the line</small></button>
@@ -1632,12 +1637,12 @@ export default function MarketDungeon({
                 <p>The selected replay market ID, addresses, strike, expiry and outcome are not chosen or sent before your choice locks.</p>
                 <div className="judge-live-context" aria-live="polite">
                   <span>{shannonJudge ? 'HISTORICAL BTC REPLAY' : 'BTC LIVE CONTEXT'}</span>
-                  <strong>{shannonJudge ? 'OPENING PRICE SEALED' : liveBtcContext ? liveBtcContextPrice(liveBtcContext) : 'REFERENCE UNAVAILABLE'}</strong>
+                  <strong>{shannonJudge ? 'NO LIVE PRICE FEED' : liveBtcContext ? liveBtcContextPrice(liveBtcContext) : 'REFERENCE UNAVAILABLE'}</strong>
                   <small>{shannonJudge
-                    ? 'This testnet replay does not fetch a live BTC price. The historical market and its opening price remain sealed until reveal.'
+                    ? 'This testnet replay verifies a historical onchain outcome. No live feed or historical opening price is supplied.'
                     : liveBtcContext
                     ? `Separate live dreamDEX ${eventContractIntervalName(liveBtcContext.intervalSec)} opening line · ${liveBtcContextTime(liveBtcContext)} · context only · not the replay market`
-                    : 'The live reference does not affect replay availability. The sealed historical line remains hidden.'}</small>
+                    : 'The live reference does not affect replay availability. The historical opening price is not supplied.'}</small>
                 </div>
                 {!shannonJudge && <LiveMarketOdds odds={marketOdds} direction={direction} />}
               </div>
@@ -1652,7 +1657,7 @@ export default function MarketDungeon({
               <p className="muted">Your gold, potions, health, attack and defense continue because this is still the same run. A defeat will reset attack and defense before the next expedition.</p>
               <div className="carry-forward"><div><span>GOLD</span><strong><GoldIcon /> {gold}</strong></div><div><span>POTIONS</span><strong>🧪 {potions}/{MAX_POTIONS}</strong></div><div><span>RUN LOADOUT</span><strong>⚔️ {weapon} · 🛡️ {armor}</strong></div></div>
               <div className="prediction-card">
-                <span>TIER {tier + 1} PREDICTION · NEW MARKET #{marketCode || '—'}</span><strong>${market.strikeUsd}</strong><p>{market.question}</p>
+                <span>TIER {tier + 1} PREDICTION · NEW MARKET #{marketCode || '—'}</span><strong>{marketPriceLabel(market.strikeUsd)}</strong><p>{market.question}</p>
                 <LiveMarketOdds odds={marketOdds} direction={direction} />
                 <div className="prediction-buttons">
                   <button aria-pressed={direction === 'UP'} className={direction === 'UP' ? 'up selected' : 'up'} onClick={() => setDirection('UP')}><b><GoldIcon /> GOLD AWAKENS</b><small>BTC UP · finishes at or above the line</small></button>

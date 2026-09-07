@@ -1,8 +1,7 @@
-import { fetchFullMarket, hydrateMarket, isRetryableUpstreamError } from '../../dreamdex.ts';
+import { hydrateSealedReplay, isRetryableUpstreamError } from '../../dreamdex.ts';
 import { checkRateLimit, rateLimitHeaders, type RateLimitResult } from '../../request-control.ts';
 import { JUDGE_COMBAT, replayJudgeCombat, type JudgeCombatAction } from '../../../judge-combat.ts';
 import type { JudgeNetworkProfile } from '../../../judge-network.ts';
-import { replayMarketProvenanceMatches } from '../../../replay-proof.ts';
 import {
   canonicalReplay,
   combatTranscriptDigest,
@@ -150,17 +149,7 @@ export function createJudgeReplayRevealHandler(input: {
       expiresAt: claims.expiresAt * 1_000,
       verify: async (): Promise<RevealResult> => {
         try {
-          // Settlement metadata and optional opening-price lookups share a
-          // bounded indexer budget. RPC proof verification retains its own limits.
-          const indexerBudget = { deadline: performance.now() + 15_000, timeoutMs: 12_000 };
-          const rawMarket = await fetchFullMarket(claims.marketId, input.profile, indexerBudget);
-          const currentOutcome = Number(rawMarket?.winningOutcome);
-          if (!rawMarket || rawMarket.finalized !== true || rawMarket.voided === true
-            || currentOutcome !== claims.winningOutcome
-            || !replayMarketProvenanceMatches(claims, rawMarket)) {
-            throw new Error('Committed settlement no longer verifies');
-          }
-          const hydrated = await hydrateMarket(rawMarket, true, input.profile, indexerBudget);
+          const hydrated = await hydrateSealedReplay(claims, input.profile);
           return {
             status: 200,
             body: {

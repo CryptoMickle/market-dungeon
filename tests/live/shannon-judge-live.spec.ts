@@ -104,7 +104,7 @@ test('live Shannon target remains network-bound through proof export and verifie
 
   await page.goto('/shannon/judge?automation=1');
   await expect(page.locator('.safety-line')).toContainText('SHANNON TESTNET');
-  await expect(page.locator('.judge-lock-context')).toContainText('OPENING PRICE SEALED');
+  await expect(page.locator('.judge-lock-context')).toContainText('NO LIVE PRICE FEED');
   await expect(page.getByText('REFERENCE UNAVAILABLE', { exact: true })).toHaveCount(0);
   await page.getByRole('button', { name: 'LOCK OMEN & SEAL REPLAY' }).click();
   await page.getByRole('button', { name: /ATTACK/ }).click();

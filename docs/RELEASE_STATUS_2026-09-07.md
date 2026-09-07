@@ -1,6 +1,34 @@
 # Release and recording status — 7 September 2026
 
-## Consolidated reveal lookup — targeted validation passed
+## RPC-only Judge reveal — local candidate, release gates pending
+
+Judge reveal now uses authenticated lock-time metadata and the fixed Somnia
+module/settlement contracts without contacting the dreamDEX indexer. Existing
+mainnet v2 and Shannon v3 seals remain compatible. The successful uncached
+server path has five RPC reads and zero indexer reads. Hash-pinned verification,
+combat validation, receipt checks and bounded retry behavior remain required.
+Historical opening price is explicitly unavailable; neither zero nor a later
+price lookup is promised. Text/trade metadata is authenticated at lock time,
+not independently proved by the settlement record.
+
+The focused suite passed 49 tests; TypeScript passed. New deterministic tests
+block all indexer access on both profiles, reject conflicting chain/contract
+data and verify recovery of the same sealed run after an RPC timeout. These
+are automated simulations, not live-provider or human usability evidence.
+Lint, TypeScript, 119 unit tests, 7 Shannon kernel tests and production build
+passed. The browser suite had 35 passes and one outdated copy expectation;
+after correcting only that expectation, the Shannon flow passed its targeted
+rerun. All 36 browser cases are covered, not claimed as one clean full run.
+The initial sandbox server-start failure was infrastructure-only and occurred
+before any browser case. Frozen Preview and owner iPhone gates remain pending.
+Production and immutable previous releases have not been changed.
+
+Diagnostic correction: the previous candidate's provider log identified a
+dreamDEX indexer timeout, but did not name the GraphQL operation. It does not
+prove whether the combined metadata query or dependent answer query timed out.
+The historical entries below describe earlier candidates, not current behavior.
+
+## Historical: consolidated reveal lookup — targeted validation passed
 
 The combined-budget candidate `22d4895` passed all 155 local checks and GitHub
 CI, but its exact-identity Preview gate stopped on the first mainnet valid

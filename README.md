@@ -69,7 +69,7 @@ It is a fast replay, not a mocked settlement.
 
 #### Judge verification checklist
 
-1. Enter Judge Demo and confirm that no selected replay market ID, address, strike, expiry or outcome is present before the choice. In mainnet only, the visible opening line belongs to a separate live market, is labeled as context only, and does not identify the replay. Shannon shows that the historical opening price is sealed, with no live feed.
+1. Enter Judge Demo and confirm that no selected replay market ID, address, strike, expiry or outcome is present before the choice. In mainnet only, the visible opening line belongs to a separate live market, is labeled as context only, and does not identify the replay. Shannon has no live feed. Judge reveal does not supply the historical opening price.
 2. Choose `UP` or `DOWN`, then press **Lock Omen & Seal Replay**.
 3. Note the full SHA-256 commitment shown during combat. A compact evidence row also shows the browser-verified Ed25519 receipt, its truncated SHA-256 key fingerprint, the locked direction, and the exact lock/reveal window while the market identity and outcome remain sealed. This is a Market Dungeon server-authenticated receipt, not an external timestamp or third-party endorsement. Then defeat the wounded guard and boss.
 4. Press **Reveal Boss Fate**. The server first replays the combat transcript, then reads the BinaryModule market binding and BinarySettlement payout with both calls pinned to one canonical Somnia block hash.
@@ -79,7 +79,7 @@ It is a fast replay, not a mocked settlement.
 
 8. Expand the raw technical proof only when needed and inspect its block and contract links in the Somnia explorer. No wallet, approval, order or other transaction is requested.
 
-Shannon Judge intentionally does not fetch a live BTC reference: it displays **Opening price sealed**, with the historical line available after reveal. Mainnet's separate live context is an active dreamDEX market's opening line, not a continuously updating BTC spot-price feed.
+Shannon Judge intentionally does not fetch a live BTC reference: it displays **No live price feed**. Judge reveal on either network supplies the verified payout, not a historical opening-price lookup; that price is explicitly unavailable rather than zero. Mainnet's separate live context is an active dreamDEX market's opening line, not a continuously updating BTC spot-price feed.
 
 In Preview, the share controls intentionally keep the canonical Production
 challenge URL. Test Preview challenge handling directly at Preview
@@ -143,8 +143,7 @@ flowchart LR
     UI --> LOOP[Deterministic dungeon loop]
     UI -->|Seal + bounded action log| SETTLE[/api/judge-replay/reveal/]
     SETTLE --> COMBAT[Server replays guard + boss combat]
-    COMBAT -->|Both defeated| IDX[Re-fetch committed market metadata]
-    IDX --> RPC[Snapshot one Somnia block]
+    COMBAT -->|Both defeated · authenticated seal| RPC
     RPC --> MODULE[BinaryModule markets marketId · EIP-1898 blockHash]
     MODULE --> BINARY[BinarySettlement getSettlement marketKey]
     BINARY -->|Payout-derived outcome + raw calls| VERIFY[Browser ABI-decodes settlement + verifies digests]
@@ -171,9 +170,10 @@ flowchart LR
 - The public commitment is salted, combat randomness is independent of the hidden market, and the salt is withheld until reveal.
 - The reveal payload is limited to 8 KiB and 64 structured combat steps. Extra fields, invalid room transitions, impossible potion use, player death, incomplete combat, and post-terminal actions fail closed.
 - The reveal server deterministically replays every Judge `Attack`, `Storm`, and `Potion` action and requires both the guard and boss to be defeated before it reads or returns settlement data.
-- After combat passes, the reveal route re-fetches the exact indexed market, snapshots one Somnia block number and hash, and performs both settlement calls with the EIP-1898 reference `{ blockHash, requireCanonical: true }`. A reorg that makes the hash non-canonical causes the RPC read to fail closed.
+- After combat passes, the reveal route uses the authenticated seal without any indexer lookup, snapshots one Somnia block number and hash, and performs both settlement calls with the EIP-1898 reference `{ blockHash, requireCanonical: true }`. A reorg that makes the hash non-canonical causes the RPC read to fail closed.
+- Market text, trade history, context, and creation-transaction metadata are authenticated at lock time; they are not newly fetched or independently proved by the settlement check. Market/pool/collateral/token bindings are derived from the fixed BinaryModule, while origin and trading-window fields must match the seal. Existing mainnet v2 and Shannon v3 seals retain their formats.
 - `BinaryModule.markets(marketId)` binds the committed market to its oracle question ID, origin operator and venue, creator, trading window, market, pool, collateral, and YES/NO IDs. The YES ID deterministically yields the settlement `marketKey`, encoded pool, and nonce.
-- `BinarySettlement.getSettlement(marketKey)` must be finalized and match those bindings. The server derives UP/DOWN from its payout vector and fails closed on any indexer, contract, block, payout, void, or committed-outcome mismatch.
+- `BinarySettlement.getSettlement(marketKey)` must be finalized and match those bindings. The server derives UP/DOWN from its payout vector and fails closed on any contract, block, payout, void, or committed-outcome mismatch. Ordinary live-market verification additionally checks the indexed bindings.
 - Every terminal live result—either `finalized` or `voided`—must return that matching direct settlement proof. The browser repeats and validates the proof before applying gold, victory, death, or tier progression; an unavailable or mismatched proof leaves the boss fate pending.
 - The browser independently re-fetches Somnia chain ID, the exact block by hash, and both raw `eth_call` results from the hardcoded public RPC using the same canonical EIP-1898 block reference. It requires byte-for-byte equality with the server proof, ABI-decodes both results, and validates the expected deployments, market ID and market-key calldata, token/pool/nonce encoding, block hash, payout vector, outcome, combat digest, and salted commitment before applying the result.
 
@@ -296,7 +296,7 @@ docs/
 - GitHub workflows grant their token read-only repository access and pin every external action to a full, reviewed commit SHA; version comments preserve update visibility without trusting mutable tags.
 - Vercel Web Analytics records normal page views plus the closed `/funnel/v2/...` lifecycle as manual pageviews: entry, accepted seal, first reveal, verified completion, definitive verification failure, sharing, challenge activity, and Continue-on-dreamDEX intent. Labels contain only enumerated categories; no wallet, market ID, commitment, proof, transcript, exact timing, or arbitrary query content is sent. WebDriver sessions and the exact `automation=1` smoke marker are suppressed. Counts are non-WebDriver event volumes, not unique humans; legacy `/funnel/...` counts remain separate. See [Clean pilot measurement v2](docs/PILOT_MEASUREMENT_V2.md).
 - The live footer links to a dedicated **Privacy · Credits · AI Disclosure** page. The versioned [provenance and privacy disclosure](docs/PROVENANCE_AND_PRIVACY.md) documents analytics, browser-local state, direct Somnia RPC verification, the complete visual-asset groups, generative-AI assistance, and the demo video's credited Pixabay music.
-- Availability depends on the public dreamDEX indexer and Somnia RPC.
+- New replay discovery and active markets depend on the public dreamDEX indexer. An already sealed Judge replay needs only Somnia RPC to reveal and independently verify; transient RPC unavailability preserves the round for a bounded retry. Neither path fabricates a verified result when its required provider is unavailable.
 
 ## Contest status
 

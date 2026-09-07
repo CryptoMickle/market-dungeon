@@ -523,7 +523,7 @@ test('reveal route rejects incomplete combat before reading settlement data', as
   });
 });
 
-test('reveal route revalidates all sealed market provenance before RPC settlement reads', async () => {
+test('reveal route rejects an unusable RPC envelope before reading contract data', async () => {
   const now = Math.floor(Date.now() / 1000);
   const claims = newReplayClaims({
     marketId: MARKET_ID,
@@ -535,36 +535,15 @@ test('reveal route revalidates all sealed market provenance before RPC settlemen
     ...provenance(now - 30),
   });
   const actions = completedCombat(claims.gameSeed);
-  const mismatches: Record<string, unknown>[] = [
-    { asset: 'ETH' },
-    { intervalSec: 900 },
-    { expiry: String(claims.marketExpiry - 1) },
-    { status: 'Trading' },
-    { tradeCount: '0' },
-    { lastTradeAt: String(claims.lastTradeAt - 1) },
-    { question: `${claims.question}?` },
-    { venueId: `0x${'fe'.repeat(32)}` },
-    { voided: true, winningOutcome: null },
-  ];
   let reads = 0;
-  let activeMismatch: Record<string, unknown> = {};
   globalThis.fetch = async () => {
     reads += 1;
-    return Response.json({ data: { Market_by_pk: rawMarketForClaims(claims, activeMismatch) } });
+    return Response.json({ jsonrpc: '2.0', id: 1, result: null });
   };
-
-  for (const [index, mismatch] of mismatches.entries()) {
-    activeMismatch = mismatch;
-    resetReplayRevealStateForTests();
-    const before = reads;
-    const response = await revealReplay(post(
-      'http://local.test/api/judge-replay/reveal',
-      { seal: sealReplay(claims), actions },
-      `203.0.113.${100 + index}`,
-    ));
-    assert.equal(response.status, 409);
-    assert.equal(reads, before + 1, `mismatch ${JSON.stringify(mismatch)} reached an RPC read`);
-  }
+  const response = await revealReplay(post('http://local.test/api/judge-replay/reveal',
+    { seal: sealReplay(claims), actions }));
+  assert.equal(response.status, 409);
+  assert.equal(reads, 1);
 });
 
 test('reveal route rate-limits a client before any settlement read can amplify', async () => {

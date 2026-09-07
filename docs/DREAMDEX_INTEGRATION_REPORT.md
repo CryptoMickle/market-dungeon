@@ -25,7 +25,7 @@ This document also serves as the hackathon submission's optional SDK and documen
 - The Judge Replay locks the player's direction before a balanced, cryptographically random finalized market is selected.
 - The selected market and direction are authenticated inside an AES-256-GCM seal; the browser receives no identifying market metadata before reveal.
 - The reveal route deterministically replays the bounded combat transcript and rejects the request unless both the guard and boss were defeated and the player survived.
-- Only after combat verification does the server re-fetch the exact committed market, then independently reads and decodes its finalized BinarySettlement record at an RPC verification snapshot block.
+- Only after combat verification does the server read the fixed BinaryModule and BinarySettlement contracts at one canonical RPC snapshot block. Judge reveal makes no indexer request after lock.
 - The server derives the winner from the direct payout vector and fails closed unless its market, pool, collateral, token, nonce, void, and outcome bindings agree. The browser then independently re-fetches the exact block and both raw calls from Somnia RPC, requires byte equality, ABI-decodes the results, validates the exposed proof bindings, and recomputes both cryptographic digests.
 - No wallet, approval, order or private key is required to reproduce the judge path.
 
@@ -83,23 +83,23 @@ The API returns the best bid, best ask, spread, source, observation time, and SD
 
 `SealedReplayCandidates` requests independent 300- and 900-second pools with identical integrity rules: `marketType = BINARY`, `asset = BTC`, the canonical BTC close question, `clobStatus = Finalized`, `finalized = true`, `voided = false`, `tradeCount > 0`, `winningOutcome in [0, 1]`, and an expiry between now and seven days ago. Required provenance fields must also be present. Each pool requests market ID, outcome, market type, asset, interval, question, trading start, expiry, status, trade count, last trade time, operator ID, venue ID, context, oracle question ID, creator, and creation transaction; orders by descending expiry; and caps the candidate set at 64. The server independently validates each row, uses the 5-minute pool only when both outcomes are represented, otherwise requires a balanced 15-minute pool, then chooses an outcome bucket and market with cryptographic randomness.
 
-At reveal, `ReplaySettlement` fetches the exact committed `Market_by_pk` and requests the full metadata set plus `resolvedAtTimestamp`. The server rejects the reveal unless every sealed provenance field above, plus `finalized`, `voided`, and `winningOutcome`, still matches exactly. This indexed record remains a metadata and consistency input rather than the sole source of truth for the applied winner; the direct contract read below must also agree.
+At reveal, the authenticated seal supplies the committed market ID and metadata without a new `ReplaySettlement` or opening-price request. The fixed BinaryModule supplies market/pool/collateral/token bindings; oracle question, operator, venue, creator and trading window must match the seal. BinarySettlement must be finalized, non-void and match the committed outcome and the module bindings. Market text, trade history, context and creation transaction remain metadata authenticated at lock time, not newly fetched or independently proved onchain. The historical opening price is explicitly `UNAVAILABLE`, never a fabricated zero. The v2 mainnet and v3 Shannon seal, receipt, commitment and portable-proof formats are unchanged.
 
 The lightweight live-settlement lookup requests only `marketId`, `clobStatus`, `finalized`, `voided`, `winningOutcome`, `payoutNumerators`, `payoutDenominator`, and `resolvedAtTimestamp`.
 
 ## Chain 5031 and RPC verification
 
-Every fully hydrated active or revealed market calls `eth_chainId` and rejects any result other than decimal `5031`. It also performs a read-only `eth_call` against the indexed `poolAddress` with selector `0x0765910c`; the return data is decoded as `tickSize`, `minQuantity`, and `lotSize`.
+Mainnet hydration verifies chain ID `5031`; the fixed Shannon Judge profile requires `50312`. Active-market hydration also reads pool parameters (`tickSize`, `minQuantity`, `lotSize`) using selector `0x0765910c`. Judge reveal does not need those parameters: its successful uncached server path uses exactly five RPC reads (chain ID, block number, block header, module, settlement) and zero indexer reads.
 
 For every terminal market—indexed as either `finalized = true` or `voided = true`—settlement verification additionally:
 
 1. snapshots `eth_blockNumber` and resolves the same block's 32-byte hash;
 2. creates the EIP-1898 reference `{ blockHash, requireCanonical: true }` and calls `markets(bytes32 marketId)` on mainnet BinaryModule `0x3ecC694Cef705358864a646142ac17A90E29e388` against that exact canonical hash;
-3. binds the returned oracle question ID, origin operator, origin venue, creator, trading window, market, pool, collateral, YES ID, and NO ID to the indexed record and requires a binary consecutive token pair;
+3. requires a binary consecutive token pair and validates module bindings against the indexed record for live markets; for Judge reveal, derives market/pool/collateral/token bindings from the fixed module and compares oracle question, operator, venue, creator and trading window to the authenticated seal;
 4. derives `marketKey = yesId >> 8`, plus the pool and nonce encoded inside `yesId`;
 5. calls `getSettlement(uint256 marketKey)` on BinarySettlement `0xbF4a49e0Dfd092e5FBE8E5761064C49533e6Ed23` with the identical EIP-1898 reference;
 6. requires a finalized record with matching pool, collateral and nonce, then derives UP/DOWN from the unique maximum in `payoutNumerators`; and
-7. fails closed unless the direct void state, payout vector, denominator and derived winner agree with the indexer and, for Judge Replay, the encrypted commitment.
+7. fails closed unless the direct void state, payout vector, denominator and derived winner are valid and agree with the indexed record for live markets or the authenticated committed outcome for Judge Replay.
 
 The live settlement endpoint never returns a terminal result for application unless this direct proof succeeds. The browser then independently repeats the proof before it applies a void refund path, prediction win/loss, gold, death, victory, or tier progression. A pending non-terminal market may still be returned without a settlement proof because it cannot yet change game state.
 
@@ -112,7 +112,7 @@ The build's revealed proof includes the RPC verification snapshot block number/h
 - The start route also signs an Ed25519 receipt over the salted commitment, locked direction, and lock-window timestamps. The browser verifies that receipt against the fixed same-origin public-key endpoint before accepting the lock, and reveal must return the byte-identical receipt. This prevents a client from fabricating a post-hoc portable proof, but it is a Market Dungeon server authentication boundary—not an external timestamp, decentralized attestation, or proof of server honesty.
 - The version-2 pre-reveal SHA-256 commitment binds market ID, binary/BTC template, interval, canonical question, trading window, finalized status, trade count, last trade, operator, venue, context, oracle question ID, creator, creation transaction, recorded outcome, locked direction, independent `gameSeed`, replay timestamps, and a hidden random salt.
 - At reveal, the server replays the bounded `Attack`, `Storm`, and `Potion` transcript from the sealed `gameSeed`. The request is rejected unless both the guard and boss are defeated and the player survives.
-- Only after combat verification does the server re-fetch the committed metadata and execute both module and settlement reads against the same canonical EIP-1898 block-hash reference. The browser independently fetches the block by hash and repeats both canonical hash-pinned calls from Somnia RPC, requires an exact raw-result match, ABI-decodes both responses, validates the direct proof bindings, and recomputes both the combat transcript digest and replay commitment before applying the payout-derived result.
+- Only after combat verification does the server execute both module and settlement reads against the same canonical EIP-1898 block-hash reference, using authenticated lock-time metadata without contacting the indexer. The browser independently fetches the block by hash and repeats both canonical hash-pinned calls from Somnia RPC, requires an exact raw-result match, ABI-decodes both responses, validates the direct proof bindings, and recomputes both the combat transcript digest and replay commitment before applying the payout-derived result.
 
 The stateless combat check proves that the submitted action sequence is valid under the published deterministic rules. Because the seed is public, it is not proof of human input or elapsed play time.
 
