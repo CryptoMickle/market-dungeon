@@ -132,7 +132,9 @@ test.afterEach(() => { globalThis.fetch = originalFetch; });
 
 test('start route uses a balanced outcome pool and leaks no selected-market metadata', async () => {
   let requestBody: { query?: string; variables?: Record<string, string> } = {};
+  let reads = 0;
   globalThis.fetch = async (_input, init) => {
+    reads += 1;
     requestBody = JSON.parse(String(init?.body ?? '{}')) as typeof requestBody;
     return Response.json({
       data: {
@@ -164,9 +166,11 @@ test('start route uses a balanced outcome pool and leaks no selected-market meta
   if (isReplayLockAttestation(payload.replay.lockAttestation) && isReplayLockPublicKey(publicKey)) {
     assert.equal(await verifyReplayLockAttestation(payload.replay.lockAttestation, publicKey), true);
   }
-  assert.equal(requestBody.query?.match(/tradeCount: \{_gt: 0\}/g)?.length, 2);
-  assert.equal(requestBody.query?.match(/expiry: \{_gte: \$minExpiry, _lte: \$now\}/g)?.length, 2);
-  assert.equal(requestBody.query?.match(/clobStatus: \{_eq: "Finalized"\}/g)?.length, 2);
+  assert.equal(reads, 1);
+  assert.doesNotMatch(requestBody.query ?? '', /fifteenMinute|_eq: "900"/);
+  assert.equal(requestBody.query?.match(/tradeCount: \{_gt: 0\}/g)?.length, 1);
+  assert.equal(requestBody.query?.match(/expiry: \{_gte: \$minExpiry, _lte: \$now\}/g)?.length, 1);
+  assert.equal(requestBody.query?.match(/clobStatus: \{_eq: "Finalized"\}/g)?.length, 1);
   assert.ok(Number(requestBody.variables?.now) - Number(requestBody.variables?.minExpiry) === 7 * 24 * 60 * 60);
 });
 
@@ -194,20 +198,87 @@ test('start route rejects extra fields and fails closed for empty or one-sided r
 });
 
 test('start route falls back to a balanced fifteen-minute replay pool', async () => {
-  globalThis.fetch = async () => Response.json({
-    data: {
-      fiveMinute: [candidate(MARKET_ID, 0, 300)],
-      fifteenMinute: [
-        candidate(`0x${'ab'.repeat(32)}`, 0, 900),
-        candidate(`0x${'bc'.repeat(32)}`, 1, 900),
-      ],
-    },
-  });
+  const queries: string[] = [];
+  globalThis.fetch = async (_input, init) => {
+    queries.push(JSON.parse(String(init?.body)).query);
+    return Response.json({
+      data: {
+        fiveMinute: [candidate(MARKET_ID, 0, 300)],
+        fifteenMinute: [
+          candidate(`0x${'ab'.repeat(32)}`, 0, 900),
+          candidate(`0x${'bc'.repeat(32)}`, 1, 900),
+        ],
+      },
+    });
+  };
 
   const response = await startReplay(post('http://local.test/api/judge-replay/start', { direction: 'DOWN' }));
   const payload = await response.json() as { replay: { publicMarket: Record<string, unknown> } };
   assert.equal(response.status, 200);
   assert.equal(payload.replay.publicMarket.intervalSec, 900);
+  assert.equal(queries.length, 2);
+  assert.match(queries[0], /fiveMinute: Market/);
+  assert.doesNotMatch(queries[0], /fifteenMinute/);
+  assert.match(queries[1], /fifteenMinute: Market/);
+  assert.doesNotMatch(queries[1], /fiveMinute:/);
+  for (const query of queries) {
+    assert.match(query, /tradeCount: \{_gt: 0\}/);
+    assert.match(query, /expiry: \{_gte: \$minExpiry, _lte: \$now\}/);
+    assert.match(query, /clobStatus: \{_eq: "Finalized"\}/);
+    assert.match(query, /winningOutcome: \{_in: \[0, 1\]\}/);
+  }
+});
+
+test('fallback discovery can use only the budget remaining after the preferred read', async (t) => {
+  let elapsed = 0;
+  let reads = 0;
+  const timeouts: number[] = [];
+  t.mock.method(performance, 'now', () => elapsed);
+  t.mock.method(AbortSignal, 'timeout', (ms: number) => {
+    timeouts.push(ms);
+    return new AbortController().signal;
+  });
+  globalThis.fetch = async () => {
+    reads += 1;
+    if (reads === 1) {
+      elapsed = 6_000;
+      return Response.json({ data: { fiveMinute: [candidate(MARKET_ID, 0, 300)] } });
+    }
+    return Response.json({ data: { fifteenMinute: [
+      candidate(`0x${'ab'.repeat(32)}`, 0, 900), candidate(`0x${'bc'.repeat(32)}`, 1, 900),
+    ] } });
+  };
+  const response = await startReplay(post('http://local.test/api/judge-replay/start', { direction: 'DOWN' }));
+  assert.equal(response.status, 200);
+  assert.deepEqual(timeouts, [12_000, 9_000]);
+  assert.equal((await response.json()).replay.publicMarket.intervalSec, 900);
+});
+
+test('an exhausted preferred read leaves no extra budget for fallback discovery', async (t) => {
+  let elapsed = 0;
+  let reads = 0;
+  t.mock.method(performance, 'now', () => elapsed);
+  globalThis.fetch = async () => {
+    reads += 1;
+    elapsed = 15_000;
+    return Response.json({ data: { fiveMinute: [] } });
+  };
+  const response = await startReplay(post('http://local.test/api/judge-replay/start', { direction: 'UP' }));
+  assert.equal(response.status, 503);
+  assert.equal(reads, 1);
+  assert.equal((await response.json()).retryState, 'upstream_retry');
+});
+
+test('preferred transport failure is not disguised by selecting a fallback market', async () => {
+  const queries: string[] = [];
+  globalThis.fetch = async (_input, init) => {
+    queries.push(JSON.parse(String(init?.body)).query);
+    return new Response(null, { status: 503 });
+  };
+  const response = await startReplay(post('http://local.test/api/judge-replay/start', { direction: 'UP' }));
+  assert.equal(response.status, 503);
+  assert.equal(queries.length, 2);
+  assert.ok(queries.every(query => query.includes('fiveMinute: Market') && !query.includes('fifteenMinute')));
 });
 
 test('a slow candidate read preserves the full hold after issuance and uses the candidate-only budget', async (t) => {

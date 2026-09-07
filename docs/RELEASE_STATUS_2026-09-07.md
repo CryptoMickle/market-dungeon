@@ -1,5 +1,31 @@
 # Release and recording status — 7 September 2026
 
+## Reduced candidate discovery after measured upstream timeouts
+
+The `8feb216` Preview gate passed three complete mainnet and three Shannon
+round-trips, then stopped on mainnet valid-reveal 503: 6 passed, 1 failed,
+1 interrupted, 32 not run. A separate same-seal check also returned 503.
+Production remained unchanged. Candidate `e271463` adds privacy-bounded provider
+failure diagnostics and passed CI (106 unit/integration + 7 kernel + 36 browser).
+The same seal subsequently verified on that Preview; this did not erase the
+failed gate. A later bounded diagnostic caught mainnet discovery timing out:
+the dreamDEX indexer exhausted two reads and 15,002ms without an HTTP response.
+
+Discovery now requests only five-minute candidates first. Fifteen-minute
+candidates are fetched only when the returned five-minute data lacks an eligible
+balanced pool. Both requests and any transport retry share the original 15s
+budget; a preferred-read transport failure is not disguised as a fallback.
+The same origin/provenance filters, 64-candidate per-interval bounds, randomness,
+cache policy, fresh age validation, and post-load hold remain in force.
+
+The 31 focused tests passed, including new assertions for ordered fallback,
+shared deadline exhaustion and failure propagation. The full local check passed
+lint, TypeScript, optimized build (15 routes), 109 unit/integration, 7 Shannon
+kernel and 36 deterministic Chromium tests: 152 total, zero retries. Two local
+real candidate reads each used one five-minute query: mainnet 410ms and Shannon
+6,896ms. Those small observations are not a benchmark or a full live gate.
+Deployed validation for this reduced-query change remains pending here.
+
 ## Replay-start latency correction — pending release validation
 
 The two exact-identity live gates for `c1bbdfb` both stopped on Shannon start

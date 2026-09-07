@@ -1,6 +1,6 @@
 import { randomInt } from 'node:crypto';
 
-import { graphql, isRetryableUpstreamError } from '../../dreamdex.ts';
+import { graphql, isRetryableUpstreamError, UpstreamReadError } from '../../dreamdex.ts';
 import { checkRateLimit, rateLimitHeaders, type RateLimitResult } from '../../request-control.ts';
 import { selectBalancedReplayPool } from '../../../event-contract-interval.ts';
 import type { JudgeNetworkProfile } from '../../../judge-network.ts';
@@ -57,23 +57,13 @@ async function directionFrom(request: Request): Promise<ReplayDirection> {
   return direction;
 }
 
-function candidateQuery(profile: JudgeNetworkProfile) {
+function candidateQuery(profile: JudgeNetworkProfile, intervalSec: 300 | 900) {
   const originFilter = profile.id === 'somnia-mainnet'
     ? 'operatorId: {_is_null: false}, venueId: {_is_null: false}'
     : `operatorId: {_eq: ${profile.originOperatorId}}, venueId: {_eq: "${profile.originVenueId.toLowerCase()}"}, collateral: {_eq: "${profile.collateral.toLowerCase()}"}`;
   return `query SealedReplayCandidates($minExpiry: numeric!, $now: numeric!) {
-    fiveMinute: Market(where: {
-      marketType: {_eq: "BINARY"}, asset: {_eq: "BTC"}, intervalSec: {_eq: "300"},
-      question: {_eq: "${REPLAY_MARKET_QUESTION}"}, clobStatus: {_eq: "Finalized"},
-      finalized: {_eq: true}, voided: {_eq: false}, winningOutcome: {_in: [0, 1]}, tradeCount: {_gt: 0},
-      expiry: {_gte: $minExpiry, _lte: $now}, lastTradeAt: {_is_null: false},
-      ${originFilter}, oracleQuestionId: {_is_null: false}, creator: {_is_null: false}, createdByTx: {_is_null: false}
-    }, order_by: {expiry: desc}, limit: 64) {
-      marketId winningOutcome marketType asset intervalSec question tradingStart expiry status: clobStatus
-      tradeCount lastTradeAt operatorId venueId context oracleQuestionId creator createdByTx
-    }
-    fifteenMinute: Market(where: {
-      marketType: {_eq: "BINARY"}, asset: {_eq: "BTC"}, intervalSec: {_eq: "900"},
+    ${intervalSec === 300 ? 'fiveMinute' : 'fifteenMinute'}: Market(where: {
+      marketType: {_eq: "BINARY"}, asset: {_eq: "BTC"}, intervalSec: {_eq: "${intervalSec}"},
       question: {_eq: "${REPLAY_MARKET_QUESTION}"}, clobStatus: {_eq: "Finalized"},
       finalized: {_eq: true}, voided: {_eq: false}, winningOutcome: {_in: [0, 1]}, tradeCount: {_gt: 0},
       expiry: {_gte: $minExpiry, _lte: $now}, lastTradeAt: {_is_null: false},
@@ -111,12 +101,29 @@ export function createJudgeReplayStartHandler(input: {
     try {
       const queryNow = Math.floor(Date.now() / 1000);
       const minExpiry = queryNow - MAX_REPLAY_MARKET_AGE_SECONDS;
-      const { data, cacheState } = await input.candidates(() => graphql(
-        candidateQuery(input.profile),
-        { minExpiry: String(minExpiry), now: String(queryNow) },
-        input.profile,
-        CANDIDATE_READ_TIMING,
-      ) as Promise<CandidateData>);
+      const { data, cacheState } = await input.candidates(async () => {
+        // Avoid querying the fallback when a valid balanced five-minute pool
+        // already exists. Both reads share one deadline; no fallback on errors.
+        const deadline = performance.now() + CANDIDATE_READ_TIMING.totalBudgetMs;
+        async function read(intervalSec: 300 | 900): Promise<CandidateData> {
+          const remainingMs = Math.ceil(deadline - performance.now());
+          if (remainingMs <= 0) {
+            throw new UpstreamReadError('Replay candidate discovery budget exhausted', { retryable: true });
+          }
+          return graphql(
+            candidateQuery(input.profile, intervalSec),
+            { minExpiry: String(minExpiry), now: String(queryNow) },
+            input.profile,
+            { timeoutMs: CANDIDATE_READ_TIMING.timeoutMs, totalBudgetMs: remainingMs },
+          ) as Promise<CandidateData>;
+        }
+        const fiveMinute = (await read(300)).fiveMinute ?? [];
+        if (selectBalancedReplayPool(eligibleCandidates(fiveMinute, Math.floor(Date.now() / 1000)), [])) {
+          return { fiveMinute, fifteenMinute: [] };
+        }
+        const fifteenMinute = (await read(900)).fifteenMinute ?? [];
+        return { fiveMinute, fifteenMinute };
+      });
       // Start the hold when the replay is actually issued, not before a slow
       // indexer read. Revalidate market age at this same current timestamp.
       const now = Math.floor(Date.now() / 1000);
