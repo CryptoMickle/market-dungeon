@@ -16,6 +16,17 @@ const INDEXER_TIMEOUT_MS = 5_000;
 const RPC_TIMEOUT_MS = 5_000;
 const MAX_READ_ATTEMPTS = 2;
 
+export type IndexerReadBudget = { deadline: number; timeoutMs: number };
+
+function indexerTiming(budget?: IndexerReadBudget) {
+  if (!budget) return undefined;
+  const remainingMs = Math.ceil(budget.deadline - performance.now());
+  if (remainingMs <= 0) {
+    throw new UpstreamReadError('Replay indexer read budget exhausted', { retryable: true });
+  }
+  return { timeoutMs: budget.timeoutMs, totalBudgetMs: remainingMs };
+}
+
 // Sourced from @somnia-chain/markets-sdk 0.29.0 mainnet-production manifests.
 export const DREAMDEX_MAINNET_CONTRACTS = DREAMDEX_SETTLEMENT_CONTRACTS;
 
@@ -147,17 +158,18 @@ export async function hydrateMarket(
   market: Record<string, unknown>,
   demoReplay = false,
   profile: JudgeNetworkProfile = SOMNIA_MAINNET_PROFILE,
+  indexerBudget?: IndexerReadBudget,
 ) {
   let strikeRaw = String(market.strike ?? '0');
   if (BigInt(strikeRaw) === 0n) {
     const refs = await graphql(`query OpeningRefs($ids: [String!]) {
       MarketReferenceLink(where: {market_id: {_in: $ids}}) { referenceQuestionId }
-    }`, { ids: [String(market.marketId).toLowerCase()] }, profile);
+    }`, { ids: [String(market.marketId).toLowerCase()] }, profile, indexerTiming(indexerBudget));
     const qid = (refs.MarketReferenceLink as Array<{ referenceQuestionId: string }>)?.[0]?.referenceQuestionId;
     if (qid) {
       const answers = await graphql(`query OpeningAnswers($qids: [String!]) {
         OracleAnswer(where: {id: {_in: $qids}}) { numericValue }
-      }`, { qids: [String(qid)] }, profile);
+      }`, { qids: [String(qid)] }, profile, indexerTiming(indexerBudget));
       strikeRaw = (answers.OracleAnswer as Array<{ numericValue: string }>)?.[0]?.numericValue ?? strikeRaw;
     }
   }
@@ -344,6 +356,7 @@ export async function verifyDirectSettlement(
 export async function fetchFullMarket(
   marketId: string,
   profile: JudgeNetworkProfile = SOMNIA_MAINNET_PROFILE,
+  indexerBudget?: IndexerReadBudget,
 ) {
   const data = await graphql(`query ReplaySettlement($id: String!) {
     Market_by_pk(id: $id) {
@@ -352,6 +365,6 @@ export async function fetchFullMarket(
       quoteDecimals yesTokenId noTokenId
       winningOutcome payoutNumerators payoutDenominator voided finalized resolvedAtTimestamp lastPrice
     }
-  }`, { id: marketId.toLowerCase() }, profile);
+  }`, { id: marketId.toLowerCase() }, profile, indexerTiming(indexerBudget));
   return data.Market_by_pk as Record<string, unknown> | null;
 }

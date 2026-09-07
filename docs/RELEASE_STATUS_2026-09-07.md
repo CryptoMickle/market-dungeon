@@ -1,5 +1,28 @@
 # Release and recording status — 7 September 2026
 
+## Shared reveal-metadata budget — validation pending
+
+The reduced-query candidate `84d90f1` passed 21 full Preview round-trips
+(11 mainnet, 10 Shannon), then stopped on mainnet valid-reveal HTTP 503.
+One concurrent Shannon case was interrupted and 17 did not run. The retained
+request trace shows successful start, public-key lookup and the expected
+425/422 boundary responses. The valid reveal failed after 10.209 seconds.
+Its provider diagnostic identifies dreamDEX indexer, two attempts, 10,002ms,
+no HTTP status, timeout=true. This was not a contract contradiction or a
+confirmed RPC failure. Production remained on its previous release.
+
+Replay reveal now gives the settlement metadata lookup and optional opening
+reference/answer lookups one shared 15s indexer budget, with 12s per-attempt
+maximum and at most two attempts per query. The deadline is passed through
+each lookup and never restarted. Exhaustion remains a retryable failure;
+it cannot produce a partial verified result. Non-replay indexer defaults,
+RPC limits, hash-pinned proof verification and receipt/commitment rules stay
+unchanged. Three new tests cover shared timing, fail-closed exhaustion and
+unchanged default/RPC budgets. Forty focused tests passed. The full local
+check then passed lint, TypeScript, optimized build (15 routes), 112
+unit/integration, 7 Shannon kernel and 36 Chromium tests: 155 total, zero
+retries. Deployed validation remains pending at this checkpoint.
+
 ## Reduced candidate discovery after measured upstream timeouts
 
 The `8feb216` Preview gate passed three complete mainnet and three Shannon
