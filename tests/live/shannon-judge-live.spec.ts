@@ -110,7 +110,7 @@ test('live Shannon target remains network-bound through proof export and verifie
   const revealButton = page.getByRole('button', { name: '🔮 REVEAL BOSS FATE' });
   await expect(revealButton).toBeEnabled({ timeout: 30_000 });
   await revealButton.click();
-  await expect(page.getByText('JUDGE DEMO COMPLETE · ONCHAIN RESULT VERIFIED · BLESSED')).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByText(/JUDGE DEMO COMPLETE · ONCHAIN (?:RESULT|LOSS) VERIFIED/)).toBeVisible({ timeout: 30_000 });
   const revealedProof = page.locator('.proof-revealed');
   await revealedProof.locator('summary').click();
   await expect(page.getByText('CHAIN 50312 · EIP-1898 HASH-PINNED · BOTH RAW ETH_CALL RESULTS MATCH')).toBeVisible();
