@@ -130,8 +130,11 @@ test('mobile Full Expedition starts cleanly and restores exact combat state afte
   await expect(page.getByText(/Grave Belle|Gary|Thud/)).toHaveCount(0);
   await page.getByRole('button', { name: 'LOCK BTC UP · ENTER TIER 1' }).click();
   await expect(page.locator('[class*="encounterCopy"] h2')).toHaveText(/Grave Belle|Gary|Thud/);
-  const enemyHp = page.locator('[class*="enemyBar"] b');
-  await page.getByRole('button', { name: /ATTACK/ }).click();
+  const attackButton = page.getByRole('button', { name: /ATTACK/ });
+  await expect(attackButton).toHaveCSS('color', 'rgb(9, 9, 11)');
+  await expect(attackButton.locator('small')).toHaveCSS('color', 'rgb(67, 20, 7)');
+  const enemyHp = page.getByLabel(/Enemy health/).locator('b');
+  await attackButton.click();
   const hpAfterAttack = await enemyHp.innerText();
   expect(hpAfterAttack).not.toBe('60/60');
   await page.reload();
@@ -196,12 +199,64 @@ test('completed full expedition restores with an honest mobile run card', async 
   }))).toEqual({ viewport: 390, content: 390 });
 });
 
+test('first boss relic offers an honest claim-without-equipping choice', async ({ page }) => {
+  const marketId = `0x${'1'.padStart(64, '0')}`;
+  const attemptId = 'attempt_first_boss';
+  const session: FullRunSession = {
+    schema: 'market-dungeon/full-run-session/v2',
+    market: null,
+    run: {
+      schema: 'market-dungeon/full-run/v3',
+      game: {
+        ...emptyGame(),
+        hasStarted: true,
+        active: true,
+        monsterType: 3,
+        monsterHp: 0,
+        monsterMaxHp: 122,
+        roomsCleared: 10,
+        gold: 42,
+        relicOfferAvailable: true,
+        relicOfferRarity: 1,
+        relicOfferId: 1,
+        log: ['The Dungeon Lord has been defeated.'],
+      },
+      phase: 'boss-reward',
+      attemptNumber: 1,
+      rematchRequired: false,
+      currentAttempt: null,
+      pendingBossReward: null,
+      usedMarketIds: [marketId],
+      usedCommitments: [],
+      resolvedAttemptIds: [attemptId],
+      settlements: [{
+        attemptId,
+        marketId,
+        direction: 'UP',
+        proofVersion: FULL_RUN_MARKET_PROOF_VERSION,
+        commitment: null,
+        outcome: 'BLESSED',
+      }],
+    },
+  };
+  const serialized = serializeFullRunSession(session);
+  await page.goto('/');
+  await page.evaluate(({ key, value }) => localStorage.setItem(key, value), { key: FULL_RUN_STORAGE_KEY, value: serialized });
+  await page.reload();
+
+  await expect(page.getByRole('heading', { name: 'Blood Price' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'CLAIM & EQUIP' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'CLAIM WITHOUT EQUIPPING' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'KEEP CURRENT RELIC' })).toHaveCount(0);
+});
+
 test('direct /judge entry lands on actionable Judge Setup without scrolling', async ({ page }) => {
   await installDeterministicUpstreams(page);
   await page.setViewportSize({ width: 390, height: 844 });
 
   await page.goto('/judge');
   await expect(page).toHaveURL(/\/judge$/);
+  await expect(page.getByLabel('Judge Proof Chamber')).toContainText('2-MINUTE PROOF CHAMBER');
   await expect(page.getByRole('heading', { name: 'Lock your omen before the replay is drawn.' })).toBeVisible();
   await expect(page.getByRole('region', { name: 'Judge Demo progress' })).toBeVisible();
   await expect(page.getByRole('region', { name: 'Plain-language proof summary' })).toContainText('Choice first.');

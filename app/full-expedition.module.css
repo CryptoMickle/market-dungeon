@@ -42,6 +42,11 @@
 .panel { margin-bottom: 10px; }
 .encounterArt { position: relative; aspect-ratio: 16/8.3; background: #0c0a09; border-bottom: 1px solid #352c28; }
 .encounterArt::after { position: absolute; inset: 0; content: ''; background: linear-gradient(180deg,transparent 55%,rgba(17,17,19,.9)); pointer-events: none; }
+.enemyArtHud { position: absolute; z-index: 2; right: 13px; bottom: 11px; left: 13px; display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 5px 12px; padding: 9px 11px; border: 1px solid rgba(251,113,133,.45); border-radius: 10px; background: rgba(9,9,11,.88); box-shadow: 0 10px 26px rgba(0,0,0,.46); backdrop-filter: blur(10px); }
+.enemyArtHud span { color: #fda4af; font-size: 8px; font-weight: 950; letter-spacing: .14em; }
+.enemyArtHud b { font-size: 13px; }
+.enemyArtHud i { grid-column: 1/-1; display: block; height: 6px; overflow: hidden; border-radius: 99px; background: #3f3f46; }
+.enemyArtHud em { display: block; height: 100%; background: linear-gradient(90deg,#e11d48,#fb7185); transition: width .2s ease; }
 .bossPanel { border-color: #6b21a8; background: linear-gradient(170deg,rgba(76,29,149,.36),#101012 70%); }
 .bossPanel .encounterArt { border-bottom-color: #6b21a8; }
 .encounterCopy, .cleared { padding: 20px; }
@@ -64,8 +69,11 @@
 .actions .potionAction:hover:not(:disabled) { background: #ecfdf5; }
 .actions .attackAction:hover:not(:disabled) { background: #fb923c; }
 .actions b, .actions small { display: block; }
-.actions b { font-size: 11px; }
-.actions small { margin-top: 5px; color: #8f8f99; font-size: 8px; line-height: 1.35; }
+.actions b { font-size: 13px; line-height: 1.15; }
+.actions small { margin-top: 6px; font-size: 8.5px; font-weight: 800; line-height: 1.35; }
+.actions .stormAction small { color: #ede9fe; }
+.actions .potionAction small { color: #065f46; }
+.actions .attackAction small { color: #431407; }
 .shell button:disabled { cursor: not-allowed; opacity: .42; }
 .oraclePanel { padding: 24px; border-color: #7c3aed; background: radial-gradient(circle at 50% 0,rgba(126,34,206,.22),transparent 50%),#111013; text-align: center; }
 .oraclePanel > p { color: #d8b4fe; }
@@ -141,6 +149,8 @@
   .hud strong { font-size: 9px; }
   .encounterCopy, .cleared, .oraclePanel { padding: 18px; }
   .startCopy h2, .panel h2 { font-size: 26px; }
+  .encounterArt { aspect-ratio: 16/8.8; }
+  .enemyArtHud { right: 9px; bottom: 8px; left: 9px; padding: 8px 10px; }
   .omenStrip { grid-template-columns: 1.4fr 1fr; }
   .omenStrip > div:nth-child(2) { border-right: 0; }
   .omenStrip > div:last-child { grid-column: 1/-1; border-top: 1px solid rgba(139,92,246,.25); text-align: center; }
@@ -149,6 +159,8 @@
   .actions .stormAction { order: 1; }
   .actions .attackAction { order: 2; }
   .actions .potionAction { grid-column: 1/-1; order: 3; }
+  .actions b { font-size: 12px; }
+  .actions small { font-size: 8px; }
   .collection > div { grid-template-columns: 1fr; }
   .rewardActions { grid-template-columns: 1fr; }
 }

@@ -434,12 +434,17 @@ export default function FullExpedition() {
               <section className={`${styles.panel} ${isBoss ? styles.bossPanel : ''}`}>
                 {game.monsterHp > 0 ? (
                   <>
-                    <div className={styles.encounterArt}><Image src={persona.image} alt={persona.name} fill priority sizes="(max-width: 620px) 100vw, 560px" /></div>
+                    <div className={styles.encounterArt}>
+                      <Image src={persona.image} alt={persona.name} fill priority sizes="(max-width: 620px) 100vw, 560px" />
+                      <div className={styles.enemyArtHud} aria-label={`Enemy health ${game.monsterHp} of ${game.monsterMaxHp}`}>
+                        <span>ENEMY HP</span><b>{game.monsterHp}/{game.monsterMaxHp}</b>
+                        <i><em style={{ width: `${enemyPercent}%` }} /></i>
+                      </div>
+                    </div>
                     <div className={styles.encounterCopy}>
                       <p>{isBoss ? `${persona.rank} · BOSS · ROOM ${room}` : `ROOM ${room} · ${persona.species.toUpperCase()} · ${persona.chance}`}</p>
                       <h2>{persona.name}</h2>
                       <blockquote>{isBoss ? bossDialogue(room) : `“${persona.flavor}”`}</blockquote>
-                      <div className={styles.enemyBar}><span>ENEMY HP</span><b>{game.monsterHp}/{game.monsterMaxHp}</b><i><em style={{ width: `${enemyPercent}%` }} /></i></div>
                       <div className={styles.ranges}><div><span>INCOMING</span><b>{incoming[0]}–{incoming[1]}</b></div><div><span>ROOM</span><b>{room}/40</b></div></div>
                     </div>
                   </>
@@ -532,10 +537,13 @@ function RelicReward({ game, onClaim }: {
   return (
     <section className={`${styles.panel} ${styles.relicReward}`}>
       <p>BOSS RELIC · {relic.rarity.toUpperCase()}</p>
-      <div className={styles.relicImage}><Image src={relic.imageSrc!} alt={relic.name} width={316} height={270} sizes="160px" /></div>
+      <div className={styles.relicImage}><Image src={relic.imageSrc!} alt={relic.name} width={316} height={270} sizes="160px" priority /></div>
       <h2>{relic.name}</h2>
       <span>{relic.effect}</span><small>{relic.tradeoff}</small>
-      <div className={styles.rewardActions}><button onClick={() => onClaim(true)}>CLAIM & EQUIP</button><button onClick={() => onClaim(false)}>KEEP CURRENT RELIC</button></div>
+      <div className={styles.rewardActions}>
+        <button onClick={() => onClaim(true)}>CLAIM & EQUIP</button>
+        <button onClick={() => onClaim(false)}>{game.equippedRelic === 0 ? 'CLAIM WITHOUT EQUIPPING' : 'KEEP CURRENT RELIC'}</button>
+      </div>
     </section>
   );
 }
