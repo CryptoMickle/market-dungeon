@@ -30,8 +30,16 @@ export async function expectSubstantialMobileCombat(page: Page) {
   expect(await caption.evaluate(element => element.scrollHeight <= element.clientHeight + 1), 'The flavor caption must not be clipped').toBe(true);
 
   for (const element of [combat.getByLabel(/Your health/), combat.getByLabel(/Enemy health/), image, caption]) {
-    await element.scrollIntoViewIfNeeded();
+    // Leave room for the phone's top controls instead of aligning fractional
+    // line-box coordinates exactly to the viewport edge.
+    await element.evaluate(element => window.scrollTo({
+      top: Math.max(0, window.scrollY + element.getBoundingClientRect().top - 84),
+      behavior: 'instant',
+    }));
     await expect(element).toBeInViewport({ ratio: 1 });
+    const box = (await element.boundingBox())!;
+    const dock = (await combat.getByRole('region', { name: 'Combat controls', exact: true }).boundingBox())!;
+    expect(box.y + box.height, 'Status, full-size art and caption can be read above the action dock').toBeLessThanOrEqual(dock.y);
   }
   const actions = combat.getByRole('region', { name: 'Combat actions', exact: true });
   for (const control of await actions.getByRole('button').all()) await expectReachableTouchControl(control);

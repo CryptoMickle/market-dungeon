@@ -1,4 +1,5 @@
 .screen { display: none; }
+.combatVitals { display: none; }
 .desktopSummary { display: none; }
 .topBar { display: contents; }
 .mobileLabel, .inventory > .mobileStat, .mobileMode { display: none; }
@@ -248,11 +249,17 @@
   .desktopSummary .dialog { text-align: left; }
 }
 @media (max-width: 800px) {
-  /* Keep the illustration at its full width even when Safari's toolbars,
-     navigation and controls need more than one screen. Scroll the page. */
+  /* Keep the artwork full width. The bottom dock retains its space in the
+     document, so artwork and the log can scroll fully above the controls. */
   .screen { height: auto; min-height: 0; }
   .screen .topBar, .bottom { flex-shrink: 0; }
-  .bottom { margin-top: 0; }
+  .bottom { display: contents; }
+  .combatDock { position: sticky; bottom: 0; z-index: 20; flex-shrink: 0; margin-top: 0; padding: 7px 0 max(8px,env(safe-area-inset-bottom)); border-top: 1px solid #493653; border-radius: 10px 10px 0 0; background: #09090b; box-shadow: 0 -8px 16px #09090bbf; }
+  .combatVitals { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 22px; padding: 0 4px 4px; color: #b9adc9; font-size: 9px; line-height: 16px; font-weight: 800; }
+  .combatVitals span { display: flex; align-items: center; gap: 6px; }
+  .combatVitals b { color: #a7f3d0; font-size: 12px; font-variant-numeric: tabular-nums; }
+  .combatVitals span:last-child b, .combatVitals [data-health="danger"] b { color: #fda4af; }
+  .combatVitals [data-health="warning"] b { color: #fde68a; }
   .encounter { display: flex; flex-direction: column; flex-shrink: 0; }
   .enemy, .encounter blockquote { flex-shrink: 0; }
   .art { flex-shrink: 0; min-height: 0; }

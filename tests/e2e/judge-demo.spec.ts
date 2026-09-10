@@ -632,8 +632,10 @@ async function expectCompactCombat(page: Page, width: number, height: number) {
   expect(player!.y).toBeGreaterThanOrEqual(0);
   expect(enemy!.y).toBeGreaterThan(player!.y + player!.height);
   expect(art!.y).toBeGreaterThanOrEqual(enemy!.y + enemy!.height - 1);
-  expect(actions!.y).toBeGreaterThanOrEqual(art!.y + art!.height);
-  expect(exchange!.y).toBeGreaterThanOrEqual(art!.y + art!.height);
+  // Phone controls follow the viewport while the full-size art can scroll
+  // above them; they no longer have to follow the bitmap at scroll position 0.
+  await expect(combat.getByRole('region', { name: 'Combat controls' })).toBeInViewport({ ratio: 1 });
+  await expect(combat.getByLabel('Combat health summary', { exact: true })).toBeInViewport({ ratio: 1 });
   expect(exchange!.y + exchange!.height).toBeLessThanOrEqual(actions!.y);
   await expect(combat.getByRole('img')).toHaveCSS('object-fit', 'contain');
   const buttons = await combat.getByRole('region', { name: 'Combat actions' }).getByRole('button').all();
@@ -1170,7 +1172,11 @@ for (const reward of [
       expect(imageBox.x + imageBox.width).toBeLessThan(headingBox.x);
       await expect(next).toBeInViewport({ ratio: 1 });
     } else {
-      expect(imageBox.y).toBeGreaterThanOrEqual(headingBox.y + headingBox.height);
+      // Mobile loot shares one compact row with its label, leaving recovery
+      // controls available without another full illustration to scroll past.
+      expect(imageBox.x + imageBox.width).toBeLessThanOrEqual(headingBox.x);
+      expect(imageBox.y).toBeLessThan(headingBox.y + headingBox.height);
+      expect(imageBox.y + imageBox.height).toBeGreaterThan(headingBox.y);
       expect(imageBox.y + imageBox.height).toBeLessThan((await next.boundingBox())!.y);
     }
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(width);

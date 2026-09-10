@@ -40,6 +40,7 @@
 .shell button:disabled { cursor: not-allowed; opacity: .55; }
 .shell button:focus-visible, .shell a:focus-visible, .shell summary:focus-visible { outline: 3px solid #67e8f9; outline-offset: 3px; }
 .note { display: block; margin-top: 12px; color: #b3a3c2; font-size: 11px; line-height: 1.5; text-align: center; }
+.recoverySupplies, .recoveryPortrait { display: none; }
 .error { margin: 14px 0; padding: 15px; border: 1px solid #91633b; border-radius: 12px; background: #322315; color: #fde0b1; font-size: 13px; line-height: 1.5; }
 .proof { margin-top: 18px; border-top: 1px solid #493652; padding-top: 15px; color: #c7b5d4; font-size: 12px; line-height: 1.6; }
 .proof summary { cursor: pointer; font-weight: 800; }
@@ -124,6 +125,17 @@
 }
 @media (prefers-reduced-motion: reduce) { .choices button { transition: none; } .choices button:hover:not(:disabled) { transform: none; } }
 @media (max-width: 800px) {
+  .shell[data-recovery="true"] .art { display: none; }
+  .shell[data-recovery="true"] .panel { padding: 16px; }
+  .recoveryHeading { display: flex; align-items: center; gap: 12px; }
+  .recoveryHeading > div:last-child { min-width: 0; }
+  .recoveryHeading .eyebrow { font-size: 9px; }
+  .recoveryHeading h1 { margin: 7px 0 0; font-size: 25px; }
+  .recoveryPortrait { display: block; position: relative; flex: 0 0 88px; height: 88px; overflow: hidden; border: 1px solid #73563e; border-radius: 12px; }
+  .recoveryPortrait img { object-fit: cover; object-position: 42% center; }
+  .recoverySupplies { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-top: 14px; padding: 10px 12px; border: 1px solid #4e4657; border-radius: 10px; background: #15101c; }
+  .recoverySupplies span { display: block; color: #c4b5d1; font-size: 9px; font-weight: 800; letter-spacing: .06em; }
+  .recoverySupplies strong { display: block; margin-top: 3px; color: #f5f3ff; font-size: 16px; font-variant-numeric: tabular-nums; }
   .combat :global(.mobile-battle-root) { height: auto; min-height: 0; }
   .combat .combatClock { margin-right: 66px; min-height: 44px; box-sizing: border-box; }
   .combatClock { flex-wrap: wrap; gap: 2px 9px; padding: 5px 10px; }
