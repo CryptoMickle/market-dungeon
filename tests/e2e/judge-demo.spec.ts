@@ -359,6 +359,7 @@ test('desktop Judge keeps complete combat in view and preserves keyboard order a
   for (const [width, height] of [[820,720], [1280,720], [1920,866]]) {
     await page.setViewportSize({ width, height });
     await page.evaluate(() => window.scrollTo(0, 0));
+    await expect(page.getByRole('region', { name: 'Recovery supplies', exact: true })).toBeInViewport({ ratio: 1 });
     await expect(page.getByRole('button', { name: 'TAKE A FREE REST · RESTORE HP' })).toBeInViewport({ ratio: 1 });
     await expect(page.getByRole('button', { name: '🔮 RETURN TO BOSS FATE' })).toBeInViewport({ ratio: 1 });
     expect((await page.locator('.merchant-view').boundingBox())!.height).toBeLessThan(260);
@@ -1830,6 +1831,10 @@ for (const width of [1280, 390]) test(`pending settlement potion safely heals an
   }, { key: FULL_RUN_STORAGE_KEY, value: serializeFullRunSession(session) });
   await page.goto('/');
   const potion = page.getByRole('button', { name: /USE POTION/ });
+  const supplies = page.getByRole('region', { name: 'Recovery supplies', exact: true });
+  await expect(supplies).toBeVisible();
+  await expect(supplies).toContainText('28/100');
+  await expect(supplies).toContainText('3/5');
   await expect(page.getByRole('img', { name: /^Loot:/ })).toHaveCount(0);
   await expect(potion).toBeEnabled();
   await potion.click();
@@ -1842,15 +1847,22 @@ for (const width of [1280, 390]) test(`pending settlement potion safely heals an
   expect(saved.market).toEqual(session.market);
   expect(saved.run.phase).toBe('settlement-pending');
   expect(saved.run.game.monsterHp).toBe(0);
+  await expect(supplies).toContainText('53/100');
+  await expect(supplies).toContainText('2/5');
   await expect(page.getByRole('button', { name: /^REVEAL IN/ })).toBeDisabled();
   await page.reload();
   await expect(potion).toContainText('2/5');
+  await expect(supplies).toContainText('53/100');
   await expect(page.getByText(/Potion restores 25 HP/)).toBeVisible();
   await page.screenshot({ path: info.outputPath(`waiting-potion-${width}.png`), fullPage: true });
   await potion.click();
+  await expect(supplies).toContainText('78/100');
+  await expect(potion).toContainText('+22 HP');
   await potion.click();
   await expect(potion).toBeDisabled();
   await expect(potion).toContainText('0/5');
+  await expect(supplies).toContainText('100/100');
+  await expect(supplies).toContainText('0/5');
   const capped = await page.evaluate(key => JSON.parse(localStorage.getItem(key)!), FULL_RUN_STORAGE_KEY) as FullRunSession;
   expect(capped.run.game.hp).toBe(100);
   expect(capped.run.game.potions).toBe(0);
@@ -1882,6 +1894,10 @@ for (const width of [1280, 390]) test(`pre-rematch potion heals safely before lo
   await expect(rematchScene.getByRole('img', { name: 'The Dungeon Lord resurrecting', exact: true })).toBeVisible();
   await expect(rematchScene.getByLabel('Boss health 122 of 122', { exact: true })).toBeVisible();
   const potion = page.getByRole('button', { name: /USE POTION/ });
+  const supplies = page.getByRole('region', { name: 'Recovery supplies', exact: true });
+  await expect(supplies).toBeVisible();
+  await expect(supplies).toContainText('28/100');
+  await expect(supplies).toContainText('2/5');
   await potion.click();
   const saved = await page.evaluate(key => JSON.parse(localStorage.getItem(key)!), FULL_RUN_STORAGE_KEY) as FullRunSession;
   expect(saved.run.game.hp).toBe(53);
@@ -1890,8 +1906,11 @@ for (const width of [1280, 390]) test(`pre-rematch potion heals safely before lo
   expect(saved.run.game.combatPotionsUsed).toBe(0);
   expect({ ...saved.run, game: session.run.game }).toEqual(session.run);
   expect(saved.market).toBeNull();
+  await expect(supplies).toContainText('53/100');
+  await expect(supplies).toContainText('1/5');
   await page.reload();
   await expect(potion).toContainText('1/5');
+  await expect(supplies).toContainText('53/100');
   await page.screenshot({ path: info.outputPath(`rematch-potion-${width}.png`), fullPage: true });
   await page.getByRole('button', { name: /LOCK BTC UP · REMATCH BOSS/ }).click();
   const combat = page.getByRole('region', { name: 'Combat view' });

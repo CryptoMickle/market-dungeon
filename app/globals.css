@@ -360,7 +360,6 @@ span.gold-icon { display: inline-block !important; }
 .merchant-stats div { padding: 11px 8px; background: rgba(0, 0, 0, .3); border: 1px solid #3f3429; border-radius: 10px; }
 .merchant-stats span { display: block; color: #78716c; font-size: 7px; font-weight: 900; letter-spacing: .1em; }
 .merchant-stats strong { display: block; margin-top: 5px; font-size: 11px; }
-.judge-recovery-supplies { display: none; }
 
 .supply-actions { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; width: 100%; margin-top: 20px; }
 .supply-actions button { min-width: 0; padding: 14px 10px; background: rgba(9, 9, 11, .48); border: 1px solid var(--line-strong); border-radius: 10px; color: white; text-align: left; cursor: pointer; }
@@ -1496,8 +1495,9 @@ footer a:focus-visible { outline: 2px solid #c4b5fd; outline-offset: 3px; }
   .desktop-journey-details .action-dock { position: static; width: 100%; }
   .desktop-journey-details > .main-card { order: 0; }
   .desktop-journey-details > .action-dock:not(.judge-first-lock) { order: 1; }
-  /* Reveal is the next action, not a footnote below the technical evidence. */
-  .judge-mode.phase-oracle .desktop-journey-details > .action-dock { order: -1; }
+  /* Keep boss recovery and reveal decisions, with their current HP, above
+     the optional merchant copy and technical evidence on short desktops. */
+  .judge-mode:is(.phase-oracle, .phase-final_merchant) .desktop-journey-details > .action-dock { order: -1; }
   .judge-mode .judge-reveal-summary { margin: 0 0 10px; font-weight: 700; color: #e9d5ff; }
   .desktop-journey-details > .judge-replay-banner { order: 2; }
   .desktop-journey-details > .judge-lock-receipt { order: 3; }
@@ -1615,9 +1615,6 @@ footer a:focus-visible { outline: 2px solid #c4b5fd; outline-offset: 3px; }
 }
 /* Recovery decisions need their current supplies beside the touch controls. */
 @media (max-width: 800px) {
-  .judge-recovery-supplies { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-bottom: 10px; padding: 10px 12px; border: 1px solid #4e4657; border-radius: 10px; background: #15101c; }
-  .judge-recovery-supplies span { display: block; color: #c4b5d1; font-size: 9px; font-weight: 800; letter-spacing: .06em; }
-  .judge-recovery-supplies strong { display: block; margin-top: 3px; color: #f5f3ff; font-size: 16px; font-variant-numeric: tabular-nums; }
   .judge-mode.in-expedition .merchant-view { display: grid; grid-template-columns: 100px minmax(0, 1fr); align-items: center; gap: 12px; padding: 12px; }
   .judge-mode.in-expedition .merchant-stage { height: 112px; aspect-ratio: auto; border-radius: 10px; }
   .judge-mode.in-expedition .merchant-stage img { object-fit: cover; object-position: 42% center; }
@@ -1630,5 +1627,5 @@ footer a:focus-visible { outline: 2px solid #c4b5fd; outline-offset: 3px; }
   .judge-mode.in-expedition .cleared-view .result-icon { font-size: 28px; }
   .judge-mode.in-expedition .cleared-view h2 { margin: 8px 0; font-size: 24px; }
   .judge-mode.in-expedition .cleared-view .reward-box { margin-top: 12px; padding: 10px; }
-  .judge-mode.in-expedition :is(.action-dock-cleared, .action-dock-merchant, .action-dock-final_merchant) button { min-height: 48px; padding: 10px; font-size: 12px; }
+  .judge-mode.in-expedition :is(.action-dock-cleared, .action-dock-merchant, .action-dock-final_merchant, .action-dock-oracle) button { min-height: 48px; padding: 10px; font-size: 12px; }
 }

@@ -1,0 +1,8 @@
+.supplies { min-width: 0; margin: 12px 0 0; padding: 10px 12px; border: 1px solid #4e4657; border-radius: 10px; background: #15101c; text-align: left; }
+.stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 16px; }
+.stats > div > span { display: block; color: #c4b5d1; font-size: 10px; font-weight: 800; letter-spacing: .06em; }
+.stats > div > strong { display: block; margin-top: 3px; color: #f5f3ff; font-size: 18px; line-height: 1.2; font-variant-numeric: tabular-nums; }
+.healthBar { height: 5px; margin-top: 8px; overflow: hidden; border-radius: 5px; background: #302b35; }
+.healthBar i { display: block; height: 100%; border-radius: inherit; background: #34d399; }
+.supplies[data-health="warning"] .healthBar i { background: #fbbf24; }
+.supplies[data-health="danger"] .healthBar i { background: #fb7185; }
