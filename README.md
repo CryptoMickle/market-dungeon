@@ -8,6 +8,8 @@ Market Dungeon is a playable fantasy roguelite built for the Somnia × dreamDEX 
 
 **iPhone follow-up:** [v14](docs/IPHONE_CONTROLS_2026-09-10.md) keeps combat controls and Kevin's supplies within reach. The [v15 recovery patch](docs/BOSS_RECOVERY_HEALTH_2026-09-10.md) also puts current HP beside potions while waiting for boss settlement and before a rematch. The v13 release remains the preceding feature and proof baseline.
 
+**CLOB follow-up:** [Read recovery](docs/CLOB_READ_RECOVERY_2026-09-10.md) distinguishes empty books from failed reads, shortens mainnet odds deadlines and retries missing quotes sooner while preserving the exact market and any genuine last-trade fallback.
+
 The game reads real dreamDEX markets and Somnia contract state. It requests no wallet connection, signature, approval, order, redemption or other transaction.
 
 ## Choose your run

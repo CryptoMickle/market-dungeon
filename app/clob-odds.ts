@@ -6,6 +6,9 @@ export type DreamDexClobOdds = {
   bestAsk: number | null;
   spread: number | null;
   source: 'ORDER_BOOK' | 'LAST_TRADE' | 'UNAVAILABLE';
+  // A successful empty read is different from a provider failure. Optional for
+  // older responses and consumers that already carry a separate read state.
+  bookStatus?: 'ok' | 'unavailable';
   observedAtIso: string;
   provider: 'dreamDEX CLOB';
   sdk: '@somnia-chain/markets-sdk';
