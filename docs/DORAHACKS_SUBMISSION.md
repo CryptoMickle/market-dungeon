@@ -71,7 +71,7 @@ Future scope includes additional eligible assets, seasonal dungeon content and a
 - [Historical Replay — Shannon](https://market-dungeon.vercel.app/shannon/judge)
 - [Historical Replay verifier — Shannon](https://market-dungeon.vercel.app/shannon/verify)
 - [Source repository](https://github.com/CryptoMickle/market-dungeon)
-- [Immutable v12 release](https://github.com/CryptoMickle/market-dungeon/releases/tag/hackathon-submission-2026-v12)
+- [Immutable v13 release](https://github.com/CryptoMickle/market-dungeon/releases/tag/hackathon-submission-2026-v13)
 - [Current release verification](RELEASE_2026-09-10.md)
 - [Release evidence and known limits](JUDGE_EVIDENCE_PACK.md)
 - [dreamDEX integration and SDK/documentation feedback](DREAMDEX_INTEGRATION_REPORT.md)

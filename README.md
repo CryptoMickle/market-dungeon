@@ -107,7 +107,7 @@ Read [judge evidence pack](docs/JUDGE_EVIDENCE_PACK.md) for the exact source/dep
 
 ## Delivery, privacy and license
 
-[Submission copy](docs/DORAHACKS_SUBMISSION.md) and the [judge evidence pack](docs/JUDGE_EVIDENCE_PACK.md) describe this release candidate. Final source, Production identity and publication checks are recorded in [release verification](docs/RELEASE_2026-09-10.md) and the matching [v12 release](https://github.com/CryptoMickle/market-dungeon/releases/tag/hackathon-submission-2026-v12). The [existing 1:52 video](https://youtu.be/6IviQrMweZ4) shows an earlier baseline; replacing it is deferred and it is not presented as a recording of the current live one-minute flow.
+[Submission copy](docs/DORAHACKS_SUBMISSION.md) and the [judge evidence pack](docs/JUDGE_EVIDENCE_PACK.md) describe this release candidate. Final source, Production identity and publication checks are recorded in [release verification](docs/RELEASE_2026-09-10.md) and the matching [v13 release](https://github.com/CryptoMickle/market-dungeon/releases/tag/hackathon-submission-2026-v13). The [existing 1:52 video](https://youtu.be/6IviQrMweZ4) shows an earlier baseline; replacing it is deferred and it is not presented as a recording of the current live one-minute flow.
 
 The game depends on public dreamDEX indexer and Somnia RPC availability. It keeps a pending result retryable instead of fabricating a price, odds or settlement. Browser-local run state and generated cards are separate from exported proof. Sharing actions do not prove a post was published or that an iPhone image reached Photos.
 

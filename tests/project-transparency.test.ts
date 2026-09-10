@@ -23,7 +23,7 @@ test('privacy and creative provenance remain directly accessible from the game',
 });
 
 test('public submission identifies the Live demo, replay fallback and immutable release source', () => {
-  const immutableBlobRoot = 'https://github.com/CryptoMickle/market-dungeon/blob/hackathon-submission-2026-v12';
+  const immutableBlobRoot = 'https://github.com/CryptoMickle/market-dungeon/blob/hackathon-submission-2026-v13';
   const disclosureUrl = `${immutableBlobRoot}/docs/PROVENANCE_AND_PRIVACY.md`;
 
   assert.ok(credits.includes(disclosureUrl));
@@ -32,7 +32,7 @@ test('public submission identifies the Live demo, replay fallback and immutable 
     assert.match(content, /https:\/\/market-dungeon\.vercel\.app\/shannon\/live-judge\/verify/);
     assert.match(content, /https:\/\/market-dungeon\.vercel\.app\/shannon\/judge/);
     assert.match(content, /https:\/\/market-dungeon\.vercel\.app\/shannon\/verify/);
-    assert.match(content, /hackathon-submission-2026-v12/);
+    assert.match(content, /hackathon-submission-2026-v13/);
     assert.match(content, /https:\/\/youtu\.be\/6IviQrMweZ4/);
     assert.doesNotMatch(content, /Final candidate release: pending source freeze, verification and publication approval/);
   }

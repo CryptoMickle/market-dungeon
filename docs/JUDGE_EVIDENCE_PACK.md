@@ -1,6 +1,6 @@
 # Market Dungeon — judge evidence pack
 
-Updated 10 September 2026. This document separates implemented behavior, project-controlled checks and human feedback. The authoritative record for this release is [release verification](RELEASE_2026-09-10.md), with its matching [v12 source release](https://github.com/CryptoMickle/market-dungeon/releases/tag/hackathon-submission-2026-v12). Publication and final deployment checks must be recorded there after execution; an older successful release does not establish them.
+Updated 10 September 2026. This document separates implemented behavior, project-controlled checks and human feedback. The authoritative record for this release is [release verification](RELEASE_2026-09-10.md), with its matching [v13 source release](https://github.com/CryptoMickle/market-dungeon/releases/tag/hackathon-submission-2026-v13). Publication and final deployment checks must be recorded there after execution; an older successful release does not establish them.
 
 ## Product and entry points
 
@@ -52,6 +52,8 @@ Before this final release pass, the following targeted checks were recorded on t
 These were project-controlled automated checks, not an independent security audit or proof of universal Safari, AirPods or native sharing behavior. Final current-revision results belong in the release record.
 
 The [v11 release](https://github.com/CryptoMickle/market-dungeon/releases/tag/hackathon-submission-2026-v11), commit `f30b9a56532eb6e3147e7ae8473242545635d0ef`, retains its own historical evidence: 20 mainnet plus 20 Shannon historical round-trips in both Preview and Production, with zero retries. Those counts describe v11, not the later live one-minute implementation.
+
+The immediately preceding public release is [v12](https://github.com/CryptoMickle/market-dungeon/releases/tag/hackathon-submission-2026-v12), commit `465ec20ffedda7f3d9841e20178097721384ec1a`. It added RPC-only historical reveal and mobile sharing fixes, and retains its own 20-per-network Preview and Production historical checks. It does not contain the new Live 1-minute game. Both previous tags remain unchanged.
 
 ## Human feedback and measurement limits
 

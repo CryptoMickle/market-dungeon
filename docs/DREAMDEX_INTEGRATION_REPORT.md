@@ -1,6 +1,6 @@
 # dreamDEX integration and SDK feedback
 
-Implementation reviewed 10 September 2026. This report describes the current Market Dungeon source candidate: Live Judge on one-minute Shannon markets, Historical Replay on fixed network profiles, and Full Expedition on five-minute Somnia mainnet markets. Exact publication identity and executed checks are recorded in [release verification](RELEASE_2026-09-10.md) and the matching [v12 source release](https://github.com/CryptoMickle/market-dungeon/releases/tag/hackathon-submission-2026-v12).
+Implementation reviewed 10 September 2026. This report describes the current Market Dungeon source candidate: Live Judge on one-minute Shannon markets, Historical Replay on fixed network profiles, and Full Expedition on five-minute Somnia mainnet markets. Exact publication identity and executed checks are recorded in [release verification](RELEASE_2026-09-10.md) and the matching [v13 source release](https://github.com/CryptoMickle/market-dungeon/releases/tag/hackathon-submission-2026-v13).
 
 This is the submission’s optional SDK and documentation feedback report. Deployment constants below are the values enforced by the application, not a claim that every upstream service is continuously available.
 
