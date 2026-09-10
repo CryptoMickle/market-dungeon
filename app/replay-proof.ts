@@ -46,7 +46,7 @@ export type ReplayProof = ReplayCommitmentPayload & {
 
 export type ReplayCombatProof = {
   verified: boolean;
-  ruleset: 'market-dungeon/judge-combat/v1';
+  ruleset: 'market-dungeon/judge-combat/v1' | 'market-dungeon/judge-combat/v2';
   transcriptDigest: string;
   steps: number;
   guardDefeated: boolean;

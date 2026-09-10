@@ -10,9 +10,11 @@ import {
   replayMarketProvenanceFromMarket,
 } from '../../../replay-proof.ts';
 import {
+  assertReplaySealingConfigured,
   newReplayClaims,
   replayCommitment,
   replayLockAttestation,
+  ReplayConfigurationError,
   sealReplay,
   type ReplayDirection,
 } from '../crypto.ts';
@@ -122,6 +124,7 @@ export function createJudgeReplayStartHandler(input: {
     }
 
     try {
+      assertReplaySealingConfigured();
       const queryNow = Math.floor(Date.now() / 1000);
       const minExpiry = queryNow - MAX_REPLAY_MARKET_AGE_SECONDS;
       const { data, cacheState } = await input.candidates(async () => {
@@ -154,7 +157,13 @@ export function createJudgeReplayStartHandler(input: {
         eligibleCandidates(data.fiveMinute ?? [], now, excludedMarketIds),
         eligibleCandidates(data.fifteenMinute ?? [], now, excludedMarketIds),
       );
-      if (!replayPool) throw new Error('Balanced replay pool unavailable');
+      if (!replayPool) {
+        return Response.json({
+          error: 'No recent eligible replay pool is available. Please try again later.',
+          retryState: 'no_candidates',
+          retryAfter: 30,
+        }, { status: 503, headers: responseHeaders(rate, { 'retry-after': '30' }) });
+      }
       const outcomePool = replayPool.outcomePools[randomInt(2)];
       const selected = outcomePool[randomInt(outcomePool.length)];
       const provenance = replayMarketProvenanceFromMarket(selected as unknown as Record<string, unknown>);
@@ -187,6 +196,12 @@ export function createJudgeReplayStartHandler(input: {
         },
       }, { headers: responseHeaders(rate, { 'x-replay-candidate-cache': cacheState }) });
     } catch (error) {
+      if (error instanceof ReplayConfigurationError) {
+        return Response.json({
+          error: 'Judge Replay is not configured on this server. Server setup is required before an omen can be locked.',
+          retryState: 'config_unavailable',
+        }, { status: 503, headers: responseHeaders(rate) });
+      }
       const retryAfter = isRetryableUpstreamError(error) ? error.retryAfter : 3;
       return Response.json(
         {

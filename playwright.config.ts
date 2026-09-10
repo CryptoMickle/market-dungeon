@@ -1,6 +1,7 @@
 import { defineConfig, devices } from '@playwright/test';
 
-const port = 3100;
+const productionBuild = process.env.PLAYWRIGHT_PRODUCTION === '1';
+const port = productionBuild ? 3101 : 3100;
 
 export default defineConfig({
   testDir: './tests/e2e',
@@ -18,7 +19,7 @@ export default defineConfig({
     { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
   ],
   webServer: {
-    command: `npm run dev -- --hostname 127.0.0.1 --port ${port}`,
+    command: `npm run ${productionBuild ? 'start' : 'dev'} -- --hostname 127.0.0.1 --port ${port}`,
     url: `http://127.0.0.1:${port}`,
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,

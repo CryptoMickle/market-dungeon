@@ -1,0 +1,57 @@
+.toggle {
+  position: fixed;
+  z-index: 1000;
+  top: max(10px, env(safe-area-inset-top));
+  right: max(10px, env(safe-area-inset-right));
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  width: 64px;
+  min-width: 64px;
+  min-height: 44px;
+  padding: 0;
+  border: 1px solid rgba(216, 180, 254, .62);
+  border-radius: 12px;
+  background: rgba(20, 14, 25, .94);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, .46), inset 0 0 18px rgba(126, 34, 206, .12);
+  color: #f3e8ff;
+  cursor: pointer;
+  font: 900 10px/1 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  letter-spacing: .06em;
+  backdrop-filter: blur(14px);
+}
+
+.toggle:hover,
+.toggle:focus-visible {
+  border-color: #f0abfc;
+  background: rgba(46, 24, 57, .97);
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(192, 132, 252, .2), 0 8px 28px rgba(0, 0, 0, .5);
+}
+
+.toggle[data-enabled='false'] {
+  border-color: rgba(161, 161, 170, .62);
+  background: rgba(24, 24, 27, .94);
+  color: #d4d4d8;
+}
+
+.icon { font-size: 16px; line-height: 16px; }
+.label { display: block; font-size: 9px; line-height: 11px; letter-spacing: 0; white-space: nowrap; }
+.inline { position: static; flex-shrink: 0; }
+
+/* Native dialogs make controls outside their top layer inert. The dialog uses
+   an inline control, so keep a single visible sound button while it is open. */
+:global(body:has(dialog[open])) .floating { visibility: hidden; }
+
+@media (max-width: 800px) {
+  .toggle {
+    top: max(7px, env(safe-area-inset-top));
+    right: max(7px, env(safe-area-inset-right));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .toggle { backdrop-filter: none; }
+}

@@ -1,0 +1,9 @@
+.guide { margin: 14px 0; padding: 12px 14px; border: 1px solid #5d4b6a; border-radius: 12px; background: #130f1ccc; text-align: left; }
+.guide > p { margin: 0; color: #e6dced; font-size: 12px; line-height: 1.5; }
+.guide > p > b { color: #fff; }
+.outcomes { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px; margin-top: 10px; }
+.outcomes b { display: block; color: #6ee7b7; font-size: 9px; line-height: 1.4; letter-spacing: .04em; }
+.outcomes > div:last-child b { color: #fda4af; }
+.outcomes span { display: block; margin-top: 4px; color: #d5c8df; font-size: 12px; line-height: 1.5; }
+.guide > small { display: block; margin-top: 9px; color: #b7a8c5; font-size: 11px; line-height: 1.5; }
+@media (max-width: 800px) { .guide { padding: 11px 12px; } .outcomes { gap: 10px; } }

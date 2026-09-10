@@ -182,6 +182,74 @@ test('VOID progresses normally while PENDING and NOT_PROVABLE freeze without con
   assert.equal(voided.settlements[0].outcome, 'VOID');
 });
 
+test('pending settlement permits safe potion recovery without changing the bound attempt or rewards', () => {
+  const pending = defeatBoss(applyLock(nearBoss({ hp: 28, potions: 2, combatPotionsUsed: 3 }), 1));
+  const healed = transitionMarketDungeon(pending, { type: 'gameplay', action: { type: 'use-potion' } }, noRolls());
+  assert.equal(healed.accepted, true);
+  assert.deepEqual({ ...healed.run, game: pending.game }, pending);
+  assert.equal(healed.run.game.hp, 53);
+  assert.equal(healed.run.game.potions, 1);
+  assert.equal(healed.run.game.combatPotionsUsed, 3);
+  assert.equal(healed.run.game.lastMonsterDamage, 0);
+  for (const key of ['gold', 'roomsCleared', 'monsterHp', 'equippedRelic', 'relicOfferAvailable'] as const) {
+    assert.equal(healed.run.game[key], pending.game[key]);
+  }
+  const cursed = settle(healed.run, 'CURSED');
+  assert.equal(cursed.game.hp, 53);
+  assert.equal(cursed.game.potions, 1);
+  const blessed = settle(healed.run, 'BLESSED');
+  assert.equal(blessed.game.hp, 53);
+  assert.equal(blessed.game.potions, 1);
+  assert.equal(blessed.game.roomsCleared, 10);
+  for (const action of [{ type: 'attack' }, { type: 'storm' }, { type: 'enter-next-room' }, { type: 'equip-relic', relicId: 0 }, { type: 'buy', item: 'camp-rest' }] as const) {
+    const rejected = transitionMarketDungeon(pending, { type: 'gameplay', action }, noRolls());
+    assert.equal(rejected.accepted, false);
+    assert.equal(rejected.run, pending);
+  }
+});
+
+test('settlement potions respect max HP and inventory without combat rolls', () => {
+  const pending = defeatBoss(applyLock(nearBoss({ hp: 90, potions: 2 }), 1));
+  const heal = (run: MarketDungeonRun) => transitionMarketDungeon(run, { type: 'gameplay', action: { type: 'use-potion' } }, noRolls()).run;
+  const capped = heal(pending);
+  assert.equal(capped.game.hp, 100);
+  assert.equal(capped.game.potions, 1);
+  const full = heal(capped);
+  assert.equal(full.game.hp, 100);
+  assert.equal(full.game.potions, 1);
+  const empty = heal({ ...pending, game: { ...pending.game, potions: 0 } });
+  assert.equal(empty.game.hp, 90);
+  assert.equal(empty.game.potions, 0);
+});
+
+test('pre-rematch recovery preserves the boss and history; locking restores combat potion rules', () => {
+  const cursed = settle(defeatBoss(applyLock(nearBoss({ hp: 28, potions: 3 }), 1)), 'CURSED');
+  const recover = (run: MarketDungeonRun) => transitionMarketDungeon(run, { type: 'gameplay', action: { type: 'use-potion' } }, noRolls());
+  const recovered = recover(cursed);
+  assert.equal(recovered.accepted, true);
+  assert.equal(recovered.run.game.hp, 53);
+  assert.equal(recovered.run.game.potions, 2);
+  assert.equal(recovered.run.game.monsterHp, 122);
+  assert.equal(recovered.run.game.combatPotionsUsed, 0);
+  assert.deepEqual({ ...recovered.run, game: cursed.game }, cursed);
+  for (const action of [{ type: 'attack' }, { type: 'storm' }, { type: 'equip-relic', relicId: 0 }, { type: 'buy', item: 'camp-rest' }] as const) {
+    assert.equal(transitionMarketDungeon(recovered.run, { type: 'gameplay', action }, noRolls()).accepted, false);
+  }
+  const capped = recover({ ...cursed, game: { ...cursed.game, hp: 90 } }).run;
+  assert.equal(capped.game.hp, 100);
+  assert.equal(recover(capped).run.game.potions, 2);
+  const empty = recover({ ...cursed, game: { ...cursed.game, potions: 0 } }).run;
+  assert.equal(empty.game.hp, 28);
+  assert.equal(empty.game.potions, 0);
+  const locked = applyLock(recovered.run, 2);
+  const combatPotion = transitionMarketDungeon(locked, { type: 'gameplay', action: { type: 'use-potion' } }, sequence(0));
+  assert.equal(combatPotion.accepted, true);
+  assert.ok(combatPotion.run.game.lastMonsterDamage > 0);
+  assert.equal(combatPotion.run.game.combatPotionsUsed, 1);
+  assert.equal(combatPotion.run.game.potions, 1);
+  assert.equal(combatPotion.run.phase, 'boss-combat');
+});
+
 test('a delayed old answer, duplicate market, or rewritten binding is rejected', () => {
   const firstPending = defeatBoss(applyLock(nearBoss(), 1));
   const oldSettlement = settlement(firstPending, 'CURSED');

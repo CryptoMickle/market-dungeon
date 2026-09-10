@@ -1,5 +1,7 @@
 # Market Dungeon — pre-video readiness
 
+> Historical release record. For the September 10 release with Live 1-minute Judge as the primary demo, see [current release record](RELEASE_2026-09-10.md). Earlier holds, counts and deployment identities below apply only to their dated checkpoints. Video work is deferred.
+
 Updated: 7 September 2026.
 
 Status: **v11 is released; the new hybrid recording kit is prepared. The newer

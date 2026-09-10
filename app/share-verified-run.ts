@@ -88,7 +88,7 @@ export function verifiedRunProofArtifact(
     combat: {
       proof: combatProof,
       actions: combatActions,
-      canonicalTranscript: canonicalJudgeActionLog(replayProof.gameSeed, combatActions),
+      canonicalTranscript: canonicalJudgeActionLog(replayProof.gameSeed, combatActions, combatProof.ruleset),
     },
     onchainProof: onchainSettlement,
     independentRpcVerification: {

@@ -34,9 +34,10 @@ failed step as a pass.
 
 ## Production proof verification
 
-1. Record the requested fixed profile: mainnet (`/judge` and `/verify`) or
-   Shannon Testnet (`/shannon/judge` and `/shannon/verify`). For the Shannon
-   release candidate, use the Shannon pair.
+1. Use the primary Live Judge pair: `/shannon/live-judge` and
+   `/shannon/live-judge/verify` on Shannon testnet. The historical fallback is
+   `/shannon/judge` with `/shannon/verify`; the legacy mainnet replay is
+   `/judge` with `/verify`. Record which pair you actually tested.
 2. Open the final Production Judge URL in a new browser profile or private
    window.
 3. Complete one fresh Judge run without coaching from the project team.
@@ -44,7 +45,8 @@ failed step as a pass.
 5. Record only the file's SHA-256 checksum; do not publish the proof unless the
    validator intentionally chooses to publish its public contents.
 6. Open the matching fixed-profile verifier route and load the exact downloaded
-   file. Do not move a proof between mainnet and Shannon routes.
+   file. Keep the same deployment and matching Live or historical route;
+   Preview and Production have separate signing keys.
 7. Record whether the verifier returns `PASS`, `FAIL`, or `NOT PROVABLE`.
 8. Confirm that `/api/build` reports the same full commit as the frozen tag.
 

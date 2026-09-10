@@ -1,4 +1,4 @@
-import { canonicalJudgeActionLog, replayJudgeCombat, type JudgeCombatAction } from './judge-combat.ts';
+import { canonicalJudgeActionLog, isJudgeCombatRuleset, replayJudgeCombat, type JudgeCombatAction } from './judge-combat.ts';
 import { eventContractIntervalLabel } from './event-contract-interval.ts';
 import {
   SHANNON_TESTNET_PROFILE,
@@ -232,7 +232,7 @@ function parseCombat(value: unknown): PortableProofArtifact['combat'] | null {
     ])) return null;
 
   const proof = value.proof;
-  if (proof.verified !== true || proof.ruleset !== 'market-dungeon/judge-combat/v1'
+  if (proof.verified !== true || !isJudgeCombatRuleset(proof.ruleset)
     || !matchesString(proof.transcriptDigest, BYTES32)
     || typeof proof.steps !== 'number' || !Number.isSafeInteger(proof.steps) || proof.steps !== value.actions.length
     || proof.guardDefeated !== true || proof.bossDefeated !== true || proof.playerSurvived !== true
@@ -476,9 +476,9 @@ export async function verifyProofArtifact(
 
   const { artifact } = parsed;
   const replay = artifact.replayProof;
-  const combatReplay = replayJudgeCombat(replay.gameSeed, artifact.combat.actions);
+  const combatReplay = replayJudgeCombat(replay.gameSeed, artifact.combat.actions, artifact.combat.proof.ruleset);
   const canonicalCommitment = canonicalReplayProof(replay);
-  const canonicalCombat = canonicalJudgeActionLog(replay.gameSeed, artifact.combat.actions);
+  const canonicalCombat = canonicalJudgeActionLog(replay.gameSeed, artifact.combat.actions, artifact.combat.proof.ruleset);
   const [commitmentDigest, combatDigest] = await Promise.all([
     sha256Hex(canonicalCommitment),
     sha256Hex(canonicalCombat),
@@ -524,7 +524,7 @@ export async function verifyProofArtifact(
       label: 'Combat transcript',
       status: combatPasses ? 'PASS' : 'FAIL',
       detail: combatPasses
-        ? 'The deterministic replay defeats both enemies and reproduces the combat digest.'
+        ? `The deterministic replay defeats both enemies and reproduces the combat digest (${artifact.combat.proof.ruleset}${artifact.combat.proof.ruleset.endsWith('/v1') ? ' · legacy short combat, not current difficulty' : ''}).`
         : 'The action log, combat result, or transcript digest does not reproduce.',
     },
     {

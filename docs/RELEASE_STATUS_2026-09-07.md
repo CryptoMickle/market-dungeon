@@ -1,5 +1,7 @@
 # Release and recording status — 7 September 2026
 
+> Historical release record. For the September 10 release with Live 1-minute Judge as the primary demo, see [current release record](RELEASE_2026-09-10.md). Earlier holds, counts and deployment identities below apply only to their dated checkpoints. Video work is deferred.
+
 ## Active-market Full Expedition v3 — current local candidate
 
 The current working tree locks a visible active dreamDEX BTC five-minute Event

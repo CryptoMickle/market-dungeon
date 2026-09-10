@@ -1,184 +1,84 @@
 # Market Dungeon — judge evidence pack
 
-Status: **v11 technical release recorded; human evidence remains unestablished;
-new mobile sharing and these documentation corrections are local.**
+Updated 10 September 2026. This document separates implemented behavior, project-controlled checks and human feedback. The authoritative record for this release is [release verification](RELEASE_2026-09-10.md), with its matching [v12 source release](https://github.com/CryptoMickle/market-dungeon/releases/tag/hackathon-submission-2026-v12). Publication and final deployment checks must be recorded there after execution; an older successful release does not establish them.
 
-Updated: 7 September 2026. This is the evidence source for submission copy and
-the new hybrid video kit. See [release and recording status](RELEASE_STATUS_2026-09-07.md). Published release evidence must not
-be attributed to the unshipped mobile patch.
+## Product and entry points
 
-## Shannon release update
+**Defeat the boss. Predict the market. Survive both.** Market Dungeon makes verified dreamDEX settlement the second victory condition of a fantasy roguelite.
 
-V11 includes fixed `/shannon/judge` and `/shannon/verify` while preserving
-mainnet `/judge` and `/verify`. Its corrected final commit passed 40/40 Preview
-and 40/40 Production round-trips (20 per network in each environment), zero
-retries. The initial failed Preview and its lowercase-indexer-filter correction
-remain documented in [the Shannon release record](SHANNON_JUDGE_RELEASE_CANDIDATE.md).
+| Experience | Public route | Scope |
+| --- | --- | --- |
+| Recommended Live Judge | [One-minute demo](https://market-dungeon.vercel.app/shannon/live-judge) | Fresh BTC/USDC market, Shannon `50312`, one guard and one boss |
+| Live proof verifier | [Verify live proof](https://market-dungeon.vercel.app/shannon/live-judge/verify) | Signed live lock, deterministic combat, pending-state snapshot and final settlement |
+| Historical alternative | [Historical Replay](https://market-dungeon.vercel.app/shannon/judge) | Choice before hidden finalized-market selection on Shannon |
+| Historical proof verifier | [Verify replay proof](https://market-dungeon.vercel.app/shannon/verify) | Historical seal/receipt/commitment and direct settlement reproduction |
+| Full Expedition | [Complete game](https://market-dungeon.vercel.app) | 40 rooms, four tiers, 15 relics, active five-minute mainnet markets |
+| Legacy mainnet historical routes | [/judge](https://market-dungeon.vercel.app/judge) · [/verify](https://market-dungeon.vercel.app/verify) | Preserved older proof and challenge links, chain `5031` |
 
-The recorded security pass covered 61 focused tests and 1,575 malformed proofs.
-It is project-controlled expert-assisted evidence, not a third-party audit.
-The latest retained private ledger records one voluntary reply, zero qualified
-participants, zero completed human sessions, and zero independent external
-validators. The release's earlier zero-reply snapshot remains historical.
-No fresh Discord check or telemetry extraction was performed for this update.
+The market clock is not a combat deadline. One minute describes the contract interval; settlement and the player’s fights can take longer. Historical Replay is an explicit alternative and cannot replace the outcome of a locked live run.
 
-## Ten-second product claim
+## Why settlement matters
 
-Market Dungeon turns a dreamDEX BTC Event Contract into the second victory
-condition of a complete fantasy roguelite: defeat the boss, predict the market
-correctly, and survive both.
+The player must first win the fight. A correct market prediction then keeps the defeated boss down. Neither condition replaces the other, and the prediction does not alter attack damage.
 
-The product position is a wallet-free consumer acquisition and education layer
-for Event Contracts, backed by reproducible Somnia evidence.
+Live Judge and Historical Replay end after a verified prediction loss. Full Expedition instead requires a full-strength rematch against the same boss, using a new five-minute market and the player’s remaining resources. A void preserves earned combat progress without a prediction penalty. An unavailable proof awards no verified outcome.
 
-## Judge-first evidence strip
+## What an exported proof establishes
 
-| Evidence | Verified public state |
-| --- | --- |
-| Testnet Judge / verifier | `https://market-dungeon.vercel.app/shannon/judge` / `/shannon/verify` |
-| Mainnet Judge / verifier | `https://market-dungeon.vercel.app/judge` / `/verify` |
-| Published baseline | `hackathon-submission-2026-v11` → `f30b9a56532eb6e3147e7ae8473242545635d0ef` |
-| Production identity | Exact v11 commit checked at the recorded release gate on 7 September 2026 |
-| V11 local gates | Lint, TypeScript, 99/99 unit/integration, 7/7 Shannon kernel, build, 22/22 deterministic Chromium PASS |
-| V11 Preview live gate | 40/40: 20 mainnet + 20 Shannon, zero retries |
-| V11 Production live gate | 40/40: 20 mainnet + 20 Shannon, zero retries |
-| Networks | Mainnet `5031`; Shannon `50312`; fixed separate profiles |
-| Human pilot | No qualified session evidence established |
-| Independent external validators | None established |
-| New mobile sharing | Local patch; not covered by v11 live gates; physical iPhone verification pending |
-| Final video | New hybrid kit prepared; final recordings, edit, approval and publication pending |
+| Claim | Live Judge | Historical Replay |
+| --- | --- | --- |
+| Player choice | Server-authenticated exact market and direction before stated expiry | Server-authenticated direction before hidden market selection |
+| Pre-result evidence | Canonical pre-expiry snapshot of market binding, trading status, unresolved settlement and oracle target | Salted commitment and authenticated encrypted market seal |
+| Combat | Server and verifier reproduce the submitted guard-and-boss transcript | Same deterministic combat check |
+| Settlement | Exact locked market, verified after expiry | Exact committed finalized market |
+| Independent reproduction | Signature, combat, pre-expiry reads and final contract reads | Signature, commitment, combat and final contract reads |
 
-Source: [v11 public release record](https://github.com/CryptoMickle/market-dungeon/releases/tag/hackathon-submission-2026-v11).
-These are recorded release results; no new public live gate was executed during
-this documentation update.
+Settlement calls use the fixed BinaryModule and BinarySettlement contracts at the same canonical block hash. The browser checks chain identity, re-fetches that block, repeats the raw calls and validates the payout-derived outcome. The separate verifier loads proof JSON locally and reports `PASS`, `FAIL` or `NOT PROVABLE`.
 
-The project treats a frozen release tag as permanent and never moves or reuses
-it. The full commit is the authoritative source identity; this is a project
-release policy, not a claim that GitHub cryptographically prevents tag changes.
+The receipt authenticates the Market Dungeon environment; it is not an external timestamp, onchain player transaction, third-party endorsement or proof that the server was honest. A deterministic transcript does not prove human play or elapsed play time. The snapshot proves state at its recorded block, not the original finalization transaction. Full Expedition verifies its market settlement, but does not claim Judge-level proof for its local direction lock or random combat.
 
-## Why the Event Contract is load-bearing
+## Technical checks and release identity
 
-The run has two independent conditions:
+The [current release record](RELEASE_2026-09-10.md) must identify the public source revision, immutable release, Production deployment and `/api/build` match. It also records the checks executed against that revision. No counts from v11 or a prior Preview are silently carried forward.
 
-1. **Combat condition:** the player must defeat the guard and boss through a
-   valid deterministic action transcript and survive.
-2. **Prediction condition:** the direction locked before replay selection must
-   match the payout-derived dreamDEX settlement outcome.
+Before this final release pass, the following targeted checks were recorded on the September 10 candidates:
 
-Removing the Event Contract removes the final survival decision. Combat alone
-cannot produce a blessed result, award prediction gold, or make the defeated
-boss stay down. This is game logic, not decorative market data.
+- A real live Shannon round completed both fights, reached a verified `CURSED` result and exported a proof that passed the separate verifier after fresh RPC reads.
+- A real historical Shannon round reached `BLESSED`, exported its proof and passed the historical verifier. Premature reveal and incomplete combat were rejected.
+- Full Expedition loaded a real five-minute market and CLOB context, accepted a local omen and executed the first fight action. That check was not a new live 40-room playthrough.
+- Mobile regressions exercised substantial monster artwork, readable captions, scrolling and usable touch targets in all three modes, including short phone viewports. These used controlled gameplay fixtures and real hosted assets.
+- Shared audio checks covered audible Storm via Enter, unclipped output, subsequent silence and mute in all three modes, plus the Full Expedition action/mute path. Lint, types and optimized builds passed on the tested candidates.
 
-## What one exported proof establishes
+These were project-controlled automated checks, not an independent security audit or proof of universal Safari, AirPods or native sharing behavior. Final current-revision results belong in the release record.
 
-The short Judge flow must be explained in this order:
+The [v11 release](https://github.com/CryptoMickle/market-dungeon/releases/tag/hackathon-submission-2026-v11), commit `f30b9a56532eb6e3147e7ae8473242545635d0ef`, retains its own historical evidence: 20 mainnet plus 20 Shannon historical round-trips in both Preview and Production, with zero retries. Those counts describe v11, not the later live one-minute implementation.
 
-1. The player chooses BTC UP or DOWN before the replay market is drawn.
-2. The environment returns a signed receipt and salted commitment while market
-   identity and outcome remain sealed.
-3. The server accepts reveal only after replaying a valid guard-and-boss combat
-   transcript.
-4. The reveal binds the original commitment to the selected finalized market.
-5. Both BinaryModule and BinarySettlement are read at the same canonical
-   Somnia block hash using EIP-1898.
-6. The payout vector, not the application label, determines UP, DOWN, or void.
-7. The separate browser-local verifier recomputes the commitment and combat and
-   freshly repeats the recorded Somnia reads before returning `PASS`, `FAIL`,
-   or `NOT PROVABLE`.
+## Human feedback and measurement limits
 
-The Ed25519 receipt authenticates the Market Dungeon environment. It is not an
-external timestamp, third-party endorsement, proof of human play, or proof that
-the application server was honest. The fresh RPC reproduction makes the
-onchain result independently checkable; it does not make the server that chose
-the replay independent.
+Three self-reported feedback responses covered Full Expedition and Judge Demo. They informed clearer Bitcoin and prediction explanations, timer semantics, action guidance, Dungeon Log access and image-sharing instructions. Participant identities, private correspondence and raw responses are not published here. The responses do not establish a clean attempt denominator, verified duration or unique-user conversion rate, and are not presented as three independent tests of the later Live Judge mode.
 
-## Ecosystem value and measurable funnel
+Subsequent owner feedback exposed tiny mobile monsters and a Storm sound associated with losing. The shared mobile layout now preserves full-width illustrations through normal scrolling, and the Storm cue uses irregular pitch movement with an unresolved ending. Targeted regressions followed those fixes. Physical-device feedback establishes the reported issue; browser viewport tests alone do not certify the subsequent fix on every device.
 
-Market Dungeon's ecosystem contribution is a progression funnel rather than a
-current trading-volume claim:
+The older analytics baseline recorded 65 visitors and 187 page views during 27 August–3 September, including 28 visitors referred by DoraHacks. Its 17 start, 14 verified-completion and two Continue events include earlier automation and span a schema change. They remain legacy event volumes, not unique-human conversion, and are not combined with clean-v2 counts.
 
-`entry → prediction lock → verified completion → share/challenge → fresh challenge`
+The [clean-v2 definitions](PILOT_MEASUREMENT_V2.md) cover the historical funnel. Live Judge has not established equivalent measured conversion evidence. No current trading-volume, referral-conversion, independent-validator or partnership claim follows from these checks or feedback.
 
-The separate mainnet continuation can then open dreamDEX; it is not a Shannon
-funnel stage.
+## Ecosystem contribution
 
-- **Entry and education:** a player can learn the binary Event Contract model
-  without first funding a wallet or approving a token.
-- **Repeated discovery:** every full-game tier introduces another market, so
-  market discovery becomes reusable game content instead of a one-time chart.
-- **Comprehension:** the two conditions force the player to understand that
-  combat performance and market settlement are separate inputs.
-- **Distribution:** a verified result becomes a social card and a fixed fresh
-  challenge link without publishing the sender's proof or market outcome.
-- **Qualified continuation (mainnet only):** the terminal CTA opens the external
-  dreamDEX application at its current BTC 5m/15m market. It does not route to
-  Delveworn or Market Dungeon. Shannon does not show it. The event measures a
-  click, not confirmed arrival, wallet connection, trade or conversion.
+The implemented product path is:
 
-### Current evidence boundary
+`play → choose a prediction → win combat → verify the market → share or invite → play a fresh round`
 
-The legacy window recorded 65 visitors, 187 pageviews, 17 Judge-start events,
-14 verified-completion events, and two Continue events. It spans an older
-schema and includes project automation, so it is directional event volume only.
-Its ratios must not be described as unique-human conversion.
+**Continue on dreamDEX** is also available after verified Shannon results. It is explicitly labeled as a separate mainnet destination. It opens the external dreamDEX application, not another Market Dungeon page, and does not submit an order or carry over the testnet market. A click is not proof of arrival, funding, a fill or trading conversion.
 
-Clean-v2 human completion, comprehension, challenge, and Continue results are
-pending the qualified pilot in [`PILOT_RUN_2026-09-05.md`](PILOT_RUN_2026-09-05.md).
-The final submission must replace `PENDING` with raw numerators and denominators
-or state plainly that the gate was not established.
+Result cards summarize a run; portable proof JSON is a separate artifact. Saving an image and opening an X draft are separate actions. The app cannot confirm publication or that a downloaded image was saved to iPhone Photos. Invitations create fresh rounds rather than a shared-market duel.
 
-## 30/60/90-day ecosystem path
+Additional assets, partner campaigns and a separately consented wallet-enabled mode remain future scope. Their effects require direct measurement and, where relevant, explicit partner approval.
 
-### 30 days — repeatable campaigns
+## Submission and video
 
-- Add other eligible dreamDEX assets and intervals through the existing
-  fail-closed discovery and settlement adapters.
-- Package co-branded quests and seasonal enemies around specific Event
-  Contract schedules.
-- Expand the clean acquisition funnel and test challenge comprehension with a
-  larger recruited sample.
+[DoraHacks entry](https://dorahacks.io/buidl/48083) should lead with the Live Judge URL and link the matching source release and [integration report](DREAMDEX_INTEGRATION_REPORT.md). Full Expedition and Historical Replay should remain plainly distinguished.
 
-### 60 days — optional eligible-user trading experiment
+The existing [1:52 video](https://youtu.be/6IviQrMweZ4) shows an earlier baseline. Replacement video work is deferred by the project owner. It is not a recording of the current Live Judge flow and must not be counted as an updated 2–3 minute submission video.
 
-- Keep the current wallet-free game as the default entry.
-- Prototype a separate opt-in route for eligible users only.
-- Show exact maximum loss, simulation, allowance, order details, and a separate
-  wallet confirmation for every write.
-- Measure wallet connection, accepted intent, fill, settlement, and redemption
-  separately; never infer them from Continue clicks.
-
-### 90 days — measured partner campaigns
-
-- Run a co-branded campaign only with explicit partner approval.
-- Measure qualified entry, understanding, repeated play, challenge response,
-  dreamDEX arrival, and—only where consent and eligibility permit—actual fill
-  conversion.
-- Evaluate the game as an acquisition channel against a normal market landing
-  page rather than assuming uplift.
-
-This roadmap is future scope. It is not part of the contest build and must not
-be narrated as implemented functionality.
-
-## Final-copy constraints
-
-- Do not name or criticize competing projects on public submission surfaces.
-- Do not claim a trade, trader, fill, volume, revenue, conversion, partner, or
-  endorsement that has not been directly established.
-- Do not call event volume unique users.
-- Keep the full game and finalized Judge replay visibly distinct.
-- Keep technical evidence below the product claim and two-condition result.
-- Ensure DoraHacks, Production, README, release, video, and captions all identify
-  one final source candidate.
-
-## Pre-video readiness
-
-- [x] Ten-second product claim frozen.
-- [x] Existing release, test, contract, and workflow evidence compressed.
-- [x] Load-bearing Event Contract role stated in plain language.
-- [x] Proof trust boundaries stated without overclaiming independence.
-- [x] Ecosystem funnel and 30/60/90-day path defined.
-- [x] Human-pilot absence explicitly disclosed (not a passed human-testing gate).
-- [x] Independent non-team validation absence explicitly disclosed.
-- [x] Published v11 commit, tag and recorded technical gates inserted.
-- [ ] New mobile patch device checks, release identity and live gates completed.
-- [ ] Final video and captions linked after the release freeze.
+The official hackathon page displayed an extended deadline of **11 September 2026 at 20:00** when checked on September 10; the display did not establish a timezone. Its submission guidance requires a working testnet prototype, GitHub repository and 2–3 minute demo video. The existing 1:52 baseline therefore remains a presentation requirement gap until the owner addresses video. See [official event details](https://dorahacks.io/hackathon/event-contracts/detail).

@@ -1,8 +1,9 @@
 import assert from 'node:assert/strict';
+import { validLiveJudgeActions } from './judge-live-actions.ts';
 import test from 'node:test';
 import { encodeFunctionResult } from 'viem';
 
-import { replayJudgeCombat, type JudgeCombatAction } from '../app/judge-combat.ts';
+import { replayJudgeCombat } from '../app/judge-combat.ts';
 import { DREAMDEX_MAINNET_CONTRACTS } from '../app/api/dreamdex.ts';
 import { newReplayClaims, replayLockAttestation, sealReplay } from '../app/api/judge-replay/crypto.ts';
 import { GET as lockPublicKey } from '../app/api/judge-replay/public-key/route.ts';
@@ -117,18 +118,50 @@ function post(url: string, body: unknown, ip = '203.0.113.10') {
 }
 
 function completedCombat(gameSeed: string) {
-  const actions: JudgeCombatAction[] = [{ room: 8, action: 'attack' }];
-  let replay = replayJudgeCombat(gameSeed, actions);
-  while (!replay.bossDefeated) {
-    actions.push({ room: 9, action: 'attack' });
-    replay = replayJudgeCombat(gameSeed, actions);
-  }
-  assert.equal(replay.verified, true);
-  return actions;
+  return validLiveJudgeActions(gameSeed);
 }
 
 test.beforeEach(configure);
 test.afterEach(() => { globalThis.fetch = originalFetch; });
+
+test('missing or malformed sealing configuration fails before discovery without promising a timed retry', async () => {
+  let reads = 0;
+  globalThis.fetch = async () => { reads += 1; throw new Error('Configuration failure must not query the indexer'); };
+  for (const value of [undefined, '', 'replace-with-exactly-64-hex-characters']) {
+    if (value === undefined) delete process.env.JUDGE_REPLAY_SEAL_KEY;
+    else process.env.JUDGE_REPLAY_SEAL_KEY = value;
+    const response = await startReplay(post('http://local.test/api/judge-replay/start', { direction: 'UP' }));
+    assert.equal(response.status, 503);
+    assert.equal(response.headers.get('cache-control'), NO_STORE);
+    assert.equal(response.headers.get('retry-after'), null);
+    const body = await response.json();
+    assert.equal(body.retryState, 'config_unavailable');
+    assert.equal('retryAfter' in body, false);
+    assert.equal('replay' in body, false);
+    const publicKey = await lockPublicKey();
+    assert.equal(publicKey.status, 503);
+    assert.equal((await publicKey.json()).retryState, 'config_unavailable');
+  }
+  assert.equal(reads, 0);
+});
+
+test('missing sealing configuration does not misclassify an existing replay as an invalid seal', async () => {
+  const now = Math.floor(Date.now() / 1_000);
+  const claims = newReplayClaims({ marketId: MARKET_ID, winningOutcome: 0, direction: 'UP', issuedAt: now, revealAfter: now + 15, expiresAt: now + 1_800, ...provenance(now) });
+  const seal = sealReplay(claims);
+  const actions = [{ room: 8, action: 'attack' }];
+  let reads = 0;
+  globalThis.fetch = async () => { reads += 1; throw new Error('Unconfigured/sealed replay must not read upstream'); };
+  delete process.env.JUDGE_REPLAY_SEAL_KEY;
+  const unavailable = await revealReplay(post('http://local.test/api/judge-replay/reveal', { seal, actions }));
+  assert.equal(unavailable.status, 503);
+  assert.equal(unavailable.headers.get('retry-after'), null);
+  assert.equal((await unavailable.json()).retryState, 'config_unavailable');
+  process.env.JUDGE_REPLAY_SEAL_KEY = KEY;
+  const preserved = await revealReplay(post('http://local.test/api/judge-replay/reveal', { seal, actions }));
+  assert.equal(preserved.status, 425);
+  assert.equal(reads, 0);
+});
 
 test('start route uses a balanced outcome pool and leaks no selected-market metadata', async () => {
   let requestBody: { query?: string; variables?: Record<string, string> } = {};
@@ -183,18 +216,21 @@ test('start route rejects extra fields and fails closed for empty or one-sided r
   const unavailable = await startReplay(post('http://local.test/api/judge-replay/start', { direction: 'UP' }));
   assert.equal(unavailable.status, 503);
   assert.equal(unavailable.headers.get('cache-control'), NO_STORE);
+  assert.equal(unavailable.headers.get('retry-after'), '30');
   assert.deepEqual(await unavailable.json(), {
-    error: 'Sealed Judge Replay is unavailable. Please try again.',
-    retryState: 'upstream_retry',
-    retryAfter: 3,
+    error: 'No recent eligible replay pool is available. Please try again later.',
+    retryState: 'no_candidates',
+    retryAfter: 30,
   });
 
+  resetReplayStartStateForTests();
   globalThis.fetch = async () => Response.json({
     data: { fiveMinute: [candidate(MARKET_ID, 0, 300)], fifteenMinute: [] },
   });
   const predictable = await startReplay(post('http://local.test/api/judge-replay/start', { direction: 'DOWN' }));
   assert.equal(predictable.status, 503);
   assert.equal(predictable.headers.get('cache-control'), NO_STORE);
+  assert.equal((await predictable.json()).retryState, 'no_candidates');
 });
 
 test('start route falls back to a balanced fifteen-minute replay pool', async () => {
@@ -665,7 +701,11 @@ test('reveal route verifies combat, commitment, and Somnia settlement together',
   assert.equal(response.headers.get('x-replay-dedupe'), 'hit');
   assert.equal(upstreamReads, readsAfterFirstWave);
 
-  const differentActions = [actions[0], { room: 8, action: 'potion' } as const, ...actions.slice(1)];
+  const differentActions = actions.flatMap((_, index) => [
+    actions.filter((_, item) => item !== index),
+    actions.map((entry, item) => item === index ? { ...entry, action: 'storm' as const } : entry),
+  ]).find((candidate) => replayJudgeCombat(claims.gameSeed, candidate).verified);
+  assert.ok(differentActions, 'a different valid transcript exists for the dedupe conflict');
   assert.equal(replayJudgeCombat(claims.gameSeed, differentActions).verified, true);
   const conflict = await revealReplay(post(
     'http://local.test/api/judge-replay/reveal',

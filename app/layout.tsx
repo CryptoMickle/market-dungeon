@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { Analytics } from '@vercel/analytics/next';
+import { GameAudioProvider } from './game-audio';
 import './globals.css';
 
 const productionHost = process.env.VERCEL_PROJECT_PRODUCTION_URL;
@@ -40,7 +41,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
-        {children}
+        <GameAudioProvider>{children}</GameAudioProvider>
         <Analytics />
       </body>
     </html>

@@ -72,6 +72,11 @@ test('new run, monster distribution boundaries, and four boss scaling vectors ma
 });
 
 test('normal attack, critical hit, armor, retaliation, and lethal-hit short circuit match the source', () => {
+  const overkill = attack(encounter({ monsterHp: 3 }), sequence(0, 0, 85, 0));
+  assert.equal(overkill.lastPlayerDamage, 3, 'HP removed remains capped');
+  assert.equal(overkill.lastRolledDamage, 16, 'critical presentation retains the full roll');
+  assert.equal(overkill.lastCritical, true);
+  assert.equal(overkill.monsterHp, 0);
   const normal = attack(encounter(), sequence(4, 99, 2));
   assert.deepEqual({
     monsterHp: normal.monsterHp,

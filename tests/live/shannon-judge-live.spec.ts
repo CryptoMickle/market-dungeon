@@ -1,4 +1,5 @@
-import { readFile } from 'node:fs/promises';
+import { readFile, writeFile } from 'node:fs/promises';
+import { completeLiveJudgeCombat } from './judge-play';
 
 import { expect, test, type APIRequestContext } from '@playwright/test';
 
@@ -27,7 +28,14 @@ async function reveal(
   return request.post('/api/shannon/judge-replay/reveal', { data: { seal, actions } });
 }
 
-test('live Shannon target remains network-bound through proof export and verifier round-trip', async ({ page, request }) => {
+test('live Shannon target remains network-bound through proof export and verifier round-trip', async ({ page, request, baseURL }, info) => {
+  const startedAt = new Date().toISOString();
+  const responses: { at: string; url: string; status: number }[] = [];
+  page.on('response', response => {
+    if (response.url().includes('/api/shannon/') || response.url().startsWith(SHANNON_TESTNET_PROFILE.rpc)) {
+      responses.push({ at: new Date().toISOString(), url: response.url(), status: response.status() });
+    }
+  });
   await page.route('**/_vercel/insights/**', async (route) => route.abort());
 
   const started = await request.post('/api/shannon/judge-replay/start', { data: { direction: 'UP' } });
@@ -103,15 +111,17 @@ test('live Shannon target remains network-bound through proof export and verifie
   expect(await verifyReplayLockAttestation(validBody.lockAttestation, publicKey)).toBe(true);
 
   await page.goto('/shannon/judge?automation=1');
-  await expect(page.locator('.safety-line')).toContainText('SHANNON TESTNET');
+  await expect(page.getByText('HISTORICAL JUDGE REPLAY · SHANNON TESTNET', { exact: true })).toBeVisible();
   await expect(page.locator('.judge-lock-context')).toContainText('NO LIVE PRICE FEED');
   await expect(page.getByText('REFERENCE UNAVAILABLE', { exact: true })).toHaveCount(0);
   await page.getByRole('button', { name: 'LOCK OMEN & SEAL REPLAY' }).click();
-  await page.getByRole('button', { name: /ATTACK/ }).click();
-  await page.getByRole('button', { name: '👑 ENTER FINAL BOSS' }).click();
-  await page.getByRole('button', { name: /ATTACK/ }).click();
-  const secondAttack = page.getByRole('button', { name: /ATTACK/ });
-  if (await secondAttack.isVisible()) await secondAttack.click();
+  await expect(page.getByRole('region', { name: 'Combat view' })).toBeVisible();
+  const footer = page.locator('footer');
+  await expect(footer).toBeVisible();
+  await expect(footer.getByRole('link', { name: 'VERIFY A PROOF', exact: true })).toHaveAttribute('href', '/shannon/verify');
+  await page.screenshot({ path: info.outputPath('actual-shannon-combat-footer.png'), fullPage: true });
+  await completeLiveJudgeCombat(page);
+  await expect(page.locator('.desktop-stage-header')).toContainText('Gold 80');
 
   const revealButton = page.getByRole('button', { name: '🔮 REVEAL BOSS FATE' });
   await expect(revealButton).toBeEnabled({ timeout: 30_000 });
@@ -120,7 +130,10 @@ test('live Shannon target remains network-bound through proof export and verifie
   const revealedProof = page.locator('.proof-revealed');
   await revealedProof.locator('summary').click();
   await expect(page.getByText('CHAIN 50312 · EIP-1898 HASH-PINNED · BOTH RAW ETH_CALL RESULTS MATCH')).toBeVisible();
-  await expect(page.getByRole('link', { name: /continue on dreamdex/i })).toHaveCount(0);
+  const continueOnDreamDex = page.getByRole('link', { name: /continue on dreamdex/i });
+  await expect(continueOnDreamDex).toHaveAttribute('href', /^https:\/\/app\.dreamdex\.io\/event-contracts\/WBTC:USDso\/(?:5|15)m$/);
+  await expect(continueOnDreamDex).toHaveAttribute('target', '_blank');
+  await expect(page.locator('.dreamdex-continue')).toContainText('your verified Shannon replay remains historical');
   await expect(page.getByRole('link', { name: /OPEN INDEPENDENT VERIFIER/ })).toHaveAttribute('href', '/shannon/verify');
   const xShare = page.getByRole('link', { name: '2 · OPEN X DRAFT ↗', exact: true });
   await expect(xShare).toHaveAttribute('href', /https:\/\/twitter\.com\/intent\/tweet\?/);
@@ -136,6 +149,7 @@ test('live Shannon target remains network-bound through proof export and verifie
   const proofPath = await proofDownload.path();
   expect(proofPath).not.toBeNull();
   const proofBytes = await readFile(proofPath!);
+  await writeFile(info.outputPath('actual-shannon-proof.json'), proofBytes);
   const proofText = proofBytes.toString('utf8');
   const exportedProof = JSON.parse(proofText) as {
     schema: string;
@@ -149,6 +163,15 @@ test('live Shannon target remains network-bound through proof export and verifie
       chainId: SHANNON_TESTNET_PROFILE.chainId,
     },
   });
+  const expectedGold = exportedProof.summary.result === 'BLESSED' ? 122 : 80;
+  await expect(page.getByLabel('Post text — copy manually if needed')).toHaveValue(new RegExp(`2 of 2 replay encounters cleared · ${expectedGold} gold`));
+  await expect(page.locator('body')).not.toContainText('prediction gold');
+  if (exportedProof.summary.result === 'BLESSED') {
+    await expect(page.locator('.result-hero > .muted')).toHaveText('You chose BTC UP. The market settled BTC UP. Your prediction was correct. The final boss stays down and its reward is secured.');
+    await expect(page.locator('.final-stats > div').filter({ hasText: 'FINAL GOLD' }).locator('strong')).toHaveText('122');
+    await expect(page.locator('.dungeon-log')).toContainText('FINAL BOSS DEFEATED · +42 GOLD');
+  }
+  await page.screenshot({ path: info.outputPath('actual-shannon-reward-result.png'), fullPage: true });
 
   await page.goto('/shannon/verify?automation=1');
   await expect(page.getByLabel('Verification privacy and safety')).toContainText(SHANNON_TESTNET_PROFILE.name);
@@ -164,4 +187,11 @@ test('live Shannon target remains network-bound through proof export and verifie
   await expect(verifierResult.getByText(exportedProof.summary.market, { exact: true })).toBeVisible();
   await expect(verifierResult.locator('article').filter({ hasText: 'Server lock receipt' })).toContainText('PASS');
   await expect(verifierResult.locator('article').filter({ hasText: 'Live Somnia re-fetch' })).toContainText('PASS');
+  await page.screenshot({ path: info.outputPath('actual-shannon-verifier.png'), fullPage: true });
+  await writeFile(info.outputPath('actual-shannon-observations.json'), JSON.stringify({
+    baseURL, startedAt, completedAt: new Date().toISOString(),
+    apiControls: { start: started.status(), prematureReveal: sealed.status(), invalidCombat: invalid.status(), validReveal: valid.status() },
+    summary: exportedProof.summary, goldBeforeReveal: 80, finalGold: expectedGold,
+    independentVerifier: 'PASS', responses,
+  }, null, 2));
 });

@@ -2,6 +2,7 @@ import {
   applyDeferredBossReward,
   attackTransition,
   drinkPotion,
+  drinkRecoveryPotion,
   enterNextRoom,
   reduceGameplay,
   startRun,
@@ -200,7 +201,15 @@ function gameplay(
   action: NonStartGameplayAction,
   random: GameplayRandom,
 ): MarketDungeonTransition {
-  if (run.phase === 'settlement-pending' || run.phase === 'dead' || run.phase === 'complete') {
+  if (run.phase === 'settlement-pending') {
+    if (action.type !== 'use-potion') return rejected(run, 'Only potion recovery is allowed while settlement is pending');
+    if (!run.currentAttempt || !run.pendingBossReward || !run.game.active || run.game.monsterHp !== 0) {
+      return rejected(run, 'Potion recovery requires a defeated boss awaiting settlement');
+    }
+    // Reuse out-of-combat healing. Keep the lock, deferred reward and phase intact.
+    return accepted({ ...run, game: drinkPotion(run.game, random) }, 'Potion recovery applied while awaiting settlement');
+  }
+  if (run.phase === 'dead' || run.phase === 'complete') {
     return rejected(run, 'Gameplay is frozen in this phase');
   }
 
@@ -211,7 +220,14 @@ function gameplay(
   }
 
   if (run.phase === 'boss-lock-required') {
-    if (run.rematchRequired) return rejected(run, 'Lock a new market before the rematch');
+    if (run.rematchRequired) {
+      if (action.type !== 'use-potion') return rejected(run, 'Only potion recovery is allowed before locking the rematch');
+      if (!run.game.active || run.currentAttempt || run.pendingBossReward || run.game.monsterType !== 3
+        || run.game.monsterHp <= 0 || run.game.monsterHp !== run.game.monsterMaxHp || run.game.roomsCleared % 10 !== 9) {
+        return rejected(run, 'Rematch recovery state is inconsistent');
+      }
+      return accepted({ ...run, game: drinkRecoveryPotion(run.game) }, 'Potion recovery applied before rematch');
+    }
     if (!['use-potion', 'equip-relic', 'buy'].includes(action.type)) {
       return rejected(run, run.rematchRequired ? 'Lock a new market before the rematch' : 'Lock an omen before entering the tier');
     }
@@ -266,7 +282,7 @@ function settleBoss(
   if (run.usedMarketIds.includes(settledMarketId)) return rejected(run, 'Settlement reused an earlier market');
 
   if (settlement.outcome === 'PENDING' || settlement.outcome === 'NOT_PROVABLE') {
-    return accepted(run, 'Settlement remains unresolved; run is frozen');
+    return accepted(run, 'Settlement remains unresolved; boss progression is frozen');
   }
 
   const recorded: SettledBossAttempt = {

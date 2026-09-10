@@ -103,6 +103,7 @@ function validGame(value: unknown): value is DelvewornGame {
     [value.supplyPotionsBought, 0, 2],
   ];
   if (!numericBounds.every(([entry, min, max]) => integer(entry, min, max))) return false;
+  if (value.lastRolledDamage !== undefined && !integer(value.lastRolledDamage, 0, 10_000)) return false;
   if (Number(value.hp) > Number(value.maxHp) || Number(value.monsterHp) > Number(value.monsterMaxHp)) return false;
   if (typeof value.hasStarted !== 'boolean' || typeof value.active !== 'boolean'
     || typeof value.relicOfferAvailable !== 'boolean' || typeof value.relicReviveUsed !== 'boolean'

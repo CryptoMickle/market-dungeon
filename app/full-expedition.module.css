@@ -1,5 +1,8 @@
 .shell { min-height: 100vh; padding: 28px 16px 72px; background: radial-gradient(circle at 50% -12%, rgba(249,115,22,.12), transparent 34%), radial-gradient(circle at 100% 45%, rgba(124,58,237,.09), transparent 30%), #080809; color: #fafafa; }
 .column { width: 100%; max-width: 560px; margin: 0 auto; }
+.modeNavigation { min-width: 0; }
+.mobileCombatActive .modeNavigation { position: sticky; top: 0; z-index: 30; background: #100b17f2; }
+.mobileCombatActive :global(.mobile-battle-root) { scroll-margin-top: 76px; }
 .header { margin-bottom: 16px; text-align: center; }
 .header p { margin: 0 0 7px; color: #fb923c; font-size: 10px; font-weight: 900; letter-spacing: .3em; }
 .header h1 { margin: 0; font-size: clamp(42px, 11vw, 62px); font-weight: 950; letter-spacing: -.055em; line-height: .92; }
@@ -15,7 +18,7 @@
 .startCopy h2, .panel h2 { margin: 9px 0 0; font-size: 30px; font-weight: 950; letter-spacing: -.035em; line-height: 1.05; }
 .startCopy > span, .panel > span { display: block; margin-top: 12px; color: #a1a1aa; font-size: 13px; line-height: 1.55; }
 .startCopy button, .primary, .secondary, .rewardActions button { width: 100%; min-height: 52px; margin-top: 20px; border: 1px solid #fb923c; border-radius: 13px; background: linear-gradient(135deg,#ea580c,#f97316); color: #fff; cursor: pointer; font-size: 11px; font-weight: 950; letter-spacing: .07em; box-shadow: 0 14px 30px rgba(234,88,12,.22); }
-.startCopy button:hover, .primary:hover:not(:disabled) { filter: brightness(1.08); transform: translateY(-1px); }
+.startCopy button:hover, .primary:hover:not(:disabled) { filter: brightness(1.08); }
 .startCopy a { display: block; margin-top: 15px; color: #c4b5fd; font-size: 9px; font-weight: 900; text-decoration: none; }
 .tiers { display: grid; grid-template-columns: repeat(4,1fr); gap: 7px; margin-bottom: 10px; }
 .tiers div { display: flex; align-items: center; gap: 7px; min-width: 0; padding: 8px; border: 1px solid #27272a; border-radius: 12px; background: #111113; color: #52525b; }
@@ -31,28 +34,36 @@
 .hud > div:nth-child(n+4) { border-bottom: 0; }
 .hud span, .enemyBar span, .ranges span, .commitment span, .merchant span, .log span { display: block; color: #71717a; font-size: 7px; font-weight: 950; letter-spacing: .13em; }
 .hud strong { display: block; margin-top: 5px; overflow: hidden; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
-.hud i { display: block; height: 3px; margin-top: 6px; overflow: hidden; border-radius: 9px; background: #27272a; }
-.hud i b { display: block; height: 100%; background: #34d399; }
+.hud i { display: block; height: 3px; margin-top: 6px; overflow: hidden; border-radius: 9px; background: var(--dw-hp-track); }
+.hud i b { display: block; height: 100%; border-radius: inherit; background: var(--dw-hp-healthy); }
+.hud i[data-health="warning"] b { background: var(--dw-hp-warning); }
+.hud i[data-health="danger"] b { background: var(--dw-hp-danger); }
 .omenStrip { display: grid; grid-template-columns: 1.35fr 1fr .7fr; margin-bottom: 10px; overflow: hidden; border: 1px solid #6d28d9; border-radius: 14px; background: linear-gradient(135deg,rgba(76,29,149,.38),rgba(17,15,24,.98)); }
 .omenStrip > div { min-width: 0; padding: 11px; border-right: 1px solid rgba(139,92,246,.25); }
 .omenStrip > div:last-child { border-right: 0; }
 .omenStrip span { display: block; color: #a78bfa; font-size: 7px; font-weight: 950; letter-spacing: .12em; }
 .omenStrip strong { display: block; margin-top: 5px; overflow: hidden; font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
-.gold { display: inline-block !important; width: 1.15em; height: 1.15em; vertical-align: -.18em; background: url('/assets/delveworn-gold-coin.webp') center/contain no-repeat; }
 .panel { margin-bottom: 10px; }
 .encounterArt { position: relative; aspect-ratio: 16/8.3; background: #0c0a09; border-bottom: 1px solid #352c28; }
 .encounterArt::after { position: absolute; inset: 0; content: ''; background: linear-gradient(180deg,transparent 55%,rgba(17,17,19,.9)); pointer-events: none; }
 .enemyArtHud { position: absolute; z-index: 2; right: 13px; bottom: 11px; left: 13px; display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 5px 12px; padding: 9px 11px; border: 1px solid rgba(251,113,133,.45); border-radius: 10px; background: rgba(9,9,11,.88); box-shadow: 0 10px 26px rgba(0,0,0,.46); backdrop-filter: blur(10px); }
 .enemyArtHud span { color: #fda4af; font-size: 8px; font-weight: 950; letter-spacing: .14em; }
 .enemyArtHud b { font-size: 13px; }
-.enemyArtHud i { grid-column: 1/-1; display: block; height: 6px; overflow: hidden; border-radius: 99px; background: #3f3f46; }
-.enemyArtHud em { display: block; height: 100%; background: linear-gradient(90deg,#e11d48,#fb7185); transition: width .2s ease; }
+.enemyArtHud i { grid-column: 1/-1; display: block; height: 6px; overflow: hidden; border-radius: 99px; background: var(--dw-hp-track); }
+.enemyArtHud em { display: block; height: 100%; border-radius: inherit; background: var(--dw-hp-danger); transition: width .35s ease-out; }
+.enemyArtHud[data-boss="true"] em { background: var(--dw-hp-boss); }
 .bossPanel { border-color: #6b21a8; background: linear-gradient(170deg,rgba(76,29,149,.36),#101012 70%); }
 .bossPanel .encounterArt { border-bottom-color: #6b21a8; }
 .encounterCopy, .cleared { padding: 20px; }
 .encounterCopy > p, .cleared > p { margin: 0; color: #fb923c; font-size: 8px; font-weight: 950; letter-spacing: .2em; }
 .encounterCopy h2, .cleared h2 { margin: 7px 0 0; font-size: 27px; letter-spacing: -.03em; }
 .encounterCopy blockquote { margin: 8px 0 0; color: #a1a1aa; font-size: 11px; font-style: italic; line-height: 1.45; }
+.encounterCopy .monsterRemark, .cleared blockquote { margin: 12px 0 0; color: #e9d5ff; font-size: 13px; font-style: italic; font-weight: 400; letter-spacing: normal; line-height: 1.4; }
+.dreamdexContinue { margin: 14px 0; padding: 18px; border: 1px solid #6d28d9; border-radius: 16px; background: #1c1328; text-align: center; }
+.dreamdexContinue > b { color: #e9d5ff; font-size: 12px; }
+.dreamdexContinue p { color: #d4d4d8; font-size: 13px; line-height: 1.4; }
+.dreamdexLink { display: flex; align-items: center; justify-content: center; min-height: 48px; margin: 12px 0; padding: 10px; border-radius: 12px; background: #6d28d9; color: white; font-size: 12px; font-weight: 900; text-decoration: none; }
+.dreamdexContinue small { display: block; color: #b5a6c8; font-size: 11px; line-height: 1.4; }
 .enemyBar { margin-top: 17px; }
 .enemyBar > b { float: right; margin-top: -10px; font-size: 11px; }
 .enemyBar i { display: block; clear: both; height: 7px; margin-top: 8px; overflow: hidden; border-radius: 99px; background: #27272a; }
@@ -85,11 +96,27 @@
 .predictions .upSelected { border-color: #10b981; background: rgba(6,78,59,.35); }
 .predictions .downSelected { border-color: #e11d48; background: rgba(136,19,55,.28); }
 .oraclePanel .primary { border-color: #a855f7; background: linear-gradient(135deg,#7c3aed,#c026d3); box-shadow: 0 14px 34px rgba(126,34,206,.3); }
+.settlementMoment { overflow: hidden; padding: 16px; border: 1px solid #7c3aed; border-radius: 16px; background: #17131e; animation: settlementReveal .55s ease-out both; }
+.settlementMoment > p { margin: 0; color: #d8b4fe; font-size: 9px; font-weight: 950; letter-spacing: .14em; }
+.settlementFlow { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 7px; margin-top: 11px; }
+.settlementFlow span { min-width: 0; padding: 9px; border: 1px solid #40374a; border-radius: 9px; background: rgba(0,0,0,.26); }
+.settlementFlow small, .settlementFlow b { display: block; }
+.settlementFlow small { color: #a1a1aa; font-size: 7px; font-weight: 900; letter-spacing: .08em; }
+.settlementFlow b { margin-top: 5px; font-size: 10px; }
+.settlementMoment > strong { display: block; margin-top: 12px; font-size: 14px; line-height: 1.35; }
+.settlementMoment > small { display: block; margin-top: 7px; color: #d4c9d8; font-size: 10px; line-height: 1.4; }
+.settlementCursed { border-color: #be123c; background: radial-gradient(circle at 50% 0,rgba(190,18,60,.25),transparent 55%),#171014; box-shadow: 0 0 32px rgba(190,18,60,.18); }
+.settlementCursed > p, .settlementCursed .settlementFlow span:last-child b { color: #fda4af; }
+.settlementBlessed { border-color: #059669; background: radial-gradient(circle at 50% 0,rgba(5,150,105,.21),transparent 55%),#101714; }
+.settlementBlessed > p, .settlementBlessed .settlementFlow span:last-child b { color: #6ee7b7; }
+.settlementVoid { border-color: #7c3aed; }
+@keyframes settlementReveal { from { opacity: 0; transform: translateY(-8px) scale(.98); } to { opacity: 1; transform: none; } }
 .marketReference { display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; margin-top: 18px; padding: 14px; border: 1px solid #0369a1; border-radius: 13px; background: rgba(8,47,73,.38); text-align: left; }
 .marketReference span { color: #7dd3fc; font-size: 8px; font-weight: 950; letter-spacing: .13em; }
 .marketReference strong { grid-column: 1; font-size: 24px; }
 .marketReference b { grid-column: 2; grid-row: 1/3; align-self: center; color: #67e8f9; font-size: 9px; }
 .marketReference small { grid-column: 1/-1; color: #94a3b8; font-size: 9px; line-height: 1.4; }
+.marketOverview { display: contents; }
 .marketLoading { margin-top: 18px; padding: 17px; border: 1px solid #3f3f46; border-radius: 13px; color: #a1a1aa; font-size: 9px; font-weight: 900; letter-spacing: .08em; }
 .marketUnavailable { display: grid; gap: 8px; margin-top: 18px; padding: 14px; border: 1px solid #9f1239; border-radius: 13px; background: rgba(76,5,25,.3); text-align: left; }
 .marketUnavailable b { color: #fda4af; font-size: 9px; letter-spacing: .08em; }
@@ -101,6 +128,8 @@
 .commitment b, .commitment code { display: block; margin-top: 5px; }
 .commitment code { overflow-wrap: anywhere; color: #c4b5fd; font-size: 8px; }
 .secondary { min-height: 42px; margin-top: 13px; border-color: #3f3f46; background: #18181b; box-shadow: none; }
+.recoveryPotion { background: #d1fae5; border-color: #a7f3d0; color: #064e3b; }
+.shell .recoveryPotion:disabled { background: #25352f; border-color: #486154; color: #b8c9c0; opacity: 1; }
 .merchant { margin-top: 17px; padding: 12px; border: 1px solid #44403c; border-radius: 13px; background: rgba(0,0,0,.28); text-align: left; }
 .merchant > div:first-child { position: relative; }
 .merchant > div:first-child b { display: block; margin-top: 4px; font-size: 12px; }
@@ -116,15 +145,18 @@
 .rewardActions { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; margin-top: 17px; }
 .rewardActions button { min-height: 47px; margin: 0; border-color: #7c3aed; background: #4c1d95; font-size: 9px; }
 .rewardActions button:last-child { border-color: #3f3f46; background: #18181b; }
-.collection { margin-bottom: 10px; padding: 16px; }
+.collection { margin: 14px 0 10px; padding: 12px; border-color: #7c3aed; text-align: left; }
+.collection summary { min-height: 44px; cursor: pointer; color: #e9d5ff; }
+.collection summary b { font-size: 12px; }
+.collection summary > span { display: block; margin-top: 5px; color: #c4b5fd; font-size: 11px; }
 .collection > div { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; margin-top: 11px; }
 .collection button { display: flex; align-items: center; gap: 8px; min-width: 0; padding: 8px; border: 1px solid #29292f; border-radius: 10px; background: #111113; color: white; text-align: left; }
 .collection button img { width: 52px; height: auto; flex: 0 0 auto; object-fit: contain; }
 .noRelic { display: grid; width: 52px; height: 44px; place-items: center; border: 1px dashed #52525b; border-radius: 9px; color: #a1a1aa; font-size: 25px; font-style: normal; }
 .collection button span { min-width: 0; }
-.collection button b, .collection button small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.collection button b { font-size: 9px; }
-.collection button small { margin-top: 4px; color: #71717a; font-size: 7px; }
+.collection button b, .collection button small { display: block; white-space: normal; }
+.collection button b { font-size: 12px; }
+.collection button small { margin-top: 4px; color: #a1a1aa; font-size: 11px; line-height: 1.35; }
 .collection .equipped { border-color: #a855f7; background: rgba(76,29,149,.32); }
 .victory, .death { padding: 30px 24px; text-align: center; }
 .victory { border-color: #047857; background: radial-gradient(circle at 50% 0,rgba(5,150,105,.18),transparent 50%),#101211; }
@@ -164,6 +196,264 @@
   .collection > div { grid-template-columns: 1fr; }
   .rewardActions { grid-template-columns: 1fr; }
 }
+.mobileCombatActive .column > :not(:global(.mobile-battle-root), .modeNavigation) { display: none !important; }
+.journey, .journeyDetails { display: contents; }
+.journeyArt { display: none; }
+.journeyImage { position: absolute; z-index: 0; inset: 0; }
+.stageHeader, .stagePlayer, .relicComparison { display: none; }
+.stagePlayer { display: block; margin-bottom: 10px; }
+@media (max-width: 800px) {
+  .shell.activeExpedition:not(.mobileCombatActive) { padding: max(8px,env(safe-area-inset-top)) 10px 54px; }
+  .activeExpedition .header { display: none; }
+  .activeExpedition .stageHeader { display: block; margin-bottom: 8px; }
+}
+@media (max-width: 800px) and (max-height: 650px) {
+  .activeExpedition .stageHeader { margin-bottom: 4px; }
+}
+@media (min-width: 801px) and (max-width: 1050px) {
+  .shell.activeExpedition:not(.mobileCombatActive) .column { padding: 14px; }
+  .activeExpedition .stageHeader { margin-bottom: 10px; }
+}
+/* The expedition keeps one desktop stage before, between and after combat.
+   Long inventories/evidence scroll normally; artwork never covers controls. */
+@media (min-width: 801px) {
+  .shell:not(.mobileCombatActive) { padding: 20px 16px; }
+  .shell:not(.mobileCombatActive) .column { max-width: 1920px; padding: 20px; border: 1px solid #45334c; border-radius: 20px; background: radial-gradient(ellipse at top,#26182b,#09090b 60%); }
+  .header { text-align: center; padding-bottom: 12px; border-bottom: 1px solid #3c3042; }
+  .header h1 { font-size: 28px; }
+  .header p { font-size: 9px; }
+  .header > div { justify-content: center; font-size: 10px; }
+  .journey, .startCard { display: grid; grid-template-columns: minmax(0,1.12fr) minmax(0,1fr); gap: 24px; align-items: start; }
+  .startCard { border: 0; background: none; box-shadow: none; }
+  .hero { width: 100%; min-width: 0; aspect-ratio: auto; min-height: 400px; overflow: hidden; border: 1px solid #45334c; border-radius: 14px; }
+  .hero img { object-fit: contain; }
+  .startCopy { align-self: center; padding: 20px 0; text-align: left; }
+  .journeyArt { display: block; position: sticky; top: 20px; min-height: 400px; height: min(75dvh,920px); overflow: hidden; border: 1px solid #45334c; border-radius: 14px; background: radial-gradient(ellipse,#281e2b,#09090b 75%); }
+  .journeyArt img { object-fit: contain; }
+  .journeyArt[data-crop="true"] img { width: 120% !important; max-width: none; left: -10% !important; }
+  .journeyArt[data-crop="false"] img { width: min(75%,440px) !important; left: 50% !important; transform: translateX(-50%); }
+  .journeyDetails { display: flex; min-width: 0; flex-direction: column; gap: 12px; }
+  .journeyDetails > * { min-width: 0; margin-top: 0; margin-bottom: 0; }
+  .journeyDetails .hud { position: static; order: -2; grid-template-columns: repeat(3,minmax(0,1fr)); }
+  .journeyDetails .tiers { order: -1; }
+  .panel, .log, .collection { box-shadow: none; background: #17131e; }
+  .relicReward { display: grid; grid-template-columns: minmax(130px,.42fr) minmax(0,1fr); align-items: center; gap: 7px 22px; text-align: left; }
+  .relicReward > p { grid-column: 1/-1; text-align: center; }
+  .relicReward .relicImage { grid-column: 1; grid-row: 2 / span 3; width: min(100%,190px); margin: 0 auto; }
+  .relicReward > h2, .relicReward > span, .relicReward > small { grid-column: 2; }
+  .relicReward > h2 { align-self: end; margin-top: 4px; }
+  .relicReward > span, .relicReward > small { align-self: start; }
+  .relicReward .relicComparison, .relicReward .rewardActions { grid-column: 1/-1; }
+  .panel h2, .cleared h2 { font-size: clamp(26px,2vw,42px); }
+  .panel > span, .startCopy > span, .cleared blockquote { font-size: 16px; }
+  .primary, .secondary, .rewardActions button, .startCopy button { min-height: 56px; font-size: 14px; }
+  .shop button { min-height: 48px; font-size: 12px; }
+  .merchant span, .commitment span, .predictions small, .disclosure { font-size: 11px; }
+  .predictions b, .merchant > div:first-child b { font-size: 15px; }
+  .log p, .log > div b { font-size: 13px; }
+  .footer { clear: both; }
+}
+@media (min-width: 1200px) and (min-height: 800px) {
+  .shell:not(.mobileCombatActive) .column { padding: clamp(24px,2vw,40px); }
+  .journey, .startCard { gap: clamp(24px,2vw,40px); min-height: min(calc(100dvh - 200px),920px); }
+  .header h1 { font-size: clamp(28px,1.65vw,34px); }
+  .startCopy h2 { font-size: clamp(32px,2.5vw,48px); }
+  .hero { min-height: min(65dvh,780px); }
+  .journeyDetails .hud strong { font-size: 18px; }
+  .hud i { height: 8px; }
+  .startCopy a { font-size: 13px; }
+}
+@media (min-width: 801px) {
+  .mobileCombatActive { padding: 20px 16px; }
+  .mobileCombatActive .column { max-width: 1920px; }
+  .mobileCombatActive .column > .footer { display: block !important; }
+  .column { max-width: 760px; }
+  .hud { grid-template-columns: repeat(6,minmax(0,1fr)); }
+  .hud > div { border-bottom: 0; }
+  .hud span, .omenStrip span, .ranges span, .log span { font-size: 10px; }
+  .hud strong, .omenStrip strong { font-size: 13px; }
+  .hud i b { transition: width .35s ease-out; }
+  .tiers span, .footer a { font-size: 11px; }
+}
 @media (prefers-reduced-motion: reduce) {
-  .hud i b, .enemyBar em, .startCopy button, .primary { transition: none; }
+  .hud i b, .enemyBar em, .enemyArtHud em, .startCopy button, .primary { transition: none; }
+  .settlementMoment { animation: none; }
+}
+@media (max-width: 800px) {
+  .mobileCombatActive { padding: 0; }
+  .mobileCombatActive .modeNavigation { padding: max(8px,env(safe-area-inset-top)) 12px 0; }
+  .mobileCombatActive :global(.mobile-battle-root) { height: auto; min-height: 0; }
+}
+@media (max-width: 800px) and (max-height: 650px) {
+  /* The room indicators are progress, not touch controls. Compact them to
+     retain the illustration and its caption below the shared mode menu. */
+  .mobileCombatActive :global([aria-label^="Room progress:"]) { margin-top: 4px; padding: 2px; }
+  .mobileCombatActive :global([aria-label^="Room progress:"]) li { max-width: 20px; font-size: 9px; }
+  .mobileCombatActive :global([aria-label="First fight guide"]) { display: none; }
+}
+@media (min-width: 801px) and (max-height: 800px) {
+  .mobileCombatActive :global(.mobile-battle-root) { padding-block: 14px; row-gap: 8px; }
+}
+/* Desktop stage polish. All changes below leave the approved mobile layout intact. */
+@media (min-width: 801px) {
+  .stageHeader { display: block; margin-bottom: 12px; }
+  .stagePlayer { display: block; order: -3; }
+  .activeExpedition .header, .activeExpedition .hud, .activeExpedition .tiers { display: none; }
+  .journey { min-height: 0; outline: none; }
+  .journeyArt { height: auto; min-height: 0; aspect-ratio: 3/2; }
+  .journeyArt[data-crop="false"] { aspect-ratio: 4/3; }
+  .journeyArt[data-crop="false"] img { width: min(75%,520px) !important; }
+  .startCard { min-height: 0; align-items: center; }
+  .hero { aspect-ratio: 16/9; min-height: 0; }
+  .startCopy a { display: flex; justify-content: center; align-items: center; min-height: 48px; padding: 10px 14px; border: 1px solid #8b5cf6; border-radius: 12px; background: #241536; font-size: 12px; text-align: center; }
+  .primary, .startCopy button { color: #1c0b02; }
+  .oraclePanel .primary { color: #fff; }
+  .shell button:focus-visible, .shell a:focus-visible, .shell summary:focus-visible { outline: 3px solid #67e8f9; outline-offset: 3px; }
+  .oraclePanel, .cleared { padding: 16px; }
+  .oraclePanel > span { margin-top: 8px; font-size: 14px; line-height: 1.4; }
+  .settlementMoment { padding: 18px; }
+  .settlementMoment > p { font-size: 11px; }
+  .settlementFlow small { font-size: 9px; }
+  .settlementFlow b { font-size: 13px; }
+  .settlementMoment > strong { font-size: 17px; }
+  .settlementMoment > small { font-size: 13px; }
+  .marketReference { margin-top: 12px; padding: 12px; }
+  .marketReference small, .disclosure { font-size: 12px; line-height: 1.4; color: #c4b5d4; }
+  .predictions { margin-top: 12px; }
+  .predictions button { min-height: 64px; padding: 12px; }
+  .primary, .secondary { margin-top: 12px; min-height: 50px; }
+  .omenStrip > div { padding: 9px; }
+  .omenStrip span { font-size: 11px; color: #c4b5fd; }
+  .cleared { display: flex; flex-direction: column; }
+  .cleared > .primary { order: 1; }
+  .cleared > .secondary, .cleared > .collection, .cleared > .merchant { order: 2; }
+  .cleared > .secondary { background: #d1fae5; border-color: #a7f3d0; color: #064e3b; box-shadow: none; }
+  .cleared > .secondary:disabled { background: #25352f; color: #b8c9c0; opacity: 1; }
+  .cleared blockquote { margin-top: 8px; font-size: 14px; }
+  .log p, .log span { color: #b8b0c4; }
+  .log span, .panel > p, .cleared > p, .merchant span, .collection summary span { font-size: 12px; }
+  .collection button small { font-size: 13px; }
+  .relicReward > span { color: #a7f3d0; font-size: 18px; }
+  .relicReward > small { display: block; font-size: 15px; line-height: 1.5; color: #fecaca; }
+  .relicComparison { display: grid; gap: 8px; margin-top: 20px; padding: 16px; border: 1px solid #594566; border-radius: 12px; text-align: left; background: #21182a; }
+  .relicComparison b { font-size: 13px; color: #ddd6fe; }
+  .relicComparison span, .relicComparison small { font-size: 15px; line-height: 1.4; }
+  .relicComparison small { color: #fecaca; }
+  .footer { color: #a1a1aa; }
+  .footer > span, .footer p, .footer a { font-size: 11px; }
+  /* Results take over the scene; do not strand a boss next to a long report. */
+  .resultJourney .journeyArt { display: none; }
+  .resultJourney .journeyDetails { display: contents; }
+  .resultJourney { grid-template-columns: minmax(0,1fr) minmax(0,1.12fr); }
+  .resultJourney .journeyDetails > * { grid-column: 1; order: 0; }
+  .resultJourney .journeyDetails > :global(.run-share-panel) { grid-column: 2; grid-row: 1 / span 5; align-self: start; margin: 0; }
+  .resultJourney .stagePlayer { grid-row: 1; }
+  .resultJourney .omenStrip, .resultJourney :global([aria-label="Critical finishing blow"]) { display: none; }
+  .resultJourney .victory, .resultJourney .death { grid-row: 2; }
+  .resultJourney .dreamdexContinue { grid-row: 3; }
+  .resultJourney .log { grid-row: 4; }
+}
+
+/* A supply/camp stop belongs to Kevin, not the defeated monster. */
+.journeyArt.merchantArt { position: relative; width: 100%; aspect-ratio: 3/2; overflow: hidden; border-radius: 14px; }
+.journeyArt.merchantArt img { object-fit: contain; width: 100% !important; left: 0 !important; transform: none; }
+
+@media (min-width: 801px) and (max-width: 1000px) {
+  .journey:has(.oraclePanel) { grid-template-columns: minmax(0,.6fr) minmax(0,1fr); gap: 16px; }
+  .oraclePanel { padding: 12px; }
+  .oraclePanel h2 { font-size: 24px; }
+  .oraclePanel > span { font-size: 12px; line-height: 1.35; }
+  .oraclePanel .marketReference { margin-top: 8px; padding: 10px; }
+  .oraclePanel .predictions { margin-top: 8px; }
+  .oraclePanel .predictions b { font-size: 12px; }
+  .oraclePanel .predictions button { min-height: 56px; padding: 8px; }
+}
+@media (min-width: 801px) and (max-height: 800px) {
+  .relicReward { padding: 14px 18px; grid-template-columns: 112px minmax(0,1fr); gap: 3px 16px; }
+  .relicReward .relicImage { width: 106px; }
+  .relicReward > h2 { font-size: 27px; }
+  .relicReward > span, .relicReward > small { font-size: 13px; line-height: 1.3; }
+  .relicReward .relicComparison { gap: 3px; margin-top: 6px; padding: 9px 12px; }
+  .relicReward .relicComparison b, .relicReward .relicComparison span, .relicReward .relicComparison small { font-size: 12px; line-height: 1.25; }
+  .relicReward .rewardActions { margin-top: 6px; }
+  .relicReward .rewardActions button { min-height: 42px; }
+}
+.mobileMerchantArt { display: none; }
+.lootInline { display: flex; justify-content: center; margin: 12px 0; border: 1px solid #40342a; border-radius: 12px; background: #0b0a0d; }
+.lootInline img { display: block; width: 144px; height: 144px; object-fit: contain; }
+@media (min-width: 801px) {
+  .journeyArt.lootArt { aspect-ratio: 3/2; background: radial-gradient(ellipse,#302316,#0b0a0d 72%); }
+  .journeyArt.lootArt img { width: min(75%,480px) !important; }
+  .journeyArt.lootArt[data-loot="2"] img { width: min(65%,248px) !important; }
+  .lootInline { display: none; }
+  .lootInline[data-merchant="true"] { display: flex; align-self: flex-start; }
+  .lootInline img { width: 80px; height: 80px; }
+  .startCopy > span { max-width: 56ch; }
+  .startCopy button, .startCopy a { max-width: 480px; }
+  .startCopy > :global(.desktop-keyboard-hint) { max-width: 480px; margin-top: 4px; color: #c4b5d4; font-size: 11px; font-weight: 400; letter-spacing: normal; }
+}
+@media (min-width: 1440px) {
+  .shell:not(.mobileCombatActive) .column, .mobileCombatActive .column { max-width: 1760px; }
+  .journey:not(.resultJourney), .startCard { grid-template-columns: minmax(0,1fr) 640px; }
+}
+@media (max-width: 800px) {
+  .mobileMerchantArt { display: block; position: relative; aspect-ratio: 16/9; margin: 10px 0; overflow: hidden; border-radius: 8px; background: #09090b; }
+  .mobileMerchantArt img { object-fit: contain; }
+}
+
+/* A compact front door: characters, premise and the real market in one card. */
+.homeMarket { margin-top: 18px; padding: 0 12px 12px; border: 1px solid #303036; border-radius: 12px; background: #0b0b0e; text-align: left; }
+.homeMarket .marketReference { margin: 0; padding: 14px 0 0; border: 0; border-radius: 0; background: none; }
+.startCopy .homeMarketNote { margin: 10px 0 0; color: #a1a1aa; font-size: 11px; font-weight: 400; letter-spacing: normal; line-height: 1.45; }
+.homeOdds { margin-top: 12px; }
+.homeOdds > div { margin-top: 0; }
+.homeActions { padding: 16px 20px; border-top: 1px solid #303036; background: #101014; }
+.homeActions .primary { margin: 0; color: #1c0b02; }
+.homeActions a { display: flex; justify-content: center; align-items: center; min-height: 48px; margin-top: 12px; padding: 10px 12px; border: 1px solid #8b5cf6; border-radius: 12px; background: #241536; color: #ddd6fe; font-size: 11px; font-weight: 850; text-align: center; text-decoration: none; }
+.homeActions > span { display: block; margin-top: 8px; color: #b8b0c4; font-size: 12px; text-align: center; }
+.homeActions > :global(.desktop-keyboard-hint) { margin: 4px 0 0; color: #c4b5d4; font-size: 11px; font-weight: 400; letter-spacing: normal; }
+.homeScreen .startCopy { text-align: left; }
+@media (min-width: 801px) {
+  .shell.homeScreen .column { max-width: 1180px; padding: 0; border: 0; background: none; }
+  .homeScreen .header { margin-bottom: 20px; border: 0; }
+  .homeScreen .startCard { grid-template-columns: minmax(0,1.15fr) minmax(0,1fr); gap: 0; align-items: stretch; border: 1px solid #3b3340; border-radius: 18px; background: #18161c; }
+  .homeScreen .hero { aspect-ratio: auto; min-height: 420px; border: 0; border-radius: 0; }
+  .homeScreen .hero img { object-fit: cover; object-position: 50% center; }
+  .homeScreen .startCopy { min-width: 0; align-self: center; padding: 24px; border-left: 1px solid #303036; }
+  .homeScreen .startCopy h2 { font-size: clamp(26px,2.2vw,34px); line-height: 1.08; }
+  .homeScreen .startCopy > span { margin-top: 12px; font-size: 14px; line-height: 1.5; }
+  .homeActions { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(2,minmax(0,480px)); justify-content: center; gap: 0 16px; padding: 16px 24px; }
+  .homeActions .primary { min-height: 50px; font-size: 13px; }
+  .homeActions a { grid-column: 2; grid-row: 1; margin: 0; }
+  .homeActions > :global(.desktop-keyboard-hint) { grid-column: 1; }
+  .homeActions > span { grid-column: 1 / -1; }
+}
+
+/* Boss outcomes have one scene on every screen size, separate from loot artwork. */
+.bossSceneStage { display: block; min-width: 0; margin-bottom: 12px; }
+.bossSceneStage > .settlementMoment { margin-top: 12px; }
+.commitment details { margin-top: 8px; color: #c4b5fd; font-size: 11px; }
+.commitment summary { min-height: 28px; cursor: pointer; }
+.reviveStatus { color: #fbbf24; font-weight: 800; }
+@media (min-width: 801px) {
+  .bossSceneStage { position: sticky; top: 20px; margin: 0; }
+}
+@media (min-width: 801px) and (max-height: 800px) {
+  .journey:has([aria-label="How your Bitcoin choice works"]) { grid-template-columns: minmax(0,.75fr) minmax(0,1.25fr); }
+  .oraclePanel h2 { font-size: 26px; }
+  .oraclePanel > span { font-size: 12px; }
+  .oraclePanel .marketReference { padding: 9px; margin-top: 10px; }
+  .oraclePanel .marketReference strong { font-size: 22px; }
+  .oraclePanel .predictions { margin-top: 9px; }
+  .oraclePanel .predictions button { min-height: 52px; padding: 9px; }
+  .oraclePanel .primary { min-height: 46px; margin-top: 9px; }
+}
+/* Keep the market context alongside its odds on wide screens, leaving room
+   for the explanation immediately before the player's lock button. */
+@media (min-width: 1200px) {
+  .marketOverview { display: grid; grid-template-columns: minmax(0,.85fr) minmax(0,1.15fr); gap: 12px; margin-top: 12px; align-items: stretch; }
+  .oraclePanel .marketOverview > * { min-width: 0; margin-top: 0; }
+  .marketOverview > :only-child { grid-column: 1 / -1; }
+  .oraclePanel .marketOverview > .marketReference { grid-template-columns: minmax(0,1fr); align-content: start; gap: 6px; margin-top: 0; padding: 12px; }
+  .marketOverview > .marketReference b { grid-column: 1; grid-row: auto; font-size: 10px; }
 }

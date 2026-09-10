@@ -55,6 +55,8 @@ export type DelvewornGame = {
   relicOfferId: number;
   relicReviveUsed: boolean;
   lastPlayerDamage: number;
+  /** Presentation only: full attack damage before remaining-enemy-HP clamping. */
+  lastRolledDamage?: number;
   lastMonsterDamage: number;
   lastCritical: boolean;
   combatPotionsUsed: number;
@@ -432,7 +434,7 @@ export function attackTransition(
   if (critical) damage *= criticalMultiplier(state.equippedRelic);
   damage = scaleOutgoing(state.equippedRelic, damage, false);
   const actual = Math.min(damage, state.monsterHp);
-  let next = { ...state, lastPlayerDamage: actual, lastCritical: critical };
+  let next: DelvewornGame = { ...state, lastPlayerDamage: actual, lastRolledDamage: damage, lastCritical: critical };
   if (damage >= state.monsterHp) {
     next = { ...next, monsterHp: 0, lastMonsterDamage: 0 };
     if (deferBossReward && state.monsterType === 3) {
@@ -488,21 +490,27 @@ export function stormTransition(
   };
 }
 
+/** Safe recovery; callers must establish that combat is not underway. */
+export function drinkRecoveryPotion(state: DelvewornGame): DelvewornGame {
+  if (!state.active) return withLog(state, 'The run is over.');
+  if (state.potions <= 0) return withLog(state, 'No potions left.');
+  if (state.hp >= state.maxHp) return withLog(state, 'HP is already full.');
+  const hp = Math.min(state.maxHp, state.hp + 25);
+  return withLog({
+    ...state,
+    hp,
+    potions: state.potions - 1,
+    lastPlayerDamage: 0,
+    lastMonsterDamage: 0,
+    lastCritical: false,
+  }, `🧪 Potion restores ${hp - state.hp} HP. The label remains legally vague.`);
+}
+
 export function drinkPotion(state: DelvewornGame, random: GameplayRandom = cryptoRandom): DelvewornGame {
   if (!state.active) return withLog(state, 'The run is over.');
   if (state.potions <= 0) return withLog(state, 'No potions left.');
   if (state.hp >= state.maxHp) return withLog(state, 'HP is already full.');
-  if (state.monsterHp === 0) {
-    const hp = Math.min(state.maxHp, state.hp + 25);
-    return withLog({
-      ...state,
-      hp,
-      potions: state.potions - 1,
-      lastPlayerDamage: 0,
-      lastMonsterDamage: 0,
-      lastCritical: false,
-    }, `🧪 Potion restores ${hp - state.hp} HP. The label remains legally vague.`);
-  }
+  if (state.monsterHp === 0) return drinkRecoveryPotion(state);
   const limit = state.monsterType === 3 ? 3 : 2;
   if (state.combatPotionsUsed >= limit) return withLog(state, 'Combat potion limit reached.');
   const incoming = Math.floor((rollMonsterDamage(state, random) + 1) / 2);

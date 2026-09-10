@@ -35,6 +35,16 @@ test('new versioned full-run session round-trips without touching the legacy pro
   assert.notEqual(FULL_RUN_STORAGE_KEY, 'market-dungeon/profile/v1');
 });
 
+test('optional critical display damage round-trips and rejects invalid stored values', () => {
+  const current = session();
+  current.run.game.lastRolledDamage = 34;
+  assert.equal(parseFullRunSession(serializeFullRunSession(current))?.run.game.lastRolledDamage, 34);
+  for (const invalid of [-1, 0.5, 10_001, '34', { damage: 34 }]) {
+    const game = { ...current.run.game, lastRolledDamage: invalid };
+    assert.equal(parseFullRunSession(JSON.stringify({ ...current, run: { ...current.run, game } })), null);
+  }
+});
+
 test('malformed, oversized, impossible, and unknown session states fail closed', () => {
   assert.equal(parseFullRunSession(null), null);
   assert.equal(parseFullRunSession('{'), null);

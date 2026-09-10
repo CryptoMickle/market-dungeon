@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { validLiveJudgeActions } from './judge-live-actions.ts';
 import test from 'node:test';
 import { encodeFunctionResult } from 'viem';
 
@@ -23,7 +24,7 @@ import {
   SHANNON_TESTNET_PROFILE,
   SOMNIA_MAINNET_PROFILE,
 } from '../app/judge-network.ts';
-import { replayJudgeCombat, type JudgeCombatAction } from '../app/judge-combat.ts';
+import { replayJudgeCombat } from '../app/judge-combat.ts';
 import { BINARY_SETTLEMENT_ABI, MODULE_MARKETS_ABI } from '../app/onchain-settlement-proof.ts';
 import {
   REPLAY_MARKET_QUESTION,
@@ -130,7 +131,7 @@ test('fixed profiles keep contracts and origin constant while separating chain e
   assert.equal(SOMNIA_MAINNET_PROFILE.originOperatorId, SHANNON_TESTNET_PROFILE.originOperatorId);
   assert.equal(SOMNIA_MAINNET_PROFILE.originVenueId, SHANNON_TESTNET_PROFILE.originVenueId);
   assert.equal(allowsLiveDreamDexContinuation(SOMNIA_MAINNET_PROFILE), true);
-  assert.equal(allowsLiveDreamDexContinuation(SHANNON_TESTNET_PROFILE), false);
+  assert.equal(allowsLiveDreamDexContinuation(SHANNON_TESTNET_PROFILE), true);
 });
 
 test('Shannon v3 commitment, seal AAD, and v2 attestation bind profile and chain', async () => {
@@ -204,6 +205,20 @@ test('Shannon public-key route is fixed to the v2 profile-bound key', async () =
   assert.equal(key.chainId, SHANNON_TESTNET_PROFILE.chainId);
 });
 
+test('Shannon missing sealing configuration is explicit and makes no indexer request', async () => {
+  delete process.env.JUDGE_REPLAY_SEAL_KEY;
+  let reads = 0;
+  globalThis.fetch = async () => { reads += 1; throw new Error('Unconfigured Shannon route must not discover markets'); };
+  const response = await startShannonReplay(post('/api/shannon/judge-replay/start', 'UP', '203.0.113.32'));
+  assert.equal(response.status, 503);
+  assert.equal(response.headers.get('retry-after'), null);
+  assert.equal((await response.json()).retryState, 'config_unavailable');
+  const key = await shannonPublicKey();
+  assert.equal(key.status, 503);
+  assert.equal((await key.json()).retryState, 'config_unavailable');
+  assert.equal(reads, 0);
+});
+
 test('mainnet and Shannon start routes use isolated caches and fixed indexers', async () => {
   const urls: string[] = [];
   const queries: string[] = [];
@@ -254,13 +269,8 @@ test('Shannon reveal remains on its fixed profile through market hydration and h
     expiresAt: now + 1_800,
     ...provenance(now - 30),
   }, SHANNON_TESTNET_PROFILE);
-  const actions: JudgeCombatAction[] = [{ room: 8, action: 'attack' }];
-  let combat = replayJudgeCombat(claims.gameSeed, actions);
-  while (!combat.bossDefeated) {
-    actions.push({ room: 9, action: 'attack' });
-    combat = replayJudgeCombat(claims.gameSeed, actions);
-  }
-  assert.equal(combat.verified, true);
+  const actions = validLiveJudgeActions(claims.gameSeed);
+  assert.equal(replayJudgeCombat(claims.gameSeed, actions).verified, true);
 
   const nonce = 46n;
   const yesId = (BigInt(POOL_ADDRESS) << 72n) | (nonce << 8n);

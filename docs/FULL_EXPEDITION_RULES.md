@@ -1,8 +1,9 @@
-# Full Expedition rules — active-market local candidate
+# Full Expedition rules
 
-Status: implemented and locally verified on 7 September 2026. This document
-describes the unreleased working-tree candidate. The earlier public Preview is
-rejected and does not represent these rules.
+Current rules reviewed against the September 10 source. Publication identity
+and executed checks belong to [release verification](RELEASE_2026-09-10.md).
+The game uses active five-minute Somnia mainnet markets; Judge Demo is a
+separate shortened experience.
 
 ## Run structure
 
@@ -38,33 +39,48 @@ and `tests/delveworn-gameplay-parity.test.ts`.
    canonical block and both raw contract calls.
 
 If no active five-minute market with a valid BTC opening reference is
-available, the full run fails closed with a retry and a link to the historical
-Judge Demo. It never silently substitutes a historical or 15-minute market.
+available, the full run offers retry or an explicit switch to Judge Demo. It
+never silently substitutes a historical or 15-minute market. The market clock
+is not a combat deadline: fighting can continue after the interval closes.
 
 ### Settlement consequences
 
-- **BLESSED:** the prediction matches. Ordinary boss gold, random loot and one
-  relic are granted exactly once, then the next tier's fresh omen screen opens.
+- **BLESSED:** the prediction matches. Ordinary boss gold, random loot and a
+  relic offer are granted once. Claiming the relic leads to the next tier’s
+  fresh omen, or completes the expedition after Room 40.
 - **CURSED:** no boss reward is granted. Only the same boss returns at full
   scaled HP. Current HP, potions, gold, equipment, relics and spent revive are
   preserved; camp does not reopen. The player locks a different active
   five-minute market and fights the boss again while that interval runs.
 - **VOID:** the player is not penalized; ordinary boss reward and progression
   are granted.
-- **Pending, unavailable or not provable:** the defeated boss and run remain
-  frozen without a win, loss or resource change. Verification can be retried.
+- **Pending, unavailable or not provable:** boss rewards and progression remain
+  pending without applying a prediction win or loss. Verification can be
+  retried. The player may spend an owned potion to recover without retaliation
+  while awaiting settlement; this does not change the locked omen or proof.
 
-There is no separate prediction-gold bonus and no hidden rematch limit.
-Ordinary combat death still ends the run.
+There is no separate prediction-gold bonus. Before locking a rematch, an owned
+potion can also restore health without retaliation; equipment remains locked
+until the boss is resolved. Ordinary combat death ends the run unless an
+active, unspent relic revive applies.
 
 ## Judge boundary
 
-The separate `/judge` route remains the two-encounter historical Judge Replay.
-It demonstrates a server-authenticated pre-selection lock, deterministic combat
-replay, commitment verification and hash-pinned Somnia settlement proof in
-about two minutes. It does not claim that its combat proof covers the local
-40-room run. Conversely, the full expedition calls its omen lock local and
-claims direct proof only for the final dreamDEX settlement.
+The recommended `/shannon/live-judge` uses a fresh one-minute Shannon testnet
+market and two encounters. Its signed lock binds the exact market before
+expiry; a pending-state snapshot, deterministic combat transcript and final
+settlement can be independently reproduced. One minute is the market interval,
+not a guaranteed completion time.
+
+Historical Replay at `/shannon/judge` remains an explicit alternative. It
+demonstrates choice before hidden market selection, an authenticated seal and
+commitment, deterministic combat and hash-pinned settlement. The older mainnet
+`/judge` and `/verify` routes remain available. Both Judge variants end after a
+verified prediction loss; Full Expedition instead requires a same-boss rematch.
+
+Neither Judge proof claims to cover the local 40-room run. Full Expedition
+describes its omen lock as local and independently proves the dreamDEX
+settlement before applying it.
 
 ## Persistence and sharing
 
@@ -73,12 +89,13 @@ claims direct proof only for the final dreamDEX settlement.
   mismatched state fails closed.
 - Completed expeditions and relevant defeats can render the 1200×675 run card
   with actual room, enemies, gold and direction. The card is a social summary,
-  not portable proof. Judge proof JSON and `/verify` remain Judge-only evidence.
+  not portable proof. Live Judge proof JSON belongs in
+  `/shannon/live-judge/verify`; Shannon historical proof uses `/shannon/verify`,
+  and mainnet historical proof uses `/verify`.
 
 ## Verification record
 
-At this checkpoint: 142/142 unit tests, the optimized production build and
-38/38 Chromium checks pass (the one updated mobile assertion was corrected and
-rerun after the full suite). Lint and TypeScript pass. No new Vercel Preview has
-been created; physical iPhone and desktop acceptance plus live-provider smoke
-remain release gates.
+See the [current release verification](RELEASE_2026-09-10.md) for exact source
+identity, build, test and live-provider results. The [judge evidence pack](JUDGE_EVIDENCE_PACK.md)
+separates automated checks, qualitative feedback and remaining physical-device
+limits. Earlier checkpoint counts do not establish the current release’s status.
