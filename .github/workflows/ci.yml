@@ -26,9 +26,9 @@ jobs:
       - run: npm run test:shannon
       - run: npx playwright install --with-deps chromium webkit
       - run: npm run build -- --webpack
-      - run: npm run test:e2e
+      - run: npm run test:e2e:iphone
         env:
           PLAYWRIGHT_PRODUCTION: '1'
-      - run: npm run test:e2e:iphone
+      - run: npm run test:e2e
         env:
           PLAYWRIGHT_PRODUCTION: '1'

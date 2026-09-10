@@ -8,6 +8,7 @@ Physical iPhone feedback showed that browser controls reduced the usable screen 
 
 - Combat in Full Expedition and both Judge variants now keeps the action controls in a bottom dock, with current player and enemy HP beside them. The monster illustration retains its full mobile width and can scroll completely above the dock.
 - Full Expedition uses a compact loot summary and Kevin portrait. Health, potion count, gold, weapon level and armor level appear beside Kevin's purchases and update after purchases or safe healing. Ordinary room recovery also shows health and potions near its actions.
+- Expedition entry positioning finishes before paint, so a delayed scroll reset cannot overwrite the player's first scroll toward the recovery controls.
 - Judge recovery places current health and potions next to healing and continue controls. Live guard recovery and historical merchant recovery use compact Kevin portraits; his character copy remains. The historical cleared-room summary takes less space.
 
 These changes affect mobile presentation. Combat rules, prices, healing effects, market locking, settlement proofs and sound behavior are preserved. Desktop layout is retained.

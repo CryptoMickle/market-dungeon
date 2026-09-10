@@ -14,7 +14,7 @@ import { LiveMarketOdds } from './live-market-odds';
 import { OmenGuide } from './omen-guide';
 import type { DreamDexClobOdds } from './clob-odds';
 import { ACTIVE_MARKET_POLL_INTERVAL_MS } from './event-contract-interval';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 
 import {
   emitAnalyticsEvent,
@@ -261,13 +261,12 @@ export default function FullExpedition() {
   useEffect(() => {
     if (merchantStage) playCharacterIntro('Quartermaster Kevin');
   }, [merchantStage, playCharacterIntro]);
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (mobileCombat) return;
-    const frame = requestAnimationFrame(() => {
-      window.scrollTo({ top: 0, behavior: 'instant' });
-      journeyFocus.current?.focus({ preventScroll: true });
-    });
-    return () => cancelAnimationFrame(frame);
+    // Set the entry position before paint so a late animation frame cannot
+    // overwrite the player's first scroll toward the recovery controls.
+    window.scrollTo({ top: 0, behavior: 'instant' });
+    journeyFocus.current?.focus({ preventScroll: true });
   }, [mobileCombat, run?.phase]);
   const tierNodes = useMemo(() => [1, 2, 3, 4], []);
 

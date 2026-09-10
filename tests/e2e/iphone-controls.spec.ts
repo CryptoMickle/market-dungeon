@@ -187,6 +187,8 @@ for (const phone of phones) test.describe(`${phone.width}×${phone.height} iPhon
       await expect(supplies).toBeInViewport({ ratio: 1 });
       for (const button of [rest, potion, weapon, armor, ownPotion, next]) await expectTouchTarget(button);
     };
+    // Measure the final text layout before simulating the player's scroll.
+    await page.evaluate(() => document.fonts.ready);
     await next.evaluate(button => button.scrollIntoView({ block: 'end', behavior: 'instant' }));
     await page.evaluate(() => window.scrollBy({ top: 16, behavior: 'instant' }));
     await expectSupplies(['40/100', '2/5', '300', '0', '0']);
