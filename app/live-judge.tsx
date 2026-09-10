@@ -125,6 +125,10 @@ export default function LiveJudge() {
   } : null;
   const summary = <LoadoutSummary gold={gold} weapon={4} armor={1} potions={`${combat.potions}/5`} />;
   const gear = <p>Weapon 4 · Armor 1. Attack deals 15–19 damage with a 15% critical chance. Storm rolls 0–32. A potion heals 25 HP; enemies retaliate during combat.</p>;
+  const recoverySupplies = <section className={styles.recoverySupplies} aria-label="Recovery supplies">
+    <div><span>YOUR HP</span><strong>❤️ {shownHp}/100</strong></div>
+    <div><span>POTIONS</span><strong>🧪 {combat.potions}/5</strong></div>
+  </section>;
 
   useEffect(() => {
     mounted.current = true;
@@ -321,7 +325,7 @@ export default function LiveJudge() {
     {footer}
   </main>;
 
-  return <main className={styles.shell} data-setup={!live} data-ended={ended}>
+  return <main className={styles.shell} data-setup={!live} data-ended={ended} data-recovery={live && combat.phase === 'between' ? 'true' : undefined}>
     <DesktopNavigation />
     <div className={styles.frame}>
       <GameModeNav current="live" />
@@ -355,8 +359,12 @@ export default function LiveJudge() {
             <details className={styles.proof}><summary>ABOUT THIS LIVE TESTNET ROUND</summary>{omenDetails}<p>Your signed lock receipt records your choice before the deadline. The server attests the lock time; Somnia independently supplies the settlement. This is a fresh market, not historical replay.</p></details>
             <Link className={styles.secondary} href="/shannon/judge">USE HISTORICAL REPLAY INSTEAD</Link>
           </> : combat.phase === 'between' ? <>
-            <span className={styles.eyebrow}>GUARD DEFEATED · +18 GOLD</span><h1>One boss to go.</h1>
+            <div className={styles.recoveryHeading}>
+              <div className={styles.recoveryPortrait}><Image src={KEVIN} alt="Quartermaster Kevin" fill sizes="88px" /></div>
+              <div><span className={styles.eyebrow}>GUARD DEFEATED · +18 GOLD</span><h1>One boss to go.</h1></div>
+            </div>
             <p>“You look almost adequately alive. A rare achievement.” — Kevin</p><p>Heal before the boss if you need it. Your market keeps running.</p>
+            {recoverySupplies}
             <button className={styles.secondary} data-game-audio="potion" disabled={combat.potions === 0 || combat.hp >= 100} onClick={() => act('potion')}>POTION · HEAL +25 HP · {combat.potions}/5</button>
             <button className={styles.primary} data-keyboard-default="true" onClick={() => setBossEntered(true)}>ENTER FINAL BOSS</button>
             <small className={styles.note}>A potion between fights costs no retaliation.</small>
@@ -375,6 +383,7 @@ export default function LiveJudge() {
             {issue && !expired && <button className={styles.primary} onClick={() => void reveal()} disabled={busy || remaining > 0 || retry > 0}>{retry > 0 ? `RETRY VERIFICATION IN ${retry}S` : 'RETRY THIS MARKET'}</button>}
             {expired && <button className={styles.primary} onClick={reset}>START A NEW LIVE ROUND</button>}
             {!issue && <small className={styles.note} role="status">{busy ? 'Checking combat, signed lock and the onchain result…' : remaining > 0 ? 'Automatic verification starts when the market closes.' : 'Settlement pending. Checking again shortly.'}</small>}
+            {recoverySupplies}
             <button className={styles.secondary} disabled={rested || combat.hp >= 100} onClick={() => { setRested(true); playCharacterIntro('Quartermaster Kevin'); }}> {rested ? 'KEVIN’S BANDAGE APPLIED' : 'REST WITH KEVIN · FREE'}</button>
             <small className={styles.note}>Rest cannot change your omen or save you from a wrong prediction.</small>
           </>}

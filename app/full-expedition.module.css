@@ -379,6 +379,7 @@
   .relicReward .rewardActions button { min-height: 42px; }
 }
 .mobileMerchantArt { display: none; }
+.merchantStats, .recoveryStatus { display: none; }
 .lootInline { display: flex; justify-content: center; margin: 12px 0; border: 1px solid #40342a; border-radius: 12px; background: #0b0a0d; }
 .lootInline img { display: block; width: 144px; height: 144px; object-fit: contain; }
 @media (min-width: 801px) {
@@ -397,8 +398,42 @@
   .journey:not(.resultJourney), .startCard { grid-template-columns: minmax(0,1fr) 640px; }
 }
 @media (max-width: 800px) {
-  .mobileMerchantArt { display: block; position: relative; aspect-ratio: 16/9; margin: 10px 0; overflow: hidden; border-radius: 8px; background: #09090b; }
+  /* Keep the reward and the next decision together. Merchant resources sit
+     beside the purchase controls even after the page header scrolls away. */
+  .activeExpedition .tiers { gap: 5px; margin-bottom: 8px; }
+  .activeExpedition .tiers div { padding: 3px 6px; border-radius: 8px; }
+  .activeExpedition .tiers b { flex-basis: 20px; height: 20px; }
+  .cleared { padding: 12px; }
+  .cleared h2 { font-size: 20px; line-height: 1.12; }
+  .cleared > p { font-size: 10px; }
+  .cleared[data-loot="true"] { display: grid; grid-template-columns: 64px minmax(0,1fr); column-gap: 12px; }
+  .cleared[data-loot="true"] > * { grid-column: 1/-1; min-width: 0; }
+  .cleared[data-loot="true"] > p { grid-column: 2; grid-row: 1; align-self: end; padding-bottom: 4px; }
+  .cleared[data-loot="true"] > h2 { grid-column: 2; grid-row: 2; align-self: start; margin: 0; }
+  .cleared[data-loot="true"] > .lootInline { grid-column: 1; grid-row: 1/3; align-self: center; width: 64px; height: 64px; margin: 0; }
+  .lootInline img { width: 62px; height: 62px; }
+  .cleared blockquote { margin-top: 8px; font-size: 12px; line-height: 1.4; }
+  .cleared blockquote:empty { display: none; }
+  .cleared > .primary, .cleared > .secondary { min-height: 48px; margin-top: 10px; font-size: 12px; letter-spacing: .03em; }
+  .cleared .collection { margin: 10px 0 0; padding: 8px; }
+  .merchant { display: grid; grid-template-columns: 96px minmax(0,1fr); gap: 9px; margin-top: 10px; padding: 10px; }
+  .merchant > div:first-child { grid-column: 2; grid-row: 1; align-self: center; }
+  .merchant > div:first-child span { font-size: 9px; letter-spacing: .08em; }
+  .merchant > div:first-child b { font-size: 14px; line-height: 1.2; }
+  .merchant > div:first-child strong { display: none; }
+  .mobileMerchantArt { display: block; grid-column: 1; grid-row: 1; position: relative; width: 96px; aspect-ratio: 3/2; margin: 0; overflow: hidden; border-radius: 8px; background: #09090b; }
   .mobileMerchantArt img { object-fit: contain; }
+  .merchantStats { display: block; grid-column: 1/-1; min-width: 0; padding: 8px 4px; border: 1px solid #45384e; border-radius: 8px; background: #17121e; }
+  .merchantStats dl { display: grid; grid-template-columns: 1.25fr 1fr .8fr 1fr 1fr; margin: 0; }
+  .merchantStats dl > div { min-width: 0; text-align: center; }
+  .merchantStats dl > div + div { border-left: 1px solid #403747; }
+  .merchantStats dt { color: #b8acc4; font-size: 9px; font-weight: 800; }
+  .merchantStats dd { margin: 5px 0 0; color: #fafafa; font-size: 12px; font-weight: 900; white-space: nowrap; }
+  .merchant .shop { grid-column: 1/-1; gap: 7px; margin: 0; }
+  .merchant .shop button { min-height: 48px; padding: 9px; font-size: 11px; }
+  .recoveryStatus { display: flex; justify-content: space-between; gap: 12px; margin-top: 12px; padding: 8px 10px; border: 1px solid #45384e; border-radius: 8px; background: #17121e; }
+  .recoveryStatus span { color: #b8acc4; font-size: 10px; font-weight: 800; }
+  .recoveryStatus b { margin-left: 5px; color: #fafafa; font-size: 12px; }
 }
 
 /* A compact front door: characters, premise and the real market in one card. */

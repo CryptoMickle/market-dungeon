@@ -14,7 +14,7 @@ import { LiveMarketOdds } from './live-market-odds';
 import { OmenGuide } from './omen-guide';
 import type { DreamDexClobOdds } from './clob-odds';
 import { ACTIVE_MARKET_POLL_INTERVAL_MS } from './event-contract-interval';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 
 import {
   emitAnalyticsEvent,
@@ -261,13 +261,12 @@ export default function FullExpedition() {
   useEffect(() => {
     if (merchantStage) playCharacterIntro('Quartermaster Kevin');
   }, [merchantStage, playCharacterIntro]);
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (mobileCombat) return;
-    const frame = requestAnimationFrame(() => {
-      window.scrollTo({ top: 0, behavior: 'instant' });
-      journeyFocus.current?.focus({ preventScroll: true });
-    });
-    return () => cancelAnimationFrame(frame);
+    // Set the entry position before paint so a late animation frame cannot
+    // overwrite the player's first scroll toward the recovery controls.
+    window.scrollTo({ top: 0, behavior: 'instant' });
+    journeyFocus.current?.focus({ preventScroll: true });
   }, [mobileCombat, run?.phase]);
   const tierNodes = useMemo(() => [1, 2, 3, 4], []);
 
@@ -613,14 +612,18 @@ export default function FullExpedition() {
                     </div>
                   </>
                 ) : (
-                  <div className={styles.cleared}>
+                  <div className={styles.cleared} data-loot={Boolean(loot)}>
                     <p>ROOM {game.roomsCleared} CLEARED</p>
                     <h2>{loot ? `Loot secured: ${lootLabel}` : 'The path ahead is open.'}</h2>
                     {loot && <div className={styles.lootInline} data-merchant={merchantStage}>
-                      <Image src={loot.image} alt={`Loot: ${lootLabel}`} width={160} height={160} sizes="(max-width: 800px) 144px, 80px" />
+                      <Image src={loot.image} alt={`Loot: ${lootLabel}`} width={160} height={160} sizes="(max-width: 800px) 64px, 80px" />
                     </div>}
                     <blockquote>{game.log.find((entry) => entry.startsWith('☠️'))?.replace(/^☠️ /, '')}</blockquote>
                     {merchant && <Merchant game={game} onBuy={(item) => gameplay({ type: 'buy', item })} />}
+                    {!merchant && <section className={styles.recoveryStatus} aria-label="Recovery status">
+                      <span>HEALTH <b>❤️ {game.hp}/{game.maxHp}</b></span>
+                      <span>POTIONS <b>🧪 {game.potions}/5</b></span>
+                    </section>}
                     <button className={`${styles.secondary} ${styles.recoveryPotion}`} onClick={() => gameplay({ type: 'use-potion' })} disabled={game.potions === 0 || game.hp >= game.maxHp}>USE OWN POTION SAFELY · {game.potions}/5</button>
                     <RelicLoadout game={game} onEquip={(relicId) => gameplay({ type: 'equip-relic', relicId })} />
                     <button className={styles.primary} onClick={() => gameplay({ type: 'enter-next-room' })}>ENTER ROOM {game.roomsCleared + 1}</button>
@@ -703,7 +706,16 @@ function Merchant({ game, onBuy }: {
   return (
     <div className={styles.merchant}>
       <div><span>{visit === 'camp' ? 'CAMP BEFORE THE BOSS' : 'SUPPLY STOP'}</span><b>Quartermaster Kevin</b><strong><Gold /> {game.gold}</strong></div>
-      <figure className={styles.mobileMerchantArt}><Image src="/characters/merchant-quartermaster-kevin.webp" alt="Quartermaster Kevin" fill sizes="(max-width: 800px) 100vw, 1px" /></figure>
+      <figure className={styles.mobileMerchantArt}><Image src="/characters/merchant-quartermaster-kevin.webp" alt="Quartermaster Kevin" fill sizes="(max-width: 800px) 96px, 1px" /></figure>
+      <section className={styles.merchantStats} aria-label="Supplies at Kevin">
+        <dl>
+          <div><dt>HEALTH</dt><dd>{game.hp}/{game.maxHp}</dd></div>
+          <div><dt>POTIONS</dt><dd>{game.potions}/5</dd></div>
+          <div><dt>GOLD</dt><dd><Gold /> {game.gold}</dd></div>
+          <div><dt>WEAPON</dt><dd>{game.weaponLevel}</dd></div>
+          <div><dt>ARMOR</dt><dd>{game.armorLevel}</dd></div>
+        </dl>
+      </section>
       <div className={styles.shop}>
         {visit === 'supply' ? <>
           <button onClick={() => onBuy('supply-bandage')} disabled={game.gold < supply.bandage || game.supplyBandageUsed || game.hp >= game.maxHp}>BANDAGE +25 <b>{supply.bandage}G</b></button>

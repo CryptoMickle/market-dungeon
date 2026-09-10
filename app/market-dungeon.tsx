@@ -1960,6 +1960,11 @@ function LegacyMarketDungeon({
         </section>
 
         {phase !== 'JUDGE_SETUP' && <section className={`action-dock action-dock-${phase.toLowerCase()} ${['VICTORY', 'DEAD'].includes(phase) ? 'action-dock-terminal' : ''}`}>
+          {judgeMode && ['CLEARED', 'MERCHANT', 'FINAL_MERCHANT'].includes(phase) && <section className="judge-recovery-supplies" aria-label="Recovery supplies">
+            <div><span>YOUR HP</span><strong>❤️ {hp}/100</strong></div>
+            <div><span>POTIONS</span><strong>🧪 {potions}/{MAX_POTIONS}</strong></div>
+            {phase === 'MERCHANT' && <><div><span>GOLD</span><strong><GoldIcon /> {gold}</strong></div><div><span>GEAR</span><strong>⚔️ {weapon} · 🛡️ {armor}</strong></div></>}
+          </section>}
           {phase === 'SETUP' ? (
             <div className="judge-entry">
               <div className="desktop-omen-picker" aria-label="Choose BTC direction">

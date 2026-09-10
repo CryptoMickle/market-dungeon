@@ -60,8 +60,10 @@ async function expectPermanentCombatHelp(page: Page) {
   await expect(potion).toContainText(/\d+\/5/);
   await expect(potion).toContainText(/\d+\/\d+ used this fight/);
   await expect(combat.getByRole('button', { name: /^Omen details:/ })).toBeInViewport({ ratio: 1 });
-  const art = (await combat.getByRole('img').boundingBox())!;
-  expect((await actions.boundingBox())!.y).toBeGreaterThanOrEqual(art.y + art.height);
+  // The shared helper verifies that the full-size illustration can scroll
+  // above the dock. On entry, its actions and current health stay on screen.
+  await expect(actions).toBeInViewport({ ratio: 1 });
+  await expect(combat.getByLabel('Combat health summary', { exact: true })).toBeInViewport({ ratio: 1 });
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(page.viewportSize()!.width);
   return combat;
 }

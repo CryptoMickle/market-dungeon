@@ -6,6 +6,8 @@ Market Dungeon is a playable fantasy roguelite built for the Somnia × dreamDEX 
 
 [Play the Live Judge Demo](https://market-dungeon.vercel.app/shannon/live-judge) · [Full Expedition](https://market-dungeon.vercel.app) · [DoraHacks](https://dorahacks.io/buidl/48083) · [Source](https://github.com/CryptoMickle/market-dungeon)
 
+**iPhone follow-up:** [v14 patch record](docs/IPHONE_CONTROLS_2026-09-10.md) covers readily available combat controls and current supplies beside Kevin's purchases. The v13 release remains the preceding feature and proof baseline.
+
 The game reads real dreamDEX markets and Somnia contract state. It requests no wallet connection, signature, approval, order, redemption or other transaction.
 
 ## Choose your run
@@ -78,7 +80,7 @@ Preview and Production need separate stable secrets, each exactly 64 hexadecimal
 ## Validate a release
 
 ```bash
-npx playwright install chromium
+npx playwright install chromium webkit
 npm run release:verify
 ```
 

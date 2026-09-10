@@ -172,15 +172,21 @@ export function MobileBattle(props: Props) {
         <button className={styles.log} onClick={() => openDetails(dialog.current)} aria-label="Open dungeon log">
           <span>READ DUNGEON LOG <b className={styles.logPrompt}>READ MORE ›</b></span><p aria-live="polite"><GameText>{props.logPreview ?? props.log[0] ?? 'The dungeon is quiet. This is almost certainly temporary.'}</GameText></p>
         </button>
-        <div className={styles.exchange} role="status" aria-label="Last combat exchange">
-          <span>TOOK <b>{props.lastExchange ? `${props.lastExchange.taken} HP` : '—'}</b></span>
-          <span className={props.lastExchange?.critical ? styles.critical : undefined} key={`${props.enemy.hp}:${props.hp}`}>{props.lastExchange?.critical ? '🔥 CRITICAL!' : 'DEALT'} <b>{props.lastExchange ? `${props.lastExchange.critical ? props.lastExchange.rolledDamage ?? props.lastExchange.dealt : props.lastExchange.dealt} HP` : '—'}</b></span>
+        <div className={styles.combatDock} role="region" aria-label="Combat controls">
+          <div className={styles.combatVitals} role="group" aria-label="Combat health summary">
+            <span data-health={playerHealthTone(props.hp, props.maxHp)}>YOUR HP <b>❤️ {props.hp}/{props.maxHp}</b></span>
+            <span>ENEMY HP <b>{props.enemy.hp}/{props.enemy.maxHp}</b></span>
+          </div>
+          <div className={styles.exchange} role="status" aria-label="Last combat exchange">
+            <span>TOOK <b>{props.lastExchange ? `${props.lastExchange.taken} HP` : '—'}</b></span>
+            <span className={props.lastExchange?.critical ? styles.critical : undefined} key={`${props.enemy.hp}:${props.hp}`}>{props.lastExchange?.critical ? '🔥 CRITICAL!' : 'DEALT'} <b>{props.lastExchange ? `${props.lastExchange.critical ? props.lastExchange.rolledDamage ?? props.lastExchange.dealt : props.lastExchange.dealt} HP` : '—'}</b></span>
+          </div>
+          <section className={styles.actions} aria-label="Combat actions" data-keyboard-actions>
+            <button data-game-audio="storm" className={styles.storm} onClick={props.onStorm}><b>⚡ STORM</b><span className={styles.actionHint}>Risky · can deal 0</span><small>{props.storm} DMG</small></button>
+            <button data-game-audio="attack" data-keyboard-default="true" className={styles.attack} onClick={props.onAttack}><b>⚔️ ATTACK</b><span className={styles.actionHint}>Steady damage</span><small>{props.attack} DMG · {props.criticalChance}% CRIT</small></button>
+            <button data-game-audio="potion" className={styles.potion} onClick={props.onPotion} disabled={Boolean(potionReason)}><b>🧪 POTION</b><span className={styles.potionDetails}><small>Heals up to 25 HP · enemy strikes back</small><span className={styles.potionUses}>{props.potions}/5{potionReason ? ` · ${potionReason}` : ''} · {props.potionUses}/{props.potionLimit} used this fight</span></span></button>
+          </section>
         </div>
-        <section className={styles.actions} aria-label="Combat actions" data-keyboard-actions>
-          <button data-game-audio="storm" className={styles.storm} onClick={props.onStorm}><b>⚡ STORM</b><span className={styles.actionHint}>Risky · can deal 0</span><small>{props.storm} DMG</small></button>
-          <button data-game-audio="attack" data-keyboard-default="true" className={styles.attack} onClick={props.onAttack}><b>⚔️ ATTACK</b><span className={styles.actionHint}>Steady damage</span><small>{props.attack} DMG · {props.criticalChance}% CRIT</small></button>
-          <button data-game-audio="potion" className={styles.potion} onClick={props.onPotion} disabled={Boolean(potionReason)}><b>🧪 POTION</b><span className={styles.potionDetails}><small>Heals up to 25 HP · enemy strikes back</small><span className={styles.potionUses}>{props.potions}/5{potionReason ? ` · ${potionReason}` : ''} · {props.potionUses}/{props.potionLimit} used this fight</span></span></button>
-        </section>
         <KeyboardHint />
       </div>
       <dialog ref={dialog} className={styles.dialog} aria-label="Dungeon log">
