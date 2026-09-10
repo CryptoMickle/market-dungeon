@@ -80,7 +80,7 @@ Preview and Production need separate stable secrets, each exactly 64 hexadecimal
 ## Validate a release
 
 ```bash
-npx playwright install chromium
+npx playwright install chromium webkit
 npm run release:verify
 ```
 
