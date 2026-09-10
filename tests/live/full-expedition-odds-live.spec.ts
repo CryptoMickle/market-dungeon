@@ -64,7 +64,7 @@ test('live Full Expedition displays and refreshes its actual five-minute CLOB od
     const footer = page.locator('footer');
     await expect(footer).toBeVisible();
     await expect(footer.getByRole('link', { name: 'CONTINUE ON DREAMDEX ↗', exact: true })).toHaveAttribute('href', 'https://app.dreamdex.io/event-contracts/WBTC:USDso/5m');
-    await expect(footer.getByRole('link', { name: 'JUDGE PROOF WALKTHROUGH', exact: true })).toHaveAttribute('href', '/shannon/judge');
+    await expect(footer.getByRole('link', { name: 'LIVE JUDGE DEMO', exact: true })).toHaveAttribute('href', '/shannon/live-judge');
     await expect(footer.getByRole('link', { name: 'PRIVACY · CREDITS', exact: true })).toHaveAttribute('href', '/credits');
     const footerBox = (await footer.boundingBox())!;
     const combatBox = (await page.getByRole('region', { name: 'Combat view' }).boundingBox())!;
