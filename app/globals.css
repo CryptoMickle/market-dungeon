@@ -1495,8 +1495,9 @@ footer a:focus-visible { outline: 2px solid #c4b5fd; outline-offset: 3px; }
   .desktop-journey-details .action-dock { position: static; width: 100%; }
   .desktop-journey-details > .main-card { order: 0; }
   .desktop-journey-details > .action-dock:not(.judge-first-lock) { order: 1; }
-  /* Reveal is the next action, not a footnote below the technical evidence. */
-  .judge-mode.phase-oracle .desktop-journey-details > .action-dock { order: -1; }
+  /* Keep boss recovery and reveal decisions, with their current HP, above
+     the optional merchant copy and technical evidence on short desktops. */
+  .judge-mode:is(.phase-oracle, .phase-final_merchant) .desktop-journey-details > .action-dock { order: -1; }
   .judge-mode .judge-reveal-summary { margin: 0 0 10px; font-weight: 700; color: #e9d5ff; }
   .desktop-journey-details > .judge-replay-banner { order: 2; }
   .desktop-journey-details > .judge-lock-receipt { order: 3; }

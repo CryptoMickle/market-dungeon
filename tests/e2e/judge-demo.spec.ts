@@ -359,6 +359,7 @@ test('desktop Judge keeps complete combat in view and preserves keyboard order a
   for (const [width, height] of [[820,720], [1280,720], [1920,866]]) {
     await page.setViewportSize({ width, height });
     await page.evaluate(() => window.scrollTo(0, 0));
+    await expect(page.getByRole('region', { name: 'Recovery supplies', exact: true })).toBeInViewport({ ratio: 1 });
     await expect(page.getByRole('button', { name: 'TAKE A FREE REST · RESTORE HP' })).toBeInViewport({ ratio: 1 });
     await expect(page.getByRole('button', { name: '🔮 RETURN TO BOSS FATE' })).toBeInViewport({ ratio: 1 });
     expect((await page.locator('.merchant-view').boundingBox())!.height).toBeLessThan(260);
