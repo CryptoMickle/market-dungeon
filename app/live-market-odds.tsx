@@ -16,7 +16,9 @@ export function LiveMarketOdds({ odds, direction, state, networkLabel }: {
     : odds?.source === 'ORDER_BOOK'
     ? `BEST BID ${formatClobPercent(odds.bestBid, 1)} · BEST ASK ${formatClobPercent(odds.bestAsk, 1)}${odds.spread == null ? '' : ` · SPREAD ${formatClobPercent(odds.spread, 1)}`}`
     : odds?.source === 'LAST_TRADE'
-      ? 'ORDER BOOK EMPTY · USING LAST TRADED PRICE'
+      ? odds.bookStatus === 'unavailable'
+        ? 'ORDER BOOK TEMPORARILY UNAVAILABLE · USING LAST TRADED PRICE'
+        : 'ORDER BOOK EMPTY · USING LAST TRADED PRICE'
       : state === 'open' ? 'WAITING FOR ODDS · CHECKING AGAIN' : 'LIVE ODDS UNAVAILABLE';
   const observedAt = live && odds?.observedAtIso ? `${available ? '' : 'CHECKED '}${odds.observedAtIso.slice(11, 19)} UTC`
     : state === 'loading' ? 'FETCHING…' : 'NO QUOTE';
@@ -43,6 +45,7 @@ export function LiveMarketOdds({ odds, direction, state, networkLabel }: {
         : state === 'unavailable' ? 'The order book could not be read. Retrying automatically. You can still lock an omen and play.'
         : state === 'closed' ? 'The trading window has ended. Your locked omen stays the same while settlement is checked.'
         : state === 'open' && !available ? 'This market has no usable quotes yet. Checking again every 2 seconds. You can still lock an omen and play.'
+          : odds?.source === 'LAST_TRADE' ? 'Last traded price for this market, not a current order-book quote. Checking the book again automatically.'
           : 'Implied odds are a live order-book snapshot, not a guarantee or an order placed by this game.'}</small>
     </div>
   );

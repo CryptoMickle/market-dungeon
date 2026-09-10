@@ -132,6 +132,7 @@ export default function FullExpedition() {
   const [busy, setBusy] = useState(false);
   const [marketCandidate, setMarketCandidate] = useState<ActiveMarketResponse | null>(null);
   const [marketOdds, setMarketOdds] = useState<DreamDexClobOdds | null>(null);
+  const [marketOddsState, setMarketOddsState] = useState<'loading' | 'open' | 'unavailable'>('loading');
   const [marketError, setMarketError] = useState<string | null>(null);
   const [marketRefresh, setMarketRefresh] = useState(0);
   const [awaitingSettlementMarketId, setAwaitingSettlementMarketId] = useState<string | null>(null);
@@ -165,29 +166,46 @@ export default function FullExpedition() {
   useEffect(() => {
     if (!needsMarketCandidate) return;
     let cancelled = false;
+    const controller = new AbortController();
     let refresh: number | undefined;
     const load = async () => {
+      if (document.hidden) {
+        refresh = window.setTimeout(() => { void load(); }, 5_000);
+        return;
+      }
+      let delay = ACTIVE_MARKET_POLL_INTERVAL_MS;
       try {
-        const response = await fetch('/api/market?interval=300', { cache: 'no-store' });
+        const response = await fetch('/api/market?interval=300', {
+          cache: 'no-store', signal: AbortSignal.any([controller.signal, AbortSignal.timeout(12_000)]),
+        });
         const body = await response.json() as { market?: unknown; odds?: DreamDexClobOdds; error?: string };
         const market = activeFiveMinuteMarket(body.market, Math.floor(Date.now() / 1_000));
         if (!response.ok || !market) throw new Error(body.error ?? 'No usable active BTC 5-minute market was returned.');
         if (!cancelled) {
+          const odds = body.odds?.marketId?.toLowerCase() === market.marketId.toLowerCase() ? body.odds : null;
+          const available = odds?.upProbability != null && odds.downProbability != null;
+          const bookFailed = !odds || odds.bookStatus === 'unavailable';
           setMarketCandidate(market);
-          setMarketOdds(body.odds?.marketId?.toLowerCase() === market.marketId.toLowerCase() ? body.odds : null);
+          setMarketOdds(odds);
+          setMarketOddsState(!bookFailed || available ? 'open' : 'unavailable');
           setMarketError(null);
+          // New books can gain orders between reads. Retry a failed provider
+          // more gently and keep its last trade explicitly labelled, if any.
+          delay = bookFailed ? 5_000 : available ? ACTIVE_MARKET_POLL_INTERVAL_MS : 2_000;
         }
       } catch (error) {
+        delay = 5_000;
         if (!cancelled) {
           setMarketOdds(null);
+          setMarketOddsState('unavailable');
           setMarketError(error instanceof Error ? error.message : 'Active BTC market unavailable.');
         }
       } finally {
-        if (!cancelled) refresh = window.setTimeout(() => { void load(); }, ACTIVE_MARKET_POLL_INTERVAL_MS);
+        if (!cancelled) refresh = window.setTimeout(() => { void load(); }, delay);
       }
     };
     void load();
-    return () => { cancelled = true; if (refresh !== undefined) window.clearTimeout(refresh); };
+    return () => { cancelled = true; controller.abort(); if (refresh !== undefined) window.clearTimeout(refresh); };
   }, [marketRefresh, needsMarketCandidate]);
 
   useEffect(() => {
@@ -196,6 +214,7 @@ export default function FullExpedition() {
     const timer = window.setTimeout(() => {
       setMarketCandidate(null);
       setMarketOdds(null);
+      setMarketOddsState('loading');
       setMarketRefresh((value) => value + 1);
     }, delay);
     return () => window.clearTimeout(timer);
@@ -507,7 +526,7 @@ export default function FullExpedition() {
                       <small>{marketCandidate.question}</small>
                       <small>You can keep fighting after 00:00.</small>
                     </div>
-                    <div className={styles.homeOdds}><LiveMarketOdds odds={marketOdds} /></div>
+                    <div className={styles.homeOdds}><LiveMarketOdds odds={marketOdds} state={marketOddsState} /></div>
                   </> : <p className={styles.homeMarketNote} role="status">{marketError ? 'Live market temporarily unavailable. Retrying automatically; you can still open the Judge demo below.' : 'Finding the active BTC five-minute market…'}</p>}
                   <p className={styles.homeMarketNote}>Choose and lock your omen on the next screen.</p>
                 </> : <p className={styles.homeMarketNote}>Your expedition is saved on this device. Continue where you left off.</p>}
@@ -562,7 +581,7 @@ export default function FullExpedition() {
                       <Link href="/shannon/judge">OPEN THE HISTORICAL JUDGE DEMO INSTEAD →</Link>
                     </div>
                   ) : <div className={styles.marketLoading}>FINDING THE ACTIVE BTC 5-MINUTE MARKET…</div>}
-                  {marketCandidate && candidateRemaining > 0 && <LiveMarketOdds odds={marketOdds} direction={direction} />}
+                  {marketCandidate && candidateRemaining > 0 && <LiveMarketOdds odds={marketOdds} direction={direction} state={marketOddsState} />}
                 </div>
                 <div className={styles.predictions}>
                   <button aria-pressed={direction === 'UP'} className={direction === 'UP' ? styles.upSelected : ''} onClick={() => setDirection('UP')}><b><Gold /> GOLD AWAKENS</b><small>BTC UP</small></button>

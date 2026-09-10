@@ -16,12 +16,23 @@ test('live Full Expedition displays and refreshes its actual five-minute CLOB od
     expect(Number(body.market.intervalSec)).toBe(300);
     expect(Number(body.market.expiry)).toBeGreaterThan(Date.now() / 1000);
     await expect(panel).toBeVisible();
-    if (body.odds?.marketId.toLowerCase() === body.market.marketId.toLowerCase() && body.odds.upProbability != null && body.odds.downProbability != null) {
+    const matchesMarket = body.odds?.marketId.toLowerCase() === body.market.marketId.toLowerCase();
+    if (matchesMarket && body.odds?.upProbability != null && body.odds.downProbability != null) {
       await expect(panel).toContainText(formatClobPercent(body.odds.upProbability));
       await expect(panel).toContainText(formatClobPercent(body.odds.downProbability));
       await expect(panel).toContainText(body.odds.observedAtIso.slice(11, 19));
+      await expect(panel).toHaveAttribute('data-odds-state', 'open');
+      if (body.odds.source === 'LAST_TRADE' && body.odds.bookStatus === 'unavailable') {
+        await expect(panel).toContainText('ORDER BOOK TEMPORARILY UNAVAILABLE · USING LAST TRADED PRICE');
+      }
+    } else if (matchesMarket && body.odds?.bookStatus !== 'unavailable') {
+      await expect(panel).toContainText('WAITING FOR ODDS · CHECKING AGAIN');
+      await expect(panel).toHaveAttribute('data-odds-state', 'open');
+      await expect(panel).toHaveAttribute('data-odds-available', 'false');
     } else {
-      await expect(panel).toContainText('LIVE ODDS UNAVAILABLE');
+      await expect(panel).toContainText('ORDER BOOK TEMPORARILY UNAVAILABLE');
+      await expect(panel).toHaveAttribute('data-odds-state', 'unavailable');
+      await expect(panel).toHaveAttribute('data-odds-available', 'false');
     }
     return body;
   };
@@ -53,7 +64,7 @@ test('live Full Expedition displays and refreshes its actual five-minute CLOB od
     const footer = page.locator('footer');
     await expect(footer).toBeVisible();
     await expect(footer.getByRole('link', { name: 'CONTINUE ON DREAMDEX ↗', exact: true })).toHaveAttribute('href', 'https://app.dreamdex.io/event-contracts/WBTC:USDso/5m');
-    await expect(footer.getByRole('link', { name: 'JUDGE PROOF WALKTHROUGH', exact: true })).toHaveAttribute('href', '/shannon/judge');
+    await expect(footer.getByRole('link', { name: 'LIVE JUDGE DEMO', exact: true })).toHaveAttribute('href', '/shannon/live-judge');
     await expect(footer.getByRole('link', { name: 'PRIVACY · CREDITS', exact: true })).toHaveAttribute('href', '/credits');
     const footerBox = (await footer.boundingBox())!;
     const combatBox = (await page.getByRole('region', { name: 'Combat view' }).boundingBox())!;

@@ -53,7 +53,7 @@ test('homepage market outage keeps both entry choices available and recovers the
   await expect(page.getByRole('link', { name: /JUDGES: PLAY THE LIVE 1-MINUTE DEMO/ })).toHaveAttribute('href', '/shannon/live-judge');
   expect(await saved(page)).toBeNull();
   available = true;
-  await page.clock.runFor(15_100);
+  await page.clock.runFor(5_100);
   await expect(oddsPanel(page)).toContainText('43%');
   expect(await saved(page)).toBeNull();
 });
@@ -100,7 +100,35 @@ for (const rematch of [false, true]) test(`Full Expedition CLOB odds bind to the
   if (rematch) { expect(session.run.game.monsterHp).toBe(122); expect(session.run.game.hp).toBe(37); }
 });
 
-test('Full Expedition refresh clears mismatched, missing and failed odds and recovers without preventing a valid lock', async ({ page }) => {
+for (const metadata of ['explicit success', 'legacy payload'] as const) test(`Full Expedition retries a successfully empty same-market order book after two seconds (${metadata})`, async ({ page }) => {
+  let requests = 0;
+  const empty = deriveDreamDexClobOdds({ marketId: first.marketId, quoteDecimals: 3 });
+  const odds = metadata === 'explicit success' ? { ...empty, bookStatus: 'ok' } : empty;
+  await page.route('**/api/market?interval=300', route => {
+    requests++;
+    return route.fulfill({ json: { market: first, odds: requests === 1 ? odds : quote() } });
+  });
+  await page.goto('/');
+  await page.getByRole('button', { name: 'ENTER THE DUNGEON', exact: true }).click();
+  const panel = oddsPanel(page);
+  await expect(panel).toContainText('WAITING FOR ODDS · CHECKING AGAIN');
+  await expect(panel).toHaveAttribute('data-odds-state', 'open');
+  await expect(panel).toHaveAttribute('data-odds-available', 'false');
+  await expect(page.getByRole('button', { name: /LOCK BTC UP/ })).toBeEnabled();
+  await page.clock.runFor(1_000);
+  expect(requests).toBe(1);
+  await page.clock.runFor(1_200);
+  await expect.poll(() => requests).toBe(2);
+  await expect(panel).toContainText('43%');
+  await expect(panel).toContainText('57%');
+  await expect(panel).toHaveAttribute('data-odds-available', 'true');
+  await page.clock.runFor(14_000);
+  expect(requests).toBe(2);
+  await page.clock.runFor(1_100);
+  await expect.poll(() => requests).toBe(3);
+});
+
+for (const failure of ['http error', 'missing odds', 'mismatched market', 'failed order book'] as const) test(`Full Expedition clears ${failure} and retries after five seconds without preventing a valid lock`, async ({ page }) => {
   let body: unknown = { market: first, odds: quote() };
   let status = 200;
   let requests = 0;
@@ -109,37 +137,74 @@ test('Full Expedition refresh clears mismatched, missing and failed odds and rec
   await page.getByRole('button', { name: 'ENTER THE DUNGEON', exact: true }).click();
   const panel = oddsPanel(page);
   await expect(panel).toContainText('43%');
-  const refresh = async () => {
-    const before = requests;
-    await page.clock.runFor(15_100);
-    await expect.poll(() => requests).toBe(before + 1);
-  };
-  body = { market: first, odds: quote(market('2').marketId, '900', '920') };
-  await refresh();
-  await expect(panel).toContainText('LIVE ODDS UNAVAILABLE');
-  await expect(panel).not.toContainText('91%');
+  if (failure === 'http error') { status = 503; body = { error: 'Controlled test outage' }; }
+  if (failure === 'missing odds') body = { market: first };
+  if (failure === 'mismatched market') body = { market: first, odds: quote(market('2').marketId, '900', '920') };
+  if (failure === 'failed order book') body = { market: first, odds: { ...deriveDreamDexClobOdds({ marketId: first.marketId, quoteDecimals: 3 }), bookStatus: 'unavailable' } };
+  await page.clock.runFor(15_100);
+  await expect.poll(() => requests).toBe(2);
+  await expect(panel).toContainText('ORDER BOOK TEMPORARILY UNAVAILABLE');
+  await expect(panel).toHaveAttribute('data-odds-state', 'unavailable');
+  await expect(panel).toHaveAttribute('data-odds-available', 'false');
   await expect(panel).not.toContainText('43%');
-  body = { market: first };
-  await refresh();
-  await expect(panel).toContainText('LIVE ODDS UNAVAILABLE');
-  body = { market: first, odds: deriveDreamDexClobOdds({ marketId: first.marketId, quoteDecimals: 2, lastPrice: '61' }) };
-  await refresh();
-  await expect(panel).toContainText('61%');
-  await expect(panel).toContainText('USING LAST TRADED PRICE');
-  status = 503; body = { error: 'Controlled test outage' };
-  await refresh();
-  await expect(panel).toContainText('LIVE ODDS UNAVAILABLE');
-  await expect(panel).not.toContainText('61%');
+  await expect(panel).not.toContainText('91%');
   await expect(page.getByRole('button', { name: /LOCK BTC UP/ })).toBeEnabled();
   status = 200; body = { market: first, odds: quote(first.marketId, '600', '620') };
-  await refresh();
+  await page.clock.runFor(3_000);
+  expect(requests).toBe(2);
+  await page.clock.runFor(2_100);
+  await expect.poll(() => requests).toBe(3);
   await expect(panel).toContainText('BEST BID 60.0%');
+  await expect(panel).toHaveAttribute('data-odds-state', 'open');
   await page.getByRole('button', { name: /LOCK BTC UP/ }).click();
   await expect(page.getByRole('region', { name: 'Combat view' })).toBeVisible();
-  const lockedRequests = requests;
   await page.clock.runFor(30_100);
-  expect(requests).toBe(lockedRequests);
+  expect(requests).toBe(3);
   expect((await saved(page)).market?.marketId).toBe(first.marketId);
+});
+
+test('Full Expedition retains a usable last traded price during an order-book outage and retries after five seconds', async ({ page }) => {
+  let requests = 0;
+  const fallback = { ...deriveDreamDexClobOdds({ marketId: first.marketId, quoteDecimals: 2, lastPrice: '61' }), bookStatus: 'unavailable' };
+  await page.route('**/api/market?interval=300', route => {
+    requests++;
+    return route.fulfill({ json: { market: first, odds: requests === 1 ? fallback : quote() } });
+  });
+  await page.goto('/');
+  const panel = oddsPanel(page);
+  await expect(panel).toContainText('61%');
+  await expect(panel).toContainText('39%');
+  await expect(panel).toContainText('ORDER BOOK TEMPORARILY UNAVAILABLE · USING LAST TRADED PRICE');
+  await expect(panel).toHaveAttribute('data-odds-state', 'open');
+  await expect(panel).toHaveAttribute('data-odds-available', 'true');
+  await page.clock.runFor(3_000);
+  expect(requests).toBe(1);
+  await page.clock.runFor(2_100);
+  await expect.poll(() => requests).toBe(2);
+  await expect(panel).toContainText('43%');
+  await expect(panel).toContainText('BEST BID 41.9%');
+  await expect(panel).not.toContainText('USING LAST TRADED PRICE');
+});
+
+test('Full Expedition can lock the current market while its order book is unavailable', async ({ page }) => {
+  let requests = 0;
+  await page.route('**/api/market?interval=300', route => {
+    requests++;
+    return route.fulfill({ json: { market: first, odds: { ...deriveDreamDexClobOdds({ marketId: first.marketId, quoteDecimals: 3 }), bookStatus: 'unavailable' } } });
+  });
+  await page.goto('/');
+  await page.getByRole('button', { name: 'ENTER THE DUNGEON', exact: true }).click();
+  await expect(oddsPanel(page)).toContainText('ORDER BOOK TEMPORARILY UNAVAILABLE');
+  await page.getByRole('button', { name: /SHADOWS RISE/ }).click();
+  await page.getByRole('button', { name: /LOCK BTC DOWN/ }).click();
+  await expect(page.getByRole('region', { name: 'Combat view' })).toBeVisible();
+  const locked = await saved(page);
+  expect(locked.market?.marketId).toBe(first.marketId);
+  expect(locked.run.currentAttempt?.direction).toBe('DOWN');
+  await page.clock.runFor(30_100);
+  expect(requests).toBe(1);
+  expect(await saved(page)).toEqual(locked);
+  await expect(oddsPanel(page)).toHaveCount(0);
 });
 
 test('Full Expedition expiry hides old odds until the next market and quote arrive together', async ({ page }) => {
@@ -171,12 +236,16 @@ test('Full Expedition expiry hides old odds until the next market and quote arri
 test('Full Expedition ignores an in-flight odds refresh after the player locks', async ({ page }) => {
   let release!: () => void;
   const gate = new Promise<void>(resolve => { release = resolve; });
+  let finishRefresh!: () => void;
+  const refreshFinished = new Promise<void>(resolve => { finishRefresh = resolve; });
   let requests = 0;
   await page.route('**/api/market?interval=300', async route => {
     requests++;
     if (requests === 1) return route.fulfill({ json: { market: first, odds: quote() } });
     await gate;
-    await route.fulfill({ json: { market: market('2'), odds: quote(market('2').marketId, '600', '620') } });
+    try {
+      await route.fulfill({ json: { market: market('2'), odds: quote(market('2').marketId, '600', '620') } });
+    } finally { finishRefresh(); }
   });
   await page.goto('/');
   await page.getByRole('button', { name: 'ENTER THE DUNGEON', exact: true }).click();
@@ -186,11 +255,48 @@ test('Full Expedition ignores an in-flight odds refresh after the player locks',
   await page.getByRole('button', { name: /LOCK BTC UP/ }).click();
   await expect(page.getByRole('region', { name: 'Combat view' })).toBeVisible();
   const session = await saved(page);
-  const response = page.waitForResponse('**/api/market?interval=300');
   release();
-  await response;
+  await refreshFinished;
   await page.clock.runFor(30_100);
   expect(await saved(page)).toEqual(session);
   expect(requests).toBe(2);
   await expect(oddsPanel(page)).toHaveCount(0);
+});
+
+test('Full Expedition ignores an expired market response that finishes after the replacement market arrives', async ({ page }) => {
+  const expiring = market('1', now + 20);
+  const next = market('2', now + 320);
+  let release!: () => void;
+  const gate = new Promise<void>(resolve => { release = resolve; });
+  let finishOldRefresh!: () => void;
+  const oldRefreshFinished = new Promise<void>(resolve => { finishOldRefresh = resolve; });
+  let requests = 0;
+  await page.route('**/api/market?interval=300', async route => {
+    requests++;
+    if (requests === 1) return route.fulfill({ json: { market: expiring, odds: quote() } });
+    if (requests === 2) {
+      await gate;
+      try {
+        await route.fulfill({ json: { market: expiring, odds: quote(first.marketId, '900', '920') } });
+      } finally { finishOldRefresh(); }
+      return;
+    }
+    await route.fulfill({ json: { market: next, odds: quote(next.marketId, '600', '620') } });
+  });
+  await page.goto('/');
+  await page.getByRole('button', { name: 'ENTER THE DUNGEON', exact: true }).click();
+  await expect(oddsPanel(page)).toContainText('43%');
+  await page.clock.runFor(15_100);
+  await expect.poll(() => requests).toBe(2);
+  await page.clock.runFor(5_500);
+  await expect.poll(() => requests).toBe(3);
+  await expect(oddsPanel(page)).toContainText('61%');
+  release();
+  await oldRefreshFinished;
+  await page.clock.runFor(100);
+  await expect(oddsPanel(page)).toContainText('61%');
+  await expect(oddsPanel(page)).not.toContainText('91%');
+  await page.getByRole('button', { name: /LOCK BTC UP/ }).click();
+  await expect(page.getByRole('region', { name: 'Combat view' })).toBeVisible();
+  expect((await saved(page)).market?.marketId).toBe(next.marketId);
 });
