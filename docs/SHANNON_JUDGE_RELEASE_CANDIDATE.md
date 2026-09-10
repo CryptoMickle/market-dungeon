@@ -1,5 +1,7 @@
 # Market Dungeon — Shannon Judge release record
 
+> Historical release record. For the September 10 release with Live 1-minute Judge as the primary demo, see [current release record](RELEASE_2026-09-10.md). Earlier holds, counts and deployment identities below apply only to their dated checkpoints. Video work is deferred.
+
 Status: **released in v11; human validation remains open; newer mobile sharing
 changes are local and require their own release and device checks.**
 
@@ -20,8 +22,9 @@ between this published baseline and unshipped working-tree changes.
   fixed testnet profile.
 - The existing `/judge` and `/verify` routes retain their mainnet v2 formats
   and behavior.
-- Shannon does not show the production dreamDEX continuation action. It cannot
-  imply that a testnet replay is a live mainnet trading path.
+- Preview 28yo620zb, 9 September: Shannon's verified result now
+  includes an optional Continue on dreamDEX link. It explicitly opens a separate
+  live mainnet market; the historical Shannon replay and verifier remain testnet-bound.
 - Neither profile connects a wallet, requests a signature, grants token
   approval, sends an order, or performs any other chain write.
 

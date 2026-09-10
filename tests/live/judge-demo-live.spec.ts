@@ -1,4 +1,5 @@
 import { readFile } from 'node:fs/promises';
+import { completeLiveJudgeCombat } from './judge-play';
 
 import { expect, test, type APIRequestContext, type Locator } from '@playwright/test';
 
@@ -86,17 +87,12 @@ test('live target start, anti-peek, combat validation, reveal, proof export, and
   expect(validBody.combatProof.verified).toBe(true);
   expect(validBody.onchainSettlement.verified).toBe(true);
 
-  await page.goto('/?automation=1');
-  await page.getByRole('button', { name: /2-MIN JUDGE DEMO/ }).click();
+  await page.goto('/judge?automation=1');
   await page.getByRole('button', { name: /GOLD AWAKENS/ }).click();
   await page.getByRole('button', { name: 'LOCK OMEN & SEAL REPLAY' }).click();
   const guardStep = page.getByLabel('Judge Demo progress').locator('span').filter({ hasText: 'DEFEAT GUARD' });
   await expect(guardStep).toHaveClass(/active/, { timeout: 20_000 });
-  await page.getByRole('button', { name: /ATTACK/ }).click();
-  await page.getByRole('button', { name: '👑 ENTER FINAL BOSS' }).click();
-  await page.getByRole('button', { name: /ATTACK/ }).click();
-  const secondAttack = page.getByRole('button', { name: /ATTACK/ });
-  if (await secondAttack.isVisible()) await secondAttack.click();
+  await completeLiveJudgeCombat(page);
 
   const revealButton = page.getByRole('button', { name: '🔮 REVEAL BOSS FATE' });
   await expect(revealButton).toBeEnabled({ timeout: 30_000 });

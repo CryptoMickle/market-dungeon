@@ -71,7 +71,7 @@ export type DirectOnchainSettlementProof = {
   };
 };
 
-type SettlementMarket = {
+export type SettlementMarket = {
   marketId: string;
   marketAddress?: string;
   poolAddress?: string;

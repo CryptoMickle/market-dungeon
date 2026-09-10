@@ -1,13 +1,15 @@
 import { hydrateSealedReplay, isRetryableUpstreamError } from '../../dreamdex.ts';
 import { checkRateLimit, rateLimitHeaders, type RateLimitResult } from '../../request-control.ts';
-import { JUDGE_COMBAT, replayJudgeCombat, type JudgeCombatAction } from '../../../judge-combat.ts';
+import { JUDGE_COMBAT, JUDGE_COMBAT_DOMAIN, replayJudgeCombat, type JudgeCombatAction } from '../../../judge-combat.ts';
 import type { JudgeNetworkProfile } from '../../../judge-network.ts';
 import {
+  assertReplaySealingConfigured,
   canonicalReplay,
   combatTranscriptDigest,
   openReplay,
   replayCommitment,
   replayLockAttestation,
+  ReplayConfigurationError,
   replayTimeStatus,
 } from '../crypto.ts';
 import type { RevealDedupeResult, RevealResult } from './state.ts';
@@ -112,9 +114,16 @@ export function createJudgeReplayRevealHandler(input: {
     let actions: JudgeCombatAction[];
     try {
       const replayRequest = await replayRequestFrom(request);
+      assertReplaySealingConfigured();
       claims = openReplay(replayRequest.seal, input.profile);
       actions = replayRequest.actions;
     } catch (error) {
+      if (error instanceof ReplayConfigurationError) {
+        return Response.json({
+          error: 'Judge Replay is not configured on this server. Your sealed replay is unchanged; server setup is required before verification can continue.',
+          retryState: 'config_unavailable',
+        }, { status: 503, headers: responseHeaders(rate) });
+      }
       if (error instanceof RevealBodyTooLargeError) {
         return Response.json({ error: 'Judge Replay request body exceeds the 8 KiB limit.' }, { status: 413, headers: responseHeaders(rate) });
       }
@@ -189,7 +198,7 @@ export function createJudgeReplayRevealHandler(input: {
               },
               combatProof: {
                 verified: true,
-                ruleset: 'market-dungeon/judge-combat/v1',
+                ruleset: JUDGE_COMBAT_DOMAIN,
                 transcriptDigest: digest,
                 steps: combat.steps,
                 guardDefeated: true,

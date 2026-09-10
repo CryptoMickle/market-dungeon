@@ -6,6 +6,8 @@
     "node": ">=22.13.0"
   },
   "scripts": {
+    "predev": "node scripts/setup-local.mjs",
+    "setup:local": "node scripts/setup-local.mjs",
     "dev": "next dev",
     "build": "next build",
     "start": "next start",

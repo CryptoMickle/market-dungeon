@@ -1,6 +1,7 @@
 import { readFile } from 'node:fs/promises';
 
 import { expect, test, type BrowserContext, type Page } from '@playwright/test';
+import { playJudgeGuard, playJudgeBoss } from './judge-play';
 
 import type { JudgeCombatAction } from '../../app/judge-combat';
 import { SOMNIA_MAINNET_RPC } from '../../app/onchain-settlement-proof';
@@ -84,13 +85,20 @@ async function installDeterministicRoutes(
   });
 }
 
+async function emulateIOSImageMenu(page: Page, ipad = false) {
+  await page.addInitScript((isIPad) => {
+    Object.defineProperty(navigator, 'userAgent', { configurable: true, value: isIPad ? 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15) AppleWebKit/605.1.15' : 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15' });
+    Object.defineProperty(navigator, 'platform', { configurable: true, value: isIPad ? 'MacIntel' : 'iPhone' });
+    Object.defineProperty(navigator, 'maxTouchPoints', { configurable: true, value: 5 });
+  }, ipad);
+}
+
 async function completeJudgeDemo(page: Page) {
   await page.goto('/judge?automation=1');
   await page.getByRole('button', { name: 'LOCK OMEN & SEAL REPLAY' }).click();
-  await page.getByRole('button', { name: /ATTACK/ }).click();
+  await playJudgeGuard(page);
   await page.getByRole('button', { name: '👑 ENTER FINAL BOSS' }).click();
-  await page.getByRole('button', { name: /ATTACK/ }).click();
-  await page.getByRole('button', { name: /ATTACK/ }).click();
+  await playJudgeBoss(page);
   const reveal = page.getByRole('button', { name: '🔮 REVEAL BOSS FATE' });
   await expect(reveal).toBeEnabled();
   await reveal.click();
@@ -106,6 +114,7 @@ async function expectNoHorizontalOverflow(page: Page) {
 
 test('Save image acts directly with a complete PNG, without a dialog, X launch, or saved claim', async ({ context, page }) => {
   await installDeterministicRoutes(context);
+  await emulateIOSImageMenu(page);
   await page.setViewportSize({ width: 390, height: 844 });
   await completeJudgeDemo(page);
   await page.evaluate(() => {
@@ -142,6 +151,7 @@ test('Save image acts directly with a complete PNG, without a dialog, X launch, 
 
 test('mobile two-step image flow opens X explicitly and keeps invitations separate', async ({ context, page }) => {
   await installDeterministicRoutes(context);
+  await emulateIOSImageMenu(page);
   await page.setViewportSize({ width: 390, height: 844 });
   // Intercept the new tab too: this tests navigation without contacting or posting to X.
   await context.route('https://twitter.com/intent/tweet**', (route) => route.fulfill({
@@ -156,12 +166,12 @@ test('mobile two-step image flow opens X explicitly and keeps invitations separa
     } });
   });
 
-  await page.getByRole('button', { name: '↗ CHALLENGE A PLAYER' }).click();
+  await page.getByRole('button', { name: '↗ INVITE A PLAYER' }).click();
   await expect(page.locator('.challenge-share-status')).toContainText('Invitation handed to your share menu');
   const shares = await page.evaluate(() => Reflect.get(window, '__invitationShares'));
   expect(shares).toHaveLength(1);
   expect(shares[0]).toMatchObject({
-    active: true, title: 'Can you beat my Market Dungeon run?',
+    active: true, title: 'Can you defeat the boss and the market?',
     url: 'https://market-dungeon.vercel.app/judge?challenge=1',
   });
   expect(shares[0].text).toContain('2 of 2 replay encounters cleared');
@@ -172,7 +182,7 @@ test('mobile two-step image flow opens X explicitly and keeps invitations separa
   const steps = page.getByLabel('Save image, then open X');
   await expect(steps.locator('button, a')).toHaveText(['1 · SAVE IMAGE', '2 · OPEN X DRAFT ↗']);
   await steps.getByRole('button', { name: '1 · SAVE IMAGE', exact: true }).click();
-  await expect(page.getByRole('status')).toContainText('Image menu closed');
+  await expect(page.getByRole('region', { name: 'Share your Market Dungeon result' }).getByRole('status')).toContainText('Image menu closed');
   expect(await page.evaluate(() => Reflect.get(window, '__invitationShares'))).toHaveLength(2);
   expect(context.pages()).toHaveLength(1);
 
@@ -183,7 +193,7 @@ test('mobile two-step image flow opens X explicitly and keeps invitations separa
   await expect(xDraft.getByRole('heading', { name: 'Test X draft destination' })).toBeVisible();
   const url = new URL(xDraft.url());
   expect(url.origin + url.pathname).toBe('https://twitter.com/intent/tweet');
-  expect(url.searchParams.get('text')).toContain('Can you beat my run?');
+  expect(url.searchParams.get('text')).toContain('Can you defeat both the boss and the market?');
   expect(url.searchParams.get('url')).toBe('https://market-dungeon.vercel.app/judge?challenge=1');
   await expect(page.getByRole('dialog')).toHaveCount(0);
   await xDraft.close();
@@ -205,7 +215,7 @@ test('Challenge invitation works without PNG or native sharing and has an honest
       writeText: async (value: string) => { Reflect.set(window, '__invitationClipboard', value); },
     } });
   });
-  await page.getByRole('button', { name: '↗ CHALLENGE A PLAYER' }).click();
+  await page.getByRole('button', { name: '↗ INVITE A PLAYER' }).click();
   await expect(page.locator('.challenge-share-status')).toContainText('Challenge invitation copied');
   expect(await page.evaluate(() => Reflect.get(window, '__invitationClipboard'))).toContain('https://market-dungeon.vercel.app/judge?challenge=1');
   await expect(page.getByRole('dialog')).toHaveCount(0);
@@ -214,8 +224,8 @@ test('Challenge invitation works without PNG or native sharing and has an honest
       writeText: async () => { throw new Error('Denied'); },
     } });
   });
-  await page.getByRole('button', { name: '↗ CHALLENGE A PLAYER' }).click();
-  await expect(page.getByLabel('Challenge invitation — copy manually')).toHaveValue(/Can you beat my run/);
+  await page.getByRole('button', { name: '↗ INVITE A PLAYER' }).click();
+  await expect(page.getByLabel('Challenge invitation — copy manually')).toHaveValue(/Can you defeat both the boss and the market/);
   await expect(page.locator('.challenge-share-status')).toContainText('Copy is unavailable');
   expect(context.pages()).toHaveLength(1);
   await expectNoHorizontalOverflow(page);
@@ -234,7 +244,7 @@ test('cancelled native Challenge does not copy, download, open X, or open the ca
   });
   const downloads: string[] = [];
   page.on('download', (download) => downloads.push(download.suggestedFilename()));
-  await page.getByRole('button', { name: '↗ CHALLENGE A PLAYER' }).click();
+  await page.getByRole('button', { name: '↗ INVITE A PLAYER' }).click();
   await expect(page.locator('.challenge-share-status')).toHaveText('Invitation sharing cancelled.');
   expect(await page.evaluate(() => Reflect.get(window, '__unexpectedCopies'))).toBe(0);
   expect(downloads).toEqual([]);
@@ -244,6 +254,7 @@ test('cancelled native Challenge does not copy, download, open X, or open the ca
 
 test('cancelled native sharing does not download or open X and clipboard denial leaves selectable text', async ({ context, page }) => {
   await installDeterministicRoutes(context);
+  await emulateIOSImageMenu(page, true);
   await completeJudgeDemo(page);
   await page.evaluate(() => {
     Object.defineProperty(navigator, 'canShare', { configurable: true, value: () => true });
@@ -386,6 +397,7 @@ for (const failure of ['throws', 'empty'] as const) {
 
 test('Save image downloads directly when a native image menu is unavailable, without opening X', async ({ context, page }) => {
   await installDeterministicRoutes(context);
+  await emulateIOSImageMenu(page);
   await completeJudgeDemo(page);
   await page.evaluate(() => {
     Object.defineProperty(navigator, 'share', { configurable: true, value: undefined });
@@ -399,6 +411,30 @@ test('Save image downloads directly when a native image menu is unavailable, wit
   expect(Array.from((await readFile(path!)).subarray(0, 8))).toEqual([137, 80, 78, 71, 13, 10, 26, 10]);
   await expect(page.getByRole('status')).toContainText('does not save to Photos');
   await expect(page.getByRole('dialog')).toHaveCount(0);
+  expect(context.pages()).toHaveLength(1);
+});
+
+for (const width of [390, 1782]) test(`desktop Save image bypasses an available native share menu at ${width}px`, async ({ context, page }) => {
+  await installDeterministicRoutes(context);
+  await page.setViewportSize({ width, height: 1000 });
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, 'platform', { configurable: true, value: 'MacIntel' });
+    Object.defineProperty(navigator, 'maxTouchPoints', { configurable: true, value: 0 });
+    Reflect.set(window, '__nativeImageShares', 0);
+    Object.defineProperty(navigator, 'canShare', { configurable: true, value: () => true });
+    Object.defineProperty(navigator, 'share', { configurable: true, value: async () => {
+      Reflect.set(window, '__nativeImageShares', Reflect.get(window, '__nativeImageShares') + 1);
+    } });
+  });
+  await completeJudgeDemo(page);
+  const [download] = await Promise.all([
+    page.waitForEvent('download'),
+    page.getByRole('button', { name: '1 · SAVE IMAGE', exact: true }).click(),
+  ]);
+  expect(download.suggestedFilename()).toBe('market-dungeon-run-12121212.png');
+  expect(Array.from((await readFile((await download.path())!)).subarray(0, 8))).toEqual([137, 80, 78, 71, 13, 10, 26, 10]);
+  expect(await page.evaluate(() => Reflect.get(window, '__nativeImageShares'))).toBe(0);
+  await expect(page.getByRole('region', { name: 'Share your Market Dungeon result' }).getByRole('status')).toContainText('Check your browser’s downloads');
   expect(context.pages()).toHaveLength(1);
 });
 

@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import { validLiveJudgeActions } from '../judge-live-actions';
 import { encodeFunctionResult } from 'viem';
 
 import {
@@ -31,11 +32,7 @@ export const VENUE_ID = `0x${'45'.repeat(32)}`;
 export const CREATED_BY_TX = `0x${'67'.repeat(32)}`;
 export const GAME_SEED = 'g'.repeat(43);
 export const SEAL = `v2.${'i'.repeat(16)}.${'c'.repeat(64)}.${'t'.repeat(22)}`;
-export const VALID_ACTIONS: JudgeCombatAction[] = [
-  { room: 8, action: 'attack' },
-  { room: 9, action: 'attack' },
-  { room: 9, action: 'attack' },
-];
+export const VALID_ACTIONS: JudgeCombatAction[] = validLiveJudgeActions(GAME_SEED);
 
 const NONCE = 1n;
 const YES_ID = (BigInt(POOL_ADDRESS) << 72n) | (NONCE << 8n);
@@ -215,6 +212,12 @@ export const startPayload = {
   },
 };
 
+// Coherent signed start fixture for combat-only failure tests; no reveal is fabricated.
+export function startPayloadForGameSeed(gameSeed: string) {
+  const lockAttestation = replayLockAttestation({ ...replayClaims, gameSeed });
+  return { replay: { ...startPayload.replay, gameSeed, commitment: lockAttestation.commitment, lockAttestation } };
+}
+
 export function revealPayload(actions: JudgeCombatAction[]) {
   const combat = replayJudgeCombat(GAME_SEED, actions);
   const transcript = canonicalJudgeActionLog(GAME_SEED, actions);
@@ -231,13 +234,32 @@ export function revealPayload(actions: JudgeCombatAction[]) {
     },
     combatProof: {
       verified: combat.verified,
-      ruleset: 'market-dungeon/judge-combat/v1',
+      ruleset: 'market-dungeon/judge-combat/v2',
       transcriptDigest: `0x${createHash('sha256').update(transcript, 'utf8').digest('hex')}`,
       steps: combat.steps,
       guardDefeated: combat.guardDefeated,
       bossDefeated: combat.bossDefeated,
       playerSurvived: combat.playerSurvived,
       finalHp: combat.finalHp,
+    },
+  };
+}
+
+// Sign the chosen direction into both halves of the fixture. DOWN is a real
+// verified loss against the unchanged UP settlement, rather than a tampered proof.
+export function judgeReplayFixtureForDirection(direction: 'UP' | 'DOWN') {
+  const payload = { ...commitmentPayload, lockedDirection: direction };
+  const directionCanonical = canonicalReplayProof(payload);
+  const commitment = `0x${createHash('sha256').update(directionCanonical, 'utf8').digest('hex')}`;
+  const lockAttestation = replayLockAttestation({ ...replayClaims, direction });
+  return {
+    start: { replay: { ...startPayload.replay, lockedDirection: direction, commitment, lockAttestation } },
+    reveal(actions: JudgeCombatAction[]) {
+      return {
+        ...revealPayload(actions),
+        lockAttestation,
+        replayProof: { verified: true, algorithm: 'SHA-256', commitment, canonical: directionCanonical, ...payload },
+      };
     },
   };
 }
@@ -362,7 +384,7 @@ export function shannonRevealPayload(actions: JudgeCombatAction[]) {
     },
     combatProof: {
       verified: combat.verified,
-      ruleset: 'market-dungeon/judge-combat/v1',
+      ruleset: 'market-dungeon/judge-combat/v2',
       transcriptDigest: `0x${createHash('sha256').update(transcript, 'utf8').digest('hex')}`,
       steps: combat.steps,
       guardDefeated: combat.guardDefeated,

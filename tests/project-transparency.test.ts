@@ -22,23 +22,27 @@ test('privacy and creative provenance remain directly accessible from the game',
   }
 });
 
-test('frozen v10 submission links are retained while README identifies the published v11 baseline', () => {
-  const immutableBlobRoot = 'https://github.com/CryptoMickle/market-dungeon/blob/hackathon-submission-2026-v10';
+test('public submission identifies the Live demo, replay fallback and immutable release source', () => {
+  const immutableBlobRoot = 'https://github.com/CryptoMickle/market-dungeon/blob/hackathon-submission-2026-v13';
   const disclosureUrl = `${immutableBlobRoot}/docs/PROVENANCE_AND_PRIVACY.md`;
-  const integrationReportUrl = `${immutableBlobRoot}/docs/DREAMDEX_INTEGRATION_REPORT.md`;
 
   assert.ok(credits.includes(disclosureUrl));
-  assert.equal(submission.split(integrationReportUrl).length - 1, 2);
-
+  for (const content of [submission, readme]) {
+    assert.match(content, /https:\/\/market-dungeon\.vercel\.app\/shannon\/live-judge/);
+    assert.match(content, /https:\/\/market-dungeon\.vercel\.app\/shannon\/live-judge\/verify/);
+    assert.match(content, /https:\/\/market-dungeon\.vercel\.app\/shannon\/judge/);
+    assert.match(content, /https:\/\/market-dungeon\.vercel\.app\/shannon\/verify/);
+    assert.match(content, /hackathon-submission-2026-v13/);
+    assert.match(content, /https:\/\/youtu\.be\/6IviQrMweZ4/);
+    assert.doesNotMatch(content, /Final candidate release: pending source freeze, verification and publication approval/);
+  }
   for (const content of [credits, submission, readme]) {
     assert.doesNotMatch(content, /github\.com\/CryptoMickle\/market-dungeon\/blob\/main\//);
   }
-
-  assert.match(submission, /Current public baseline video \(1:52\): https:\/\/youtu\.be\/6IviQrMweZ4/);
-  assert.match(submission, /releases\/tag\/hackathon-submission-2026-v10/);
   assert.match(credits, /href="https:\/\/youtu\.be\/6IviQrMweZ4"/);
   assert.match(credits, /BASELINE V8 VIDEO/);
-  assert.match(readme, /\*\*Current public baseline demo \(1:52\):\*\* https:\/\/youtu\.be\/6IviQrMweZ4/);
-  assert.match(readme, /releases\/tag\/hackathon-submission-2026-v11/);
-  assert.match(readme, /https:\/\/market-dungeon\.vercel\.app\/verify/);
+  assert.match(credits, /earlier version and does not demonstrate the current Live Judge/);
+  assert.match(credits, /href="\/shannon\/live-judge\/verify"/);
+  assert.match(credits, /href="\/shannon\/verify"/);
+  assert.doesNotMatch(credits, /unreleased local candidate|local candidate&apos;s/);
 });

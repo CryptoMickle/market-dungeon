@@ -10,7 +10,7 @@ export async function GET() {
     return Response.json(replayLockAttestationPublicKey(SHANNON_TESTNET_PROFILE), { headers: NO_STORE });
   } catch {
     return Response.json(
-      { error: 'Shannon Judge lock-attestation key is unavailable.' },
+      { error: 'Shannon Judge lock-attestation key is unavailable.', retryState: 'config_unavailable' },
       { status: 503, headers: NO_STORE },
     );
   }

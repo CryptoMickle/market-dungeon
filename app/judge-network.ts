@@ -55,5 +55,6 @@ export function isShannonProfile(profile: JudgeNetworkProfile): profile is typeo
 }
 
 export function allowsLiveDreamDexContinuation(profile: JudgeNetworkProfile) {
-  return profile.id === SOMNIA_MAINNET_PROFILE.id;
+  // This external destination is separate from the replay's proof network.
+  return profile.id === SOMNIA_MAINNET_PROFILE.id || profile.id === SHANNON_TESTNET_PROFILE.id;
 }

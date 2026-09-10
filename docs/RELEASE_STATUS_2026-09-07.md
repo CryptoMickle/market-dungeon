@@ -1,5 +1,63 @@
 # Release and recording status — 7 September 2026
 
+> Historical release record. For the September 10 release with Live 1-minute Judge as the primary demo, see [current release record](RELEASE_2026-09-10.md). Earlier holds, counts and deployment identities below apply only to their dated checkpoints. Video work is deferred.
+
+## Active-market Full Expedition v3 — current local candidate
+
+The current working tree locks a visible active dreamDEX BTC five-minute Event
+Contract before every 10-room tier. Its real opening reference and countdown
+remain visible while the player fights. A boss defeated before expiry waits
+only for the remaining interval. A CURSED result restores only that boss at
+full HP, preserves depleted resources, and requires a fresh active five-minute
+market for the rematch. There is no historical or 15-minute fallback in the
+full game; provider or reference failure is shown honestly with retry and a
+Judge Demo link.
+
+The UI restores Delveworn's tier-specific Zombie, Goblin, Orc and boss
+personas, artwork, flavor, humorous Dungeon Log, combat-action order/colors and
+explicit relic unequip. The 45/35/20 regular-monster distribution is unchanged
+and covered by exact boundary tests. The `/judge` route remains the short
+historical cryptographic proof path and is not presented as proof of the
+40-room local-randomness run.
+
+At this checkpoint lint, TypeScript, 142 unit/integration tests, the optimized
+production build and all 38 Chromium cases pass. The full browser run found one
+outdated fixed-persona assertion after random spawning; correcting that test
+without changing product code passed its focused rerun. No new commit, push,
+Preview, Production deployment, DoraHacks update or video has been made. The
+previous Preview remains rejected. Physical owner iPhone, desktop and bounded
+live-provider checks remain required before one separately approved Preview.
+
+## Historical: restored Full Expedition v2 — rejected product direction
+
+The current working tree restores the 40-room Delveworn rules, random loot,
+shops/camps and all 15 relics. Every boss attempt locks a recently finalized
+historical Event Contract only after the player chooses BTC UP or DOWN.
+BLESSED/VOID releases one ordinary boss reward; CURSED grants nothing and
+returns the same boss at full scaled HP while preserving depleted resources and
+spent revive state. A different Event Contract is required for every rematch.
+
+Separate full-run start/reveal routes reuse the hardened historical seal and
+Somnia settlement hydration but identify their proof scope as settlement only;
+they export no Judge combat proof. The legacy `/judge` and portable verifier
+remain unchanged. Full-run local persistence now fails closed unless room,
+boss-settlement, attempt, market and commitment identities agree. The existing
+mobile run-card component is available for the restored full run and explicitly
+labels the card as a social summary rather than portable proof.
+
+One complete local release gate passed: lint, TypeScript, 141 unit/integration
+tests, 7 Shannon proof-kernel tests, optimized production build and 38 Chromium
+tests. Manual local desktop plus 390×844 browser checks found no horizontal
+overflow, loaded encounter art, and preserved exact combat HP across reload.
+These checks are automated or owner-agent local QA, not independent humans.
+
+No commit, push, Preview, Production deployment, DoraHacks update or video has
+been made. A separate independent review, one approved Preview, physical owner
+iPhone validation and bounded real-provider smoke remain required. The local
+candidate uses historical replay as its stable full-game route and does not
+expose the older live-full-expedition mode; that product freeze must be accepted
+before release.
+
 ## RPC-only Judge reveal — local candidate, release gates pending
 
 Judge reveal now uses authenticated lock-time metadata and the fixed Somnia

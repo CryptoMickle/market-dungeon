@@ -1,4 +1,5 @@
 .odds {
+  text-align: left;
   margin-top: 14px;
   overflow: hidden;
   border: 1px solid rgba(56, 189, 248, .3);
@@ -122,6 +123,24 @@
   color: #64748b;
   font-size: 8px;
   line-height: 1.35;
+}
+
+.odds[data-odds-state] .heading { flex-wrap: wrap; gap: 5px 10px; }
+.odds[data-odds-state] .title { font-size: 9px; letter-spacing: .06em; }
+.odds[data-odds-state] .badge { font-size: 8px; color: #9eb3c5; }
+.odds[data-odds-state] .label { font-size: 9px; }
+.odds[data-odds-state] .meta { align-items: start; font-size: 8px; line-height: 1.5; color: #9ab5c8; }
+.odds[data-odds-state] .source { white-space: normal; }
+.odds[data-odds-state] .note { font-size: 10px; line-height: 1.5; color: #9eb3c5; }
+.odds[data-odds-state="closed"] .liveDot,
+.odds[data-odds-state="waiting"] .liveDot,
+.odds[data-odds-state="unavailable"] .liveDot,
+.odds[data-odds-state="loading"] .liveDot { background: #94a3b8; box-shadow: none; }
+.odds[data-odds-state="open"][data-odds-available="false"] .liveDot { background: #94a3b8; box-shadow: none; }
+.odds[data-odds-state="loading"] .value { animation: loadingOdds 1.2s ease-in-out infinite alternate; }
+@keyframes loadingOdds { from { opacity: .4; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) {
+  .odds[data-odds-state="loading"] .value { animation: none; }
 }
 
 @media (max-width: 420px) {

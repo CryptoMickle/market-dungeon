@@ -27,6 +27,11 @@ export async function GET(request: Request) {
       );
     }
 
+    const requestedInterval = searchParams.get('interval');
+    if (requestedInterval !== null && requestedInterval !== '300') {
+      return Response.json({ error: 'Only the active BTC 5-minute interval can be requested explicitly' }, { status: 400 });
+    }
+
     const nowSeconds = Math.floor(Date.now() / 1000);
     const now = nowSeconds.toString();
     const data = await graphql(`query ActiveBtcPreferred($now: numeric!) {
@@ -38,9 +43,12 @@ export async function GET(request: Request) {
         status: clobStatus intervalSec quoteDecimals yesTokenId noTokenId winningOutcome payoutNumerators payoutDenominator voided finalized lastPrice tradeCount
       }
     }`, { now });
-    const candidates = (data.Market as Array<Record<string, unknown>>) ?? [];
+    const allCandidates = (data.Market as Array<Record<string, unknown>>) ?? [];
+    const candidates = requestedInterval === '300'
+      ? allCandidates.filter((candidate) => Number(candidate.intervalSec) === 300)
+      : allCandidates;
     const market = selectPreferredActiveMarket(candidates, nowSeconds);
-    if (!market) return Response.json({ error: 'No active BTC 5m or 15m market' }, { status: 404 });
+    if (!market) return Response.json({ error: requestedInterval === '300' ? 'No active BTC 5m market' : 'No active BTC 5m or 15m market' }, { status: 404 });
 
     const { fetchDreamDexClobOdds } = await import('../dreamdex-odds.ts');
     const [hydrated, odds] = await Promise.all([

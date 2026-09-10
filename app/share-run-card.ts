@@ -1,12 +1,15 @@
 export const MARKET_DUNGEON_PLAY_URL = 'https://market-dungeon.vercel.app';
 export const MARKET_DUNGEON_CHALLENGE_URL = `${MARKET_DUNGEON_PLAY_URL}/judge?challenge=1`;
+export const LIVE_JUDGE_CHALLENGE_PATH = '/shannon/live-judge';
+export const LIVE_JUDGE_LOCAL_LINK_NOTICE = 'Local preview · this invitation link works only on this Mac.';
 export const X_SHARE_INTENT_URL = 'https://twitter.com/intent/tweet';
 export const MARKET_DUNGEON_SLOGAN = 'DEFEAT THE BOSS. PREDICT THE MARKET. SURVIVE BOTH.';
 
 export type RunShareResult = 'BLESSED' | 'CURSED' | 'VOID' | 'DEFEATED';
 
 export type RunShareCardInput = {
-  mode: 'JUDGE_REPLAY' | 'FULL_RUN';
+  mode: 'JUDGE_REPLAY' | 'FULL_RUN' | 'LIVE_JUDGE';
+  asset?: 'BTC' | 'ETH';
   result: RunShareResult;
   tier: number;
   totalTiers: number;
@@ -41,6 +44,12 @@ function escapeXml(value: string) {
 }
 
 function resultPresentation(result: RunShareResult, mode: RunShareCardInput['mode']) {
+  if (mode === 'LIVE_JUDGE') {
+    if (result === 'BLESSED') return { headline: 'LIVE JUDGE CLEARED', accent: '#34d399', icon: 'VICTORY' };
+    if (result === 'CURSED') return { headline: 'LIVE JUDGE ENDED', accent: '#fb7185', icon: 'PREDICTION LOST' };
+    if (result === 'VOID') return { headline: 'LIVE JUDGE CLEARED', accent: '#c084fc', icon: 'MARKET VOID' };
+    return { headline: 'LIVE JUDGE ENDED', accent: '#fb923c', icon: 'FELL IN COMBAT' };
+  }
   if (mode === 'JUDGE_REPLAY') {
     if (result === 'BLESSED') return { headline: 'JUDGE REPLAY CLEARED', accent: '#34d399', icon: 'VICTORY' };
     if (result === 'CURSED') return { headline: 'JUDGE REPLAY ENDED', accent: '#fb7185', icon: 'PREDICTION LOST' };
@@ -54,6 +63,7 @@ function resultPresentation(result: RunShareResult, mode: RunShareCardInput['mod
 }
 
 export function runShareCardArtworkPath(input: RunShareCardInput) {
+  if (input.mode === 'LIVE_JUDGE') return RUN_CARD_BOSS_ART[3];
   const tier = boundedInteger(input.tier, 1, RUN_CARD_BOSS_ART.length);
   return RUN_CARD_BOSS_ART[tier - 1];
 }
@@ -62,10 +72,69 @@ export function runShareCardFilename(input: RunShareCardInput) {
   const marketSuffix = input.marketId && /^0x[0-9a-f]{64}$/i.test(input.marketId)
     ? `-${input.marketId.slice(-8).toLowerCase()}`
     : '';
-  return `market-dungeon-run${marketSuffix}.png`;
+  return `market-dungeon-${input.mode === 'LIVE_JUDGE' ? 'live-' : ''}run${marketSuffix}.png`;
 }
 
-export function runShareCaption(input: RunShareCardInput) {
+export function runShareSettlementVerified(input: RunShareCardInput) {
+  if (input.mode !== 'LIVE_JUDGE') return input.verifiedOnchain;
+  if (!input.verifiedOnchain || !input.actualOutcome || input.result === 'DEFEATED') return false;
+  if (input.result === 'VOID') return input.actualOutcome === 'VOID';
+  if (input.actualOutcome === 'VOID') return false;
+  return input.result === 'BLESSED'
+    ? input.lockedDirection === input.actualOutcome
+    : input.lockedDirection !== input.actualOutcome;
+}
+
+/** An invitation carries no saved run, market, player identifier or proof. */
+export function liveJudgeChallengeUrl(origin: string) {
+  const url = new URL(origin);
+  if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password) throw new Error('A live invitation needs an HTTP origin.');
+  return `${url.origin}${LIVE_JUDGE_CHALLENGE_PATH}?challenge=1`;
+}
+
+/** Missing/insecure links remain local; HTTPS loopback is still this device. */
+export function isLocalLiveJudgePreview(challengeUrl?: string | null) {
+  if (!challengeUrl) return true;
+  try {
+    const url = new URL(challengeUrl);
+    const hostname = url.hostname.toLowerCase();
+    return url.protocol !== 'https:' || Boolean(url.username || url.password)
+      || hostname === 'localhost' || hostname.endsWith('.localhost')
+      || hostname === '[::1]' || /^127\./.test(hostname);
+  } catch { return true; }
+}
+
+export function runShareChallengeUrl(input: RunShareCardInput, challengeUrl?: string) {
+  if (input.mode !== 'LIVE_JUDGE') return challengeUrl ?? MARKET_DUNGEON_CHALLENGE_URL;
+  if (!challengeUrl) return null;
+  try {
+    const url = new URL(challengeUrl);
+    // Keep the current deployment and Live mode, stripping saved-run data.
+    if (url.pathname !== LIVE_JUDGE_CHALLENGE_PATH || url.username || url.password) return null;
+    return liveJudgeChallengeUrl(url.origin);
+  } catch { return null; }
+}
+
+export function runShareCaption(input: RunShareCardInput, challengeUrl?: string) {
+  if (input.mode === 'LIVE_JUDGE') {
+    const verified = runShareSettlementVerified(input);
+    const asset = input.asset === 'ETH' ? 'ETH' : 'BTC';
+    const opening = input.result === 'BLESSED' ? '⚔️ Live Judge cleared!'
+      : input.result === 'CURSED' ? '☠️ Live Judge: prediction lost.'
+        : input.result === 'VOID' ? '👑 Live Judge cleared · market void.'
+          : '☠️ Live Judge: defeated in combat.';
+    return [
+      opening,
+      'Market Dungeon · 1-minute · Shannon testnet',
+      `${boundedInteger(input.enemiesDefeated, 0, 2)}/2 encounters · ${boundedInteger(input.gold, 0, 999_999)} gold`,
+      verified ? `🔮 ${asset} ${input.lockedDirection} → ${input.actualOutcome === 'VOID' ? 'VOID' : `${asset} ${input.actualOutcome}`}` : `🔮 Locked ${asset} ${input.lockedDirection}`,
+      verified ? 'Chain settlement verified · server-signed choice' : 'No settlement applied',
+      isLocalLiveJudgePreview(runShareChallengeUrl(input, challengeUrl))
+        ? 'Local preview · links work only on this Mac.'
+        : 'Shannon testnet · try your own live run.',
+      '#Somnia #DreamDEX',
+    ].join('\n');
+  }
   const room = boundedInteger(input.reachedRoom, 1, Math.max(1, input.totalRooms));
   const totalRooms = Math.max(1, boundedInteger(input.totalRooms, 1, 999));
   const judgeReplay = input.mode === 'JUDGE_REPLAY';
@@ -98,19 +167,21 @@ export function runShareCaption(input: RunShareCardInput) {
     progress,
     prediction,
     input.verifiedOnchain ? '⛓️ Onchain-verified on Somnia' : '⛓️ Powered by Somnia + dreamDEX',
-    '⚡ Can you beat my run?',
+    '⚡ Can you defeat both the boss and the market?',
     '#Somnia #DreamDEX',
   ].join('\n');
 }
 
-export function runShareClipboardText(input: RunShareCardInput, challengeUrl = MARKET_DUNGEON_CHALLENGE_URL) {
-  return `${runShareCaption(input)}\n${challengeUrl}`;
+export function runShareClipboardText(input: RunShareCardInput, challengeUrl?: string) {
+  const url = runShareChallengeUrl(input, challengeUrl);
+  return [runShareCaption(input, challengeUrl), ...(url ? [url] : [])].join('\n');
 }
 
-export function runShareXUrl(input: RunShareCardInput, challengeUrl = MARKET_DUNGEON_CHALLENGE_URL) {
+export function runShareXUrl(input: RunShareCardInput, challengeUrl?: string) {
   const url = new URL(X_SHARE_INTENT_URL);
-  url.searchParams.set('text', runShareCaption(input));
-  url.searchParams.set('url', challengeUrl);
+  url.searchParams.set('text', runShareCaption(input, challengeUrl));
+  const invite = runShareChallengeUrl(input, challengeUrl);
+  if (invite) url.searchParams.set('url', invite);
   return url.toString();
 }
 
@@ -118,35 +189,46 @@ export function isChallengeEntry(search: string) {
   return new URLSearchParams(search).get('challenge') === '1';
 }
 
-export function runShareCardSvg(input: RunShareCardInput) {
+export function runShareCardSvg(input: RunShareCardInput, challengeUrl?: string) {
   const room = boundedInteger(input.reachedRoom, 1, Math.max(1, input.totalRooms));
   const totalRooms = Math.max(1, boundedInteger(input.totalRooms, 1, 999));
   const judgeReplay = input.mode === 'JUDGE_REPLAY';
-  const enemies = boundedInteger(input.enemiesDefeated, 0, judgeReplay ? 2 : totalRooms);
+  const liveJudge = input.mode === 'LIVE_JUDGE';
+  const cardFooter = liveJudge
+    ? isLocalLiveJudgePreview(runShareChallengeUrl(input, challengeUrl))
+      ? 'LOCAL PREVIEW · NOT PUBLISHED'
+      : 'LIVE JUDGE · SHANNON TESTNET'
+    : 'MARKET-DUNGEON.VERCEL.APP';
+  const shortRun = judgeReplay || liveJudge;
+  const enemies = boundedInteger(input.enemiesDefeated, 0, shortRun ? 2 : totalRooms);
   const gold = boundedInteger(input.gold, 0, 999_999);
   const tier = boundedInteger(input.tier, 1, Math.max(1, input.totalTiers));
   const totalTiers = Math.max(1, boundedInteger(input.totalTiers, 1, 99));
-  const progress = judgeReplay
+  const progress = shortRun
     ? Math.min(1, enemies / 2)
     : Math.max(0.025, Math.min(1, room / totalRooms));
   const progressWidth = Math.round(1000 * progress);
   const presentation = resultPresentation(input.result, input.mode);
-  const mode = judgeReplay ? 'FINAL-TIER JUDGE REPLAY' : 'FULL EXPEDITION';
+  const mode = liveJudge ? 'LIVE JUDGE · SHANNON TESTNET' : judgeReplay ? 'FINAL-TIER JUDGE REPLAY' : 'FULL EXPEDITION';
   const trophy = input.result === 'BLESSED' || input.result === 'VOID'
     ? 'FINAL BOSS · DEFEATED'
     : input.result === 'CURSED'
       ? 'FINAL BOSS · LAST STAND'
-      : 'EXPEDITION · ENDED';
-  const primaryLabel = judgeReplay ? 'REPLAY PROGRESS' : 'DUNGEON DEPTH';
-  const primaryValue = judgeReplay ? `${enemies} OF 2` : `ROOM ${room}/${totalRooms}`;
-  const primaryNote = judgeReplay ? 'REPLAY ENCOUNTERS' : `TIER ${tier} OF ${totalTiers}`;
-  const secondaryLabel = judgeReplay ? 'REPLAY FORMAT' : 'ENEMIES DEFEATED';
-  const secondaryValue = judgeReplay ? 'FINAL TIER' : String(enemies);
-  const secondaryNote = judgeReplay ? 'TWO-ENCOUNTER CHECKPOINT' : 'ACROSS THIS EXPEDITION';
-  const verification = input.verifiedOnchain ? 'ONCHAIN VERIFIED · SOMNIA' : 'POWERED BY SOMNIA + DREAMDEX';
-  const outcome = input.actualOutcome
-    ? `BTC ${input.lockedDirection}  →  BTC ${input.actualOutcome}`
-    : `BTC ${input.lockedDirection} LOCKED · OUTCOME UNRESOLVED`;
+      : liveJudge ? 'LIVE RUN · ENDED' : 'EXPEDITION · ENDED';
+  const primaryLabel = liveJudge ? 'COMBAT PROGRESS' : judgeReplay ? 'REPLAY PROGRESS' : 'DUNGEON DEPTH';
+  const primaryValue = shortRun ? `${enemies} OF 2` : `ROOM ${room}/${totalRooms}`;
+  const primaryNote = liveJudge ? 'TWO ENCOUNTERS' : judgeReplay ? 'REPLAY ENCOUNTERS' : `TIER ${tier} OF ${totalTiers}`;
+  const secondaryLabel = liveJudge ? 'EVENT CONTRACT' : judgeReplay ? 'REPLAY FORMAT' : 'ENEMIES DEFEATED';
+  const secondaryValue = liveJudge ? '1 MINUTE' : judgeReplay ? 'FINAL TIER' : String(enemies);
+  const secondaryNote = liveJudge ? 'SHANNON TESTNET' : judgeReplay ? 'TWO-ENCOUNTER CHECKPOINT' : 'ACROSS THIS EXPEDITION';
+  const verified = runShareSettlementVerified(input);
+  const verification = liveJudge ? verified ? 'CHAIN RESULT VERIFIED' : 'NO SETTLEMENT APPLIED'
+    : verified ? 'ONCHAIN VERIFIED · SOMNIA' : 'POWERED BY SOMNIA + DREAMDEX';
+  const asset = liveJudge && input.asset === 'ETH' ? 'ETH' : 'BTC';
+  const actualOutcome = liveJudge && !verified ? undefined : input.actualOutcome;
+  const outcome = actualOutcome
+    ? `${asset} ${input.lockedDirection}  →  ${liveJudge && actualOutcome === 'VOID' ? 'VOID' : `${asset} ${actualOutcome}`}`
+    : `${asset} ${input.lockedDirection} LOCKED · ${liveJudge ? 'NO SETTLEMENT APPLIED' : 'OUTCOME UNRESOLVED'}`;
   const runId = input.marketId && /^0x[0-9a-f]{64}$/i.test(input.marketId)
     ? `RUN ${input.marketId.slice(0, 8).toUpperCase()}…${input.marketId.slice(-6).toUpperCase()}`
     : 'RUN RESULT';
@@ -217,12 +299,12 @@ export function runShareCardSvg(input: RunShareCardInput) {
     <g transform="translate(399 350)" filter="url(#shadow)">
       <rect width="318" height="142" rx="20" fill="#09090b" fill-opacity="0.88" stroke="#52525b"/>
       <text x="24" y="35" fill="#71717a" font-size="13" font-weight="900" letter-spacing="2">${secondaryLabel}</text>
-      <text x="24" y="94" fill="#fff" font-size="${judgeReplay ? 36 : 48}" font-weight="950">${secondaryValue}</text>
+      <text x="24" y="94" fill="#fff" font-size="${shortRun ? 36 : 48}" font-weight="950">${secondaryValue}</text>
       <text x="24" y="119" fill="#a1a1aa" font-size="14" font-weight="700">${secondaryNote}</text>
     </g>
     <g transform="translate(740 350)" filter="url(#shadow)">
       <rect width="402" height="142" rx="20" fill="#09090b" fill-opacity="0.88" stroke="#52525b"/>
-      <text x="24" y="35" fill="#71717a" font-size="13" font-weight="900" letter-spacing="2">GOLD KEPT</text>
+      <text x="24" y="35" fill="#71717a" font-size="13" font-weight="900" letter-spacing="2">${liveJudge ? 'FINAL GOLD' : 'GOLD KEPT'}</text>
       <circle cx="50" cy="85" r="22" fill="#f59e0b" stroke="#fde68a" stroke-width="3"/>
       <text x="50" y="93" text-anchor="middle" fill="#78350f" font-size="22" font-weight="950">G</text>
       <text x="88" y="99" fill="#fff" font-size="48" font-weight="950">${gold}</text>
@@ -233,13 +315,13 @@ export function runShareCardSvg(input: RunShareCardInput) {
     <circle cx="${58 + progressWidth}" cy="530" r="9" fill="${presentation.accent}"/>
 
     <text x="58" y="592" fill="#a1a1aa" font-size="14" font-weight="800" letter-spacing="1.5">${escapeXml(runId)}</text>
-    <text x="1142" y="592" text-anchor="end" fill="#fff" font-size="16" font-weight="900">MARKET-DUNGEON.VERCEL.APP</text>
+    <text x="1142" y="592" text-anchor="end" fill="#fff" font-size="16" font-weight="900">${cardFooter}</text>
     <text x="58" y="632" fill="#d8b4fe" font-size="13" font-weight="900" letter-spacing="0.45">${MARKET_DUNGEON_SLOGAN}</text>
     <text x="1142" y="632" text-anchor="end" fill="#a78bfa" font-size="13" font-weight="900">#SOMNIA · #DREAMDEX</text>
   </g>
 </svg>`;
 }
 
-export function runShareCardDataUrl(input: RunShareCardInput) {
-  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(runShareCardSvg(input))}`;
+export function runShareCardDataUrl(input: RunShareCardInput, challengeUrl?: string) {
+  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(runShareCardSvg(input, challengeUrl))}`;
 }

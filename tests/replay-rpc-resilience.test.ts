@@ -8,7 +8,7 @@ import { POST as shannonReveal } from '../app/api/shannon/judge-replay/reveal/ro
 import { resetReplayRevealStateForTests } from '../app/api/judge-replay/reveal/state.ts';
 import { resetShannonReplayRevealStateForTests } from '../app/api/shannon/judge-replay/reveal/state.ts';
 import { resetRequestControlForTests } from '../app/api/request-control.ts';
-import { replayJudgeCombat, type JudgeCombatAction } from '../app/judge-combat.ts';
+import { validLiveJudgeActions } from './judge-live-actions.ts';
 import { SOMNIA_MAINNET_PROFILE, SHANNON_TESTNET_PROFILE, type JudgeNetworkProfile } from '../app/judge-network.ts';
 import { BINARY_SETTLEMENT_ABI, MODULE_MARKETS_ABI, directSettlementProofMatchesMarket } from '../app/onchain-settlement-proof.ts';
 import { REPLAY_MARKET_QUESTION } from '../app/replay-proof.ts';
@@ -105,8 +105,7 @@ for (const profile of [SOMNIA_MAINNET_PROFILE, SHANNON_TESTNET_PROFILE]) {
     let now = Date.now();
     t.mock.method(Date, 'now', () => now);
     const claims = claimsFor(profile);
-    const actions: JudgeCombatAction[] = [{ room: 8, action: 'attack' }];
-    while (!replayJudgeCombat(claims.gameSeed, actions).bossDefeated) actions.push({ room: 9, action: 'attack' });
+    const actions = validLiveJudgeActions(claims.gameSeed);
     const seal = sealReplay(claims);
     let fault: Fault = 'timeout';
     const reads = stubRpc(profile, claims, () => fault);

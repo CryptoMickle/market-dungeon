@@ -3,6 +3,8 @@ import test from 'node:test';
 
 import {
   isChallengeEntry,
+  isLocalLiveJudgePreview,
+  liveJudgeChallengeUrl,
   MARKET_DUNGEON_CHALLENGE_URL,
   MARKET_DUNGEON_PLAY_URL,
   MARKET_DUNGEON_SLOGAN,
@@ -11,8 +13,10 @@ import {
   runShareCardFilename,
   runShareCardSvg,
   runShareCaption,
+  runShareChallengeUrl,
   runShareClipboardText,
   runShareXUrl,
+  runShareSettlementVerified,
   type RunShareCardInput,
 } from '../app/share-run-card.ts';
 
@@ -43,7 +47,7 @@ test('Judge Replay caption communicates replay progress without claiming a full 
   assert.match(caption, /2 of 2 replay encounters cleared · 154 gold/);
   assert.match(caption, /BTC UP → BTC UP/);
   assert.match(caption, /Onchain-verified on Somnia/);
-  assert.match(caption, /Can you beat my run\?/);
+  assert.match(caption, /Can you defeat both the boss and the market\?/);
   assert.match(caption, /#Somnia #DreamDEX/);
   assert.doesNotMatch(caption, /conquered Market Dungeon|Reached room 40\/40/i);
   assert.ok(Array.from(caption).length <= 240);
@@ -165,4 +169,126 @@ test('unverified combat loss is labeled honestly and clamps unsafe numeric input
   assert.doesNotMatch(svg, /REPLAY PROGRESS|TWO-ENCOUNTER CHECKPOINT/);
   assert.doesNotMatch(svg, /<script|alert\(1\)/);
   assert.equal(runShareCardFilename(unsafe), 'market-dungeon-run.png');
+});
+
+test('live Judge cards and captions identify a one-minute local Shannon run for every result', () => {
+  for (const result of ['BLESSED', 'CURSED', 'VOID', 'DEFEATED'] as const) {
+    const live = input({
+      mode: 'LIVE_JUDGE', result, enemiesDefeated: 99, gold: 999_999,
+      actualOutcome: result === 'VOID' ? 'VOID' : result === 'CURSED' ? 'DOWN' : 'UP',
+      verifiedOnchain: result !== 'DEFEATED',
+    });
+    const caption = runShareCaption(live);
+    const svg = runShareCardSvg(live);
+    assert.match(caption, /Live Judge/);
+    assert.match(caption, /1-minute · Shannon testnet/);
+    assert.match(caption, /2\/2 encounters · 999999 gold/);
+    assert.match(caption, /Local preview · links work only on this Mac/);
+    assert.ok(Array.from(caption).length <= 240, `${result}: ${Array.from(caption).length} characters`);
+    assert.match(svg, /LIVE JUDGE · SHANNON TESTNET/);
+    assert.match(svg, /COMBAT PROGRESS/);
+    assert.match(svg, /2 OF 2/);
+    assert.match(svg, /1 MINUTE/);
+    assert.match(svg, /LOCAL PREVIEW · NOT PUBLISHED/);
+    assert.doesNotMatch(`${caption}\n${svg}`, /replay|expedition|room 40|tier 4|market-dungeon\.vercel\.app/i);
+    if (result === 'DEFEATED') {
+      assert.match(svg, /FELL IN COMBAT/);
+      assert.match(svg, /NO SETTLEMENT APPLIED/);
+      assert.doesNotMatch(caption, /settlement verified/);
+    } else {
+      assert.match(svg, /CHAIN RESULT VERIFIED/);
+      assert.match(caption, /Chain settlement verified · server-signed choice/);
+    }
+  }
+});
+
+test('live combat loss or inconsistent outcomes cannot claim a verified chain result', () => {
+  for (const live of [
+    input({ mode: 'LIVE_JUDGE', result: 'DEFEATED', verifiedOnchain: true, enemiesDefeated: 1 }),
+    input({ mode: 'LIVE_JUDGE', result: 'BLESSED', actualOutcome: 'DOWN' }),
+    input({ mode: 'LIVE_JUDGE', result: 'CURSED', actualOutcome: 'UP' }),
+    input({ mode: 'LIVE_JUDGE', result: 'VOID', actualOutcome: 'UP' }),
+  ]) {
+    assert.equal(runShareSettlementVerified(live), false);
+    assert.match(runShareCaption(live), /No settlement applied/);
+    assert.match(runShareCardSvg(live), /NO SETTLEMENT APPLIED/);
+    assert.doesNotMatch(runShareCardSvg(live), /CHAIN RESULT VERIFIED|BTC UP  →/);
+  }
+  const partial = input({ mode: 'LIVE_JUDGE', result: 'DEFEATED', enemiesDefeated: 1, actualOutcome: undefined, verifiedOnchain: false });
+  assert.match(runShareCardSvg(partial), /width="500" height="10"/);
+  assert.match(runShareCaption(partial), /1\/2 encounters/);
+});
+
+test('live invitation links stay on the configured origin without replay or proof data', () => {
+  const live = input({ mode: 'LIVE_JUDGE' });
+  const challenge = liveJudgeChallengeUrl('http://localhost:3000/somewhere?marketId=secret#proof');
+  assert.equal(challenge, 'http://localhost:3000/shannon/live-judge?challenge=1');
+  const supplied = `${challenge}&marketId=private&proof=private#private`;
+  assert.equal(runShareChallengeUrl(live, supplied), challenge);
+  assert.equal(runShareClipboardText(live, supplied), `${runShareCaption(live)}\n${challenge}`);
+  const x = new URL(runShareXUrl(live, supplied));
+  assert.equal(x.searchParams.get('url'), challenge);
+  assert.equal(x.searchParams.get('text'), runShareCaption(live));
+  assert.doesNotMatch(x.toString(), /private|marketId|proof=/);
+  for (const unavailable of [undefined, MARKET_DUNGEON_CHALLENGE_URL, `${MARKET_DUNGEON_PLAY_URL}/shannon/judge`, 'javascript:alert(1)', '/shannon/live-judge', 'https://user:secret@example.com/shannon/live-judge', 'file:///shannon/live-judge']) {
+    assert.equal(runShareChallengeUrl(live, unavailable), null);
+    assert.equal(runShareClipboardText(live, unavailable), runShareCaption(live));
+    assert.equal(new URL(runShareXUrl(live, unavailable)).searchParams.has('url'), false);
+  }
+  assert.throws(() => liveJudgeChallengeUrl('file:///tmp/proof.json'), /HTTP origin/);
+  assert.throws(() => liveJudgeChallengeUrl('https://user:secret@example.com'), /HTTP origin/);
+});
+
+test('live export uses the live boss and filename without reinterpreting it as a full run', () => {
+  const live = input({ mode: 'LIVE_JUDGE', tier: 1, asset: 'ETH', actualOutcome: 'UP' });
+  assert.equal(runShareCardArtworkPath(live), '/monsters/boss-4-chairman-below.webp');
+  assert.equal(runShareCardFilename(live), 'market-dungeon-live-run-abababab.png');
+  assert.match(runShareCaption(live), /ETH UP → ETH UP/);
+  assert.match(runShareCardSvg(live), /ETH UP  →  ETH UP/);
+  assert.doesNotMatch(runShareCardSvg(live), /BTC/);
+});
+
+for (const origin of [MARKET_DUNGEON_PLAY_URL, 'https://market-dungeon-phone-crypto-mickle.vercel.app']) test(`live invitations work on ${origin} and retain truthful testnet cards`, () => {
+  const live = input({ mode: 'LIVE_JUDGE' });
+  const supplied = `${origin}/shannon/live-judge?marketId=private&challenge=1#proof`;
+  const challenge = `${origin}/shannon/live-judge?challenge=1`;
+  const caption = runShareCaption(live, supplied);
+  const svg = runShareCardSvg(live, supplied);
+
+  assert.equal(isLocalLiveJudgePreview(challenge), false);
+  assert.equal(runShareChallengeUrl(live, supplied), challenge);
+  assert.equal(runShareClipboardText(live, supplied), `${caption}\n${challenge}`);
+  assert.match(caption, /Shannon testnet · try your own live run/);
+  assert.match(svg, /LIVE JUDGE · SHANNON TESTNET/);
+  assert.ok(Array.from(caption).length <= 240);
+  assert.doesNotMatch(`${caption}\n${svg}`, /only on this Mac|LOCAL PREVIEW|NOT PUBLISHED|marketId=private|#proof/i);
+  const draft = new URL(runShareXUrl(live, supplied));
+  assert.equal(draft.searchParams.get('url'), challenge);
+  assert.equal(draft.searchParams.get('text'), caption);
+  assert.equal(decodeURIComponent(runShareCardDataUrl(live, supplied).split(',')[1]), svg);
+
+  // Live context must not change the established Full/Replay card copy.
+  for (const mode of ['FULL_RUN', 'JUDGE_REPLAY'] as const) {
+    const run = input({ mode });
+    assert.equal(runShareCaption(run, supplied), runShareCaption(run));
+    assert.equal(runShareCardSvg(run, supplied), runShareCardSvg(run));
+    assert.equal(runShareChallengeUrl(run), MARKET_DUNGEON_CHALLENGE_URL);
+  }
+});
+
+test('live loopback links retain their local warning even with HTTPS', () => {
+  const live = input({ mode: 'LIVE_JUDGE' });
+  for (const origin of [
+    'http://localhost:3000', 'https://localhost:3000', 'https://dungeon.localhost',
+    'https://127.0.0.1', 'https://127.1.2.3', 'https://[::1]:3000',
+  ]) {
+    const challenge = liveJudgeChallengeUrl(origin);
+    assert.equal(isLocalLiveJudgePreview(challenge), true, origin);
+    assert.match(runShareCaption(live, challenge), /Local preview · links work only on this Mac/);
+    assert.match(runShareCardSvg(live, challenge), /LOCAL PREVIEW · NOT PUBLISHED/);
+  }
+  for (const unavailable of [undefined, 'not-a-url', 'javascript:alert(1)', 'https://user:secret@example.com']) {
+    assert.equal(isLocalLiveJudgePreview(unavailable), true);
+  }
+  assert.equal(isLocalLiveJudgePreview('https://localhost.example.com/shannon/live-judge'), false);
 });

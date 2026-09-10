@@ -175,8 +175,8 @@ const onchainSettlement: PortableVerifiedRunSettlementProof = {
 };
 
 function proofInput(): VerifiedRunProofInput {
-  const combat = replayJudgeCombat(GAME_SEED, VALID_ACTIONS);
-  const canonicalTranscript = canonicalJudgeActionLog(GAME_SEED, VALID_ACTIONS);
+  const combat = replayJudgeCombat(GAME_SEED, VALID_ACTIONS, 'market-dungeon/judge-combat/v1');
+  const canonicalTranscript = canonicalJudgeActionLog(GAME_SEED, VALID_ACTIONS, 'market-dungeon/judge-combat/v1');
   return {
     result: 'BLESSED',
     intervalSec: 300,

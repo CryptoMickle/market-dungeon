@@ -5,7 +5,7 @@ import styles from './credits.module.css';
 
 export const metadata: Metadata = {
   title: 'Privacy, Credits & AI Disclosure — Market Dungeon',
-  description: 'How Market Dungeon handles analytics, local data, artwork, AI assistance, and demo-video music.',
+  description: 'How Market Dungeon handles analytics, local data, artwork, procedural sound, AI assistance, and demo-video music.',
 };
 
 export default function CreditsPage() {
@@ -19,20 +19,25 @@ export default function CreditsPage() {
 
         <section>
           <h2>Analytics and local data</h2>
-          <p>Market Dungeon uses Vercel Web Analytics for aggregate page views and a versioned, anonymous Judge funnel. Version 2 separates entry, accepted replay lock, first reveal attempt, verified completion, definitive verification failure, sharing, challenge activity, and Continue-on-dreamDEX intent.</p>
+          <p>Market Dungeon uses Vercel Web Analytics for aggregate page views and a versioned, anonymous Historical Replay funnel. Version 2 separates entry, accepted replay lock, first reveal attempt, verified completion, definitive verification failure, sharing, challenge activity, and Continue-on-dreamDEX intent. The Live Judge currently contributes page views, without a separate gameplay funnel.</p>
           <p>The v2 labels use only closed categories such as interval, duration bucket, mode, direction, result, and failure or share-action type. Market Dungeon does not send wallet addresses, market IDs, commitments, proof contents, combat transcripts, names, or email addresses to analytics; exact timings and arbitrary query text are also excluded. WebDriver sessions and tests carrying the fixed <code>automation=1</code> marker are excluded. Remaining counts are non-WebDriver event volumes, not proof of unique people.</p>
-          <p>The app has no account system and does not connect a wallet or submit a transaction. Persistent gold and the next-run potion count are stored only in this browser. During post-reveal verification, the browser contacts the public Somnia mainnet RPC directly to reproduce the displayed proof. The independent verifier reads proof JSON locally and never uploads the complete file. It sends only the public block reference, contract targets, and two read-only call inputs needed to reproduce the recorded state to that fixed RPC; proof data and results are not added to analytics. Continuing to dreamDEX opens that separate service in a new tab.</p>
-          <Link href="/verify">OPEN INDEPENDENT PROOF VERIFIER ↗</Link>
+          <p>The app has no account system and does not connect a wallet or submit a transaction. Expedition progress, persistent gold, the next-run potion count, and the all-sound preference are stored only in this browser. Proof verification reads public contract state directly from the fixed Somnia mainnet RPC for Full Expedition and the mainnet replay, or the Shannon testnet RPC for both Shannon Judge modes. The independent verifiers read proof JSON locally and never upload the complete file. They fetch this deployment&apos;s public verification key and send only public block references and read-only contract calls needed to reproduce the recorded state. Proof data and results are not added to analytics. Continuing to dreamDEX opens that separate service in a new tab.</p>
+          <div className={styles.links}>
+            <Link href="/shannon/live-judge/verify">VERIFY LIVE JUDGE PROOF ↗</Link>
+            <Link href="/shannon/verify">VERIFY SHANNON REPLAY PROOF ↗</Link>
+            <Link href="/verify">VERIFY MAINNET REPLAY PROOF ↗</Link>
+          </div>
           <a href="https://vercel.com/docs/analytics/privacy-policy" target="_blank" rel="noopener noreferrer">VERCEL WEB ANALYTICS PRIVACY ↗</a>
         </section>
 
         <section>
           <h2>Artwork and asset provenance</h2>
-          <p>Visual direction, character concepts, selection, editing, compression, and product integration were led by CryptoMickle. The checked-in hero, character, monster, coin, and social-preview artwork was created specifically for Delveworn and Market Dungeon through a human-directed workflow with generative-image assistance; no third-party game artwork is intentionally included.</p>
+          <p>Visual direction, character concepts, selection, editing, compression, and product integration were led by CryptoMickle. The checked-in hero, character, monster, loot, coin, and social-preview artwork was created specifically for Delveworn and Market Dungeon through a human-directed workflow with generative-image assistance; no third-party game artwork is intentionally included.</p>
           <ul>
             <li><code>public/monsters/</code> — sixteen Delveworn enemy and boss scenes.</li>
             <li><code>public/characters/</code> — Quartermaster Kevin merchant artwork.</li>
             <li><code>public/assets/</code> — project hero compositions and the Delveworn gold coin.</li>
+            <li><code>public/assets/loot/</code> — potion, weapon and armor reward artwork.</li>
             <li><code>public/og.png</code> and <code>public/favicon.svg</code> — project social preview and interface mark.</li>
           </ul>
           <p>The MIT license covers the source code. Original visual assets are separate project assets and are not offered for reuse under the MIT grant unless explicitly marked otherwise.</p>
@@ -44,8 +49,13 @@ export default function CreditsPage() {
         </section>
 
         <section>
+          <h2>In-game sound</h2>
+          <p>Market Dungeon creates its original boss-battle score “The Throne Below”, interface click, Attack, Storm, Potion, settlement, sixteen monster intros, and Quartermaster Kevin intro at runtime with the browser&apos;s Web Audio system. Continuous background music plays only during boss combat and stops when the boss is knocked out. No sampled recording or third-party music file is shipped for these game sounds. One persistent control switches every game sound on or off in Full Expedition and both Judge Demo modes.</p>
+        </section>
+
+        <section>
           <h2>Demo-video music</h2>
-          <p>The live web app contains no music. The baseline 1:52 v8 hackathon video uses “Dark Fantasy Ambient (Dungeon Synth music),” created by DeusLower / Vlad Bakutov and licensed under the Pixabay Content License. A replacement competition video remains paused until its Production capture and captions can be verified separately.</p>
+          <p>The baseline 1:52 v8 hackathon video uses “Dark Fantasy Ambient (Dungeon Synth music),” created by DeusLower / Vlad Bakutov and licensed under the Pixabay Content License. This credited video track is separate from the browser-generated game audio. The video shows an earlier version and does not demonstrate the current Live Judge mode.</p>
           <div className={styles.links}>
             <a href="https://pixabay.com/music/ambient-dark-fantasy-ambient-dungeon-synth-music-281592/" target="_blank" rel="noopener noreferrer">MUSIC SOURCE ↗</a>
             <a href="https://pixabay.com/service/license-summary/" target="_blank" rel="noopener noreferrer">PIXABAY LICENSE ↗</a>
@@ -58,7 +68,7 @@ export default function CreditsPage() {
           <p>Somnia, dreamDEX, and DoraHacks names are used descriptively for the hackathon integration. Their respective marks and services remain the property of their owners.</p>
           <div className={styles.links}>
             <a href="https://github.com/CryptoMickle/market-dungeon" target="_blank" rel="noopener noreferrer">SOURCE CODE ↗</a>
-            <a href="https://github.com/CryptoMickle/market-dungeon/blob/hackathon-submission-2026-v10/docs/PROVENANCE_AND_PRIVACY.md" target="_blank" rel="noopener noreferrer">VERSIONED DISCLOSURE ↗</a>
+            <a href="https://github.com/CryptoMickle/market-dungeon/blob/hackathon-submission-2026-v13/docs/PROVENANCE_AND_PRIVACY.md" target="_blank" rel="noopener noreferrer">VERSIONED DISCLOSURE ↗</a>
           </div>
         </section>
       </article>

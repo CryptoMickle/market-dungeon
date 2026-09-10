@@ -1,0 +1,11 @@
+.logo { display: inline-block; position: relative; width: min(240px,100%); vertical-align: middle; line-height: 0; }
+.logo img { display: block; width: 100%; height: auto; }
+.label { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.compact { width: 96px; }
+.home { padding: 0; border: 0; border-radius: 6px; background: transparent; color: inherit; cursor: pointer; }
+.home:focus-visible { outline: 2px solid #67e8f9; outline-offset: 5px; }
+@media (min-width: 801px) {
+  .logo:not(.compact) { width: min(300px,100%); }
+  .compact { width: 168px; }
+}
+@media (min-width: 1200px) and (min-height: 800px) { .compact { width: 252px; } }

@@ -1,0 +1,222 @@
+.shell:global(.game-shell.judge-mode) {
+  min-height: 100dvh;
+  padding: 22px 24px 76px;
+  background: radial-gradient(ellipse at 65% 0, #2a1933, transparent 55%), #09090b;
+}
+.shell:global(.judge-mode)::before { content: none; }
+.shell:global(.game-shell.judge-mode) :global(.game-column) {
+  max-width: 1600px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+.top { max-width: 1600px; margin: auto; }
+.header { display: flex; justify-content: space-between; align-items: center; gap: 20px; padding: 0 0 20px; }
+.header > div { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.eyebrow { color: #d8b4fe; font-size: 11px; font-weight: 850; letter-spacing: .15em; }
+.subtitle { color: #b9adc9; font-size: 12px; line-height: 1.5; }
+.shell:global(.judge-mode) :global(.desktop-journey) { gap: 24px; min-height: 0; scroll-margin-top: 128px; }
+.shell:global(.judge-mode) :global(.desktop-journey-art) {
+  position: relative;
+  top: auto;
+  border: 1px solid #49364f;
+  border-radius: 20px;
+  background: #100d13;
+}
+.shell:global(.judge-mode.phase-judge_setup) :global(.desktop-journey-art) {
+  display: block;
+  min-height: 520px;
+  height: min(68vh, 720px);
+  aspect-ratio: auto;
+}
+.shell:global(.judge-mode.phase-judge_setup) :global(.desktop-journey-art) img { object-fit: cover; }
+.shell:global(.judge-mode.phase-judge_setup) :global(.desktop-journey-art)::after {
+  content: '';
+  position: absolute;
+  inset: 45% 0 0;
+  background: linear-gradient(transparent, #0c0912ee);
+  pointer-events: none;
+}
+.artCaption { position: absolute; z-index: 1; bottom: 28px; left: 28px; right: 28px; }
+.artCaption strong { display: block; font-size: clamp(24px, 2.4vw, 38px); line-height: 1.12; letter-spacing: -.04em; }
+.artCaption span { display: block; margin-top: 10px; color: #d4c9df; font-size: 14px; line-height: 1.5; }
+.shell:global(.judge-mode) :global(.desktop-journey .judge-first-lock) {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 14px;
+  width: 100%;
+  min-height: 0;
+  margin: 0;
+  padding: 24px;
+  border: 1px solid #79518f;
+  border-radius: 20px;
+  background: linear-gradient(150deg, #271631e8, #141018);
+  box-shadow: none;
+}
+.shell:global(.judge-mode) :global(.judge-first-lock)::after { content: none; }
+.shell:global(.judge-mode) :global(.desktop-journey .judge-lock-intro h2) {
+  margin: 10px 0 12px;
+  font-size: clamp(30px, 2.8vw, 43px);
+  font-weight: 850;
+  line-height: 1.08;
+  letter-spacing: -.045em;
+}
+.shell:global(.judge-mode) :global(.judge-lock-intro > span) { color: #d8b4fe; font-size: 10px; font-weight: 850; letter-spacing: .12em; }
+.shell:global(.judge-mode) :global(.judge-lock-intro > small) { margin: 0; color: #c8bdd1; font-size: 14px; line-height: 1.55; }
+.shell:global(.judge-mode) :global(.judge-lock-context) {
+  margin: 18px 0 0;
+  padding: 16px;
+  border: 1px solid #455368;
+  border-radius: 14px;
+  background: #14202e;
+}
+.shell:global(.judge-mode) :global(.judge-lock-context > span) { font-size: 9px; letter-spacing: .1em; }
+.shell:global(.judge-mode) :global(.judge-lock-context strong) { font-size: 18px; }
+.shell:global(.judge-mode) :global(.desktop-journey .judge-lock-context small) { margin-top: 7px; font-size: 12px; line-height: 1.5; color: #b7c7d9; }
+.shell:global(.judge-mode) :global(.judge-quick-choice) { gap: 10px; margin: 0; }
+.shell:global(.judge-mode) :global(.judge-quick-choice button) { min-height: 82px; padding: 12px 14px; border-radius: 11px; background: #ffffff09; }
+.shell:global(.judge-mode) :global(.judge-quick-choice b) { font-size: 13px; line-height: 1.4; }
+.shell:global(.judge-mode) :global(.desktop-journey .judge-quick-choice small) { font-size: 12px; color: #d4c9df; }
+.shell:global(.judge-mode) :global(.judge-quick-choice .up.selected) { border-color: #34d399; background: linear-gradient(135deg,#065f468c,#064e3b3d); }
+.shell:global(.judge-mode) :global(.judge-quick-choice .down.selected) { border-color: #fb7185; background: linear-gradient(135deg,#9f12397a,#4c05193d); }
+.shell:global(.judge-mode) :global(.desktop-journey .judge-lock-commit) { min-height: 0; padding: 0; margin: 0; border: 0; background: none; }
+.shell:global(.judge-mode) :global(.judge-lock-commit > span) { color: #b4a4c2; font-size: 9px; }
+.shell:global(.judge-mode) :global(.judge-lock-commit > strong) { margin-top: 5px; font-size: 15px; }
+.shell:global(.judge-mode) :global(.judge-lock-commit .judge-action) {
+  min-height: 52px;
+  margin-top: 12px;
+  border: 1px solid #a855f7;
+  border-radius: 12px;
+  background: linear-gradient(110deg,#7c3aed,#a21caf);
+  box-shadow: none;
+  font-size: 12px;
+  font-weight: 850;
+}
+.shell:global(.judge-mode) :global(.desktop-journey .judge-lock-commit > small) { margin-top: 12px; color: #b3a3c2; font-size: 11px; line-height: 1.5; }
+.shell:global(.judge-mode) :global(.judge-setup-progress) { margin: 0; gap: 6px; }
+.shell:global(.judge-mode) .top :global(.judge-setup-progress) { margin-bottom: 18px; }
+.shell:global(.judge-mode) :global(.judge-setup-progress > span) { border-radius: 10px; min-height: 38px; font-size: 9px; letter-spacing: 0; }
+.shell:global(.judge-mode) :global(.judge-setup-progress b) { background: transparent; box-shadow: none; }
+.shell:global(.judge-mode.phase-judge_setup) :global(.human-proof-summary) { margin: 0; padding: 12px 0 0; border-top: 1px solid #493652; background: none; }
+.shell:global(.judge-mode.phase-judge_setup) :global(.human-proof-summary p) { min-height: 0; padding: 8px 4px; border: 0; border-radius: 0; background: none; }
+.shell:global(.judge-mode.phase-judge_setup) :global(.human-proof-summary > span) { font-size: 9px; }
+.shell:global(.judge-mode) :global(.judge-replay-banner),
+.shell:global(.judge-mode) :global(.judge-lock-receipt),
+.shell:global(.judge-mode) :global(.dungeon-log) { border-color: #493652; border-radius: 14px; background: #16121b; box-shadow: none; }
+.shell:global(.judge-mode) :global(.judge-replay-steps span) { border-radius: 10px; }
+.shell:global(.judge-mode) :global(.dungeon-log-entries) { max-height: 180px; }
+.shell:global(.judge-mode) :global(.dungeon-log-entries p) { color: #b7aabc; font-size: 12px; line-height: 1.5; }
+.shell:global(.judge-mode) :global(.judge-result-view) { background: none; }
+.shell:global(.judge-mode) :global(.result-hero),
+.shell:global(.judge-mode) :global(.result-hero-grid > .run-share-panel) { border-radius: 20px; background: linear-gradient(150deg,#271631e8,#141018); box-shadow: none; }
+.shell:global(.judge-mode) :global(.result-hero) { border-color: #34d399; }
+.shell:global(.judge-mode.phase-dead) :global(.result-hero) { border-color: #fb7185; }
+.resultSummary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin: 18px 0;
+  text-align: left;
+}
+.resultSummary > div {
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid #65506c;
+  border-radius: 11px;
+  background: #100c17;
+}
+.resultSummary span { display: block; color: #c4b6cf; font-size: 9px; font-weight: 850; letter-spacing: .05em; }
+.resultSummary strong { display: block; margin-top: 7px; color: #fff; font-size: 14px; line-height: 1.35; }
+.resultSummary small { display: block; margin-top: 6px; color: #bfb2ca; font-size: 11px; line-height: 1.45; }
+.resultSummary[data-outcome='BLESSED'] > div:last-child { border-color: #34d399; background: #064e3b38; }
+.resultSummary[data-outcome='BLESSED'] > div:last-child strong { color: #6ee7b7; }
+.resultSummary[data-outcome='CURSED'] > div:last-child { border-color: #fb7185; background: #88133738; }
+.resultSummary[data-outcome='CURSED'] > div:last-child strong { color: #fda4af; }
+.resultSummary[data-outcome='VOID'] > div:last-child { border-color: #fbbf24; background: #78350f38; }
+.resultSummary[data-outcome='VOID'] > div:last-child strong { color: #fcd34d; }
+.shell:global(.judge-mode) :global(.action-dock-terminal) { max-width: 520px; margin: 14px auto 0; }
+.shell:global(.judge-mode) :global(.action-dock-terminal .primary-action) { min-height: 52px; border-color: #665271; border-radius: 12px; background: #251e2c; color: #fafafa; font-size: 12px; }
+.shell:global(.judge-mode) :global(.action-dock-terminal .new-run-action small) { font-size: 11px; }
+.shell:global(.judge-mode) :global(.game-column > footer) { margin-top: 28px; }
+.shell:global(.judge-mode) :global(.game-column > footer nav a) { color: #bca6cd; font-size: 10px; }
+.shell:global(.judge-mode.in-expedition) .top { position: sticky; top: 0; z-index: 30; padding-top: 8px; background: #100b17f2; backdrop-filter: blur(12px); }
+.shell:global(.judge-mode.mobile-combat-active) :global(.mobile-battle-root) { scroll-margin-top: 128px; }
+@media (min-width: 801px) {
+  .shell:global(.game-shell.judge-mode):is(:global(.phase-victory), :global(.phase-dead)) { padding-bottom: 40px; }
+  .shell:global(.judge-mode):is(:global(.phase-victory), :global(.phase-dead)) :global(.game-column > footer) { margin-top: 20px; }
+  .shell:global(.game-shell.judge-mode.mobile-combat-active) :global(.game-column),
+  .shell:global(.judge-mode.mobile-combat-active) .top { max-width: 1760px; }
+  .shell:global(.judge-mode) :global(.desktop-journey) { grid-template-columns: minmax(0,1.2fr) minmax(0,1fr); }
+  .shell:global(.judge-mode) :global(.desktop-journey .judge-result-view:has(.run-share-panel)) { grid-template-columns: minmax(0,1.1fr) minmax(0,1fr); }
+  .shell:global(.judge-mode) :global(.result-hero-grid > .run-share-panel) { grid-row: 1 / span 2; padding: 24px; }
+  .shell:global(.judge-mode) :global(.judge-result-evidence > .dreamdex-continue) { grid-column: 2; grid-row: 3; }
+  .shell:global(.judge-mode) :global(.judge-result-evidence > .portable-proof-panel) { grid-column: 1; grid-row: 2 / span 2; }
+}
+@media (min-width: 801px) and (max-width: 1000px) {
+  .shell:global(.judge-mode) :global(.desktop-journey) { grid-template-columns: 1fr 1fr; gap: 16px; }
+  .shell:global(.judge-mode.phase-judge_setup) :global(.desktop-journey-art) { min-height: 470px; }
+  .shell:global(.judge-mode) :global(.desktop-journey .judge-first-lock) { padding: 22px; }
+}
+@media (max-width: 800px) {
+  .shell:global(.game-shell.judge-mode) { padding: 14px 12px 72px; }
+  .header { padding: 0 0 14px; gap: 12px; }
+  .eyebrow { font-size: 9px; line-height: 1.5; }
+  .subtitle { font-size: 10px; }
+  .shell:global(.judge-mode) :global(.desktop-journey) { display: flex; flex-direction: column; gap: 12px; }
+  .shell:global(.judge-mode) :global(.desktop-journey > *) { width: 100%; }
+  .shell:global(.judge-mode) :global(.desktop-journey-details) { display: flex; flex-direction: column; gap: 12px; }
+  .shell:global(.judge-mode.phase-judge_setup) :global(.desktop-journey-art) { min-height: 0; height: auto; aspect-ratio: 16/5; border-radius: 14px; }
+  .artCaption { bottom: 12px; left: 16px; right: 16px; }
+  .artCaption strong { font-size: 20px; }
+  .artCaption strong br { display: none; }
+  .artCaption span { display: none; }
+  .shell:global(.judge-mode) :global(.desktop-journey .judge-first-lock) { padding: 18px; gap: 12px; }
+  .shell:global(.judge-mode) :global(.desktop-journey .judge-lock-intro h2) { font-size: 27px; margin: 8px 0; }
+  .shell:global(.judge-mode) :global(.judge-lock-intro > span) { font-size: 9px; }
+  .shell:global(.judge-mode) :global(.judge-lock-intro > small) { font-size: 13px; }
+  .shell:global(.judge-mode) :global(.judge-lock-context) { padding: 12px; margin-top: 14px; }
+  .shell:global(.judge-mode) :global(.judge-lock-context strong) { font-size: 16px; }
+  .shell:global(.judge-mode) :global(.desktop-journey .judge-lock-context small) { font-size: 11px; }
+  .shell:global(.judge-mode) :global(.judge-quick-choice button) { min-height: 72px; padding: 12px 10px; }
+  .shell:global(.judge-mode) :global(.judge-quick-choice b) { font-size: 11px; }
+  .shell:global(.judge-mode) :global(.judge-setup-progress > span) { font-size: 8px; gap: 2px; }
+  .shell:global(.judge-mode) :global(.judge-setup-progress b) { width: 12px; }
+  .shell:global(.judge-mode.mobile-combat-active) { padding: 0 0 52px; }
+  .shell:global(.judge-mode.mobile-combat-active) .top { padding: 8px 12px 0; }
+  .shell:global(.judge-mode.mobile-combat-active) :global(.game-column) { max-width: 560px; }
+  .shell:global(.judge-mode.mobile-combat-active) :global(.mobile-battle-root) { height: auto; min-height: 0; }
+  .shell:global(.judge-mode) :global(.judge-result-view) { padding: 0; }
+  .shell:global(.judge-mode) :global(.result-hero),
+  .shell:global(.judge-mode) :global(.result-hero-grid > .run-share-panel) { padding: 18px; }
+  .resultSummary { gap: 6px; margin: 16px 0; }
+  .resultSummary > div { padding: 10px 8px; }
+  .resultSummary span { font-size: 8px; letter-spacing: 0; }
+  .resultSummary strong { font-size: 12px; }
+  .resultSummary small { font-size: 10px; }
+}
+@media (max-width: 800px) and (max-height: 720px) {
+  .shell:global(.judge-mode.mobile-combat-active) :global(.mobile-battle-root) { gap: 4px; }
+  .shell:global(.judge-mode.mobile-combat-active) :global([aria-label="Open dungeon log"]) { min-height: 48px; padding-top: 5px; padding-bottom: 5px; }
+  /* The full entry remains in Read more; its preview must leave room for
+     the monster caption and first-fight explanation beside the new tabs. */
+  .shell:global(.judge-mode.mobile-combat-active) :global([aria-label="Open dungeon log"] p) { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
+}
+@media (max-width: 800px) and (max-height: 650px) {
+  .shell:global(.judge-mode.mobile-combat-active) :global([aria-label="First fight guide"]) { display: none; }
+}
+@media (min-width: 801px) and (max-height: 800px) {
+  .shell:global(.judge-mode.mobile-combat-active) :global(.mobile-battle-root) { row-gap: 6px; padding-top: 6px; padding-bottom: 6px; }
+  /* The sound control sits beside navigation, so the inventory can use the
+     full header column instead of wrapping around an empty reserved corner. */
+  .shell:global(.judge-mode.mobile-combat-active) :global(.mobile-battle-root > div:first-child),
+  .shell:global(.judge-mode.in-expedition) :global(.desktop-stage-header > div) { padding-bottom: 6px; }
+  .shell:global(.judge-mode.mobile-combat-active) :global(.mobile-battle-root header > small),
+  .shell:global(.judge-mode.in-expedition) :global(.desktop-stage-header header > small) { padding-right: 0; line-height: 1.35; }
+  .shell:global(.judge-mode.mobile-combat-active) :global([aria-label="First fight guide"]) { margin-bottom: 4px; padding-top: 5px; padding-bottom: 5px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .shell:global(.judge-mode) :global(.judge-quick-choice button) { transition: none; }
+  .shell:global(.judge-mode) :global(.judge-quick-choice button:hover) { transform: none; }
+}

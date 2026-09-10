@@ -58,6 +58,13 @@ const ED25519_PKCS8_SEED_PREFIX = Buffer.from('302e020100300506032b657004220420'
 const ED25519_SPKI_PREFIX = Buffer.from('302a300506032b6570032100', 'hex');
 const ATTESTATION_KDF_SALT = Buffer.from('market-dungeon/judge-lock-attestation/hkdf-sha256/v1', 'utf8');
 
+export class ReplayConfigurationError extends Error {
+  constructor() {
+    super('Judge Replay sealing is not configured');
+    this.name = 'ReplayConfigurationError';
+  }
+}
+
 function replayEnvironment() {
   return process.env.VERCEL_ENV ?? (process.env.NODE_ENV === 'production' ? 'production' : 'development');
 }
@@ -65,9 +72,14 @@ function replayEnvironment() {
 function replayKey() {
   const encoded = process.env.JUDGE_REPLAY_SEAL_KEY;
   if (!encoded || !/^[0-9a-fA-F]{64}$/.test(encoded)) {
-    throw new Error('Judge Replay sealing is not configured');
+    throw new ReplayConfigurationError();
   }
   return Buffer.from(encoded, 'hex');
+}
+
+/** Validate server setup before discovery, without returning or logging key material. */
+export function assertReplaySealingConfigured() {
+  replayKey();
 }
 
 function aad(environment: string, profile: JudgeNetworkProfile) {

@@ -56,10 +56,10 @@ function encodePng(canvas: HTMLCanvasElement) {
   });
 }
 
-export async function renderRunCardPng(input: RunShareCardInput) {
+export async function renderRunCardPng(input: RunShareCardInput, challengeUrl?: string) {
   const [artwork, overlay] = await Promise.all([
     loadImage(runShareCardArtworkPath(input)),
-    loadImage(runShareCardDataUrl(input)),
+    loadImage(runShareCardDataUrl(input, challengeUrl)),
   ]);
 
   const canvas = document.createElement('canvas');
