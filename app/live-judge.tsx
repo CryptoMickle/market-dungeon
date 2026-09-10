@@ -17,6 +17,7 @@ import { MobileBattle, PlayerHeader } from './mobile-battle';
 import { LiveJudgeProofDetails } from './live-judge-proof-details';
 import { LiveMarketOdds } from './live-market-odds';
 import { OmenGuide } from './omen-guide';
+import { RecoverySupplies } from './recovery-supplies';
 import { useLiveJudgeOdds } from './use-live-judge-odds';
 import { RunSharePanel } from './run-share-panel';
 import { isChallengeEntry, liveJudgeChallengeUrl, type RunShareCardInput } from './share-run-card';
@@ -125,10 +126,7 @@ export default function LiveJudge() {
   } : null;
   const summary = <LoadoutSummary gold={gold} weapon={4} armor={1} potions={`${combat.potions}/5`} />;
   const gear = <p>Weapon 4 · Armor 1. Attack deals 15–19 damage with a 15% critical chance. Storm rolls 0–32. A potion heals 25 HP; enemies retaliate during combat.</p>;
-  const recoverySupplies = <section className={styles.recoverySupplies} aria-label="Recovery supplies">
-    <div><span>YOUR HP</span><strong>❤️ {shownHp}/100</strong></div>
-    <div><span>POTIONS</span><strong>🧪 {combat.potions}/5</strong></div>
-  </section>;
+  const recoverySupplies = <RecoverySupplies hp={shownHp} maxHp={100} potions={combat.potions} />;
 
   useEffect(() => {
     mounted.current = true;

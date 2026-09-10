@@ -12,6 +12,7 @@ import { GameText, GoldIcon as Gold, LoadoutSummary } from './game-icons';
 import { dreamDexBtcEventContractUrl } from './dreamdex-link';
 import { LiveMarketOdds } from './live-market-odds';
 import { OmenGuide } from './omen-guide';
+import { RecoverySupplies } from './recovery-supplies';
 import type { DreamDexClobOdds } from './clob-odds';
 import { ACTIVE_MARKET_POLL_INTERVAL_MS } from './event-contract-interval';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
@@ -570,7 +571,10 @@ export default function FullExpedition() {
                 {!run.rematchRequired && <OmenGuide mode="expedition" />}
                 <button className={styles.primary} onClick={lockActiveOmen} disabled={busy || !marketCandidate || candidateRemaining <= 0}>{run.rematchRequired ? `LOCK BTC ${direction} · REMATCH BOSS` : `LOCK BTC ${direction} · ENTER TIER ${tier}`}</button>
                 <small className={styles.disclosure}>Active dreamDEX BTC 5m market · local direction lock · direct Somnia settlement proof · no wallet, order or transaction</small>
-                {run.rematchRequired && <button className={`${styles.secondary} ${styles.recoveryPotion}`} onClick={() => gameplay({ type: 'use-potion' })} disabled={busy || game.potions === 0 || game.hp >= game.maxHp}>🧪 USE POTION · {game.potions}/5 · {game.potions === 0 ? 'EMPTY' : game.hp >= game.maxHp ? 'FULL HP' : '+25 HP · NO RETALIATION'}</button>}
+                {run.rematchRequired && <>
+                  <RecoverySupplies hp={game.hp} maxHp={game.maxHp} potions={game.potions} />
+                  <button className={`${styles.secondary} ${styles.recoveryPotion}`} onClick={() => gameplay({ type: 'use-potion' })} disabled={busy || game.potions === 0 || game.hp >= game.maxHp}>🧪 USE POTION · {game.potions}/5 · {game.potions === 0 ? 'EMPTY' : game.hp >= game.maxHp ? 'FULL HP' : `+${Math.min(25, game.maxHp - game.hp)} HP · NO RETALIATION`}</button>
+                </>}
                 {game.monsterHp === 0 && !run.rematchRequired && <RelicLoadout game={game} onEquip={(relicId) => gameplay({ type: 'equip-relic', relicId })} />}
               </section>
             ) : run.phase === 'settlement-pending' ? (
@@ -580,7 +584,8 @@ export default function FullExpedition() {
                 <span>{marketRemaining > 0 ? 'Combat finished before the five-minute market. You wait only for the remaining interval.' : 'The five-minute interval has ended, but finalization may take longer. A result is applied only after independent Somnia verification.'}</span>
                 {awaitingSettlementMarketId === session?.market?.marketId && <p role="status">The latest check returned no finalized result. Your defeated boss and locked omen are safe. Wait briefly, then try Reveal Boss Fate again.</p>}
                 <div className={styles.commitment}><span>LOCKED OMEN</span><b>BTC {run.currentAttempt?.direction} · {session?.market ? formatUsd(session.market.strikeUsd) : '—'}</b><details><summary>Market reference</summary><code>{run.currentAttempt?.marketId}</code></details></div>
-                <button className={`${styles.secondary} ${styles.recoveryPotion}`} onClick={() => gameplay({ type: 'use-potion' })} disabled={busy || game.potions === 0 || game.hp >= game.maxHp}>🧪 USE POTION · {game.potions}/5 · {game.potions === 0 ? 'EMPTY' : game.hp >= game.maxHp ? 'FULL HP' : '+25 HP · NO RETALIATION'}</button>
+                <RecoverySupplies hp={game.hp} maxHp={game.maxHp} potions={game.potions} />
+                <button className={`${styles.secondary} ${styles.recoveryPotion}`} onClick={() => gameplay({ type: 'use-potion' })} disabled={busy || game.potions === 0 || game.hp >= game.maxHp}>🧪 USE POTION · {game.potions}/5 · {game.potions === 0 ? 'EMPTY' : game.hp >= game.maxHp ? 'FULL HP' : `+${Math.min(25, game.maxHp - game.hp)} HP · NO RETALIATION`}</button>
                 <button className={styles.primary} onClick={() => void revealBossFate()} disabled={busy || marketRemaining > 0}>{busy ? 'VERIFYING ON SOMNIA…' : marketRemaining > 0 ? `REVEAL IN ${formatTime(marketRemaining)}` : 'REVEAL BOSS FATE'}</button>
               </section>
             ) : run.phase === 'boss-reward' ? (
@@ -620,10 +625,7 @@ export default function FullExpedition() {
                     </div>}
                     <blockquote>{game.log.find((entry) => entry.startsWith('☠️'))?.replace(/^☠️ /, '')}</blockquote>
                     {merchant && <Merchant game={game} onBuy={(item) => gameplay({ type: 'buy', item })} />}
-                    {!merchant && <section className={styles.recoveryStatus} aria-label="Recovery status">
-                      <span>HEALTH <b>❤️ {game.hp}/{game.maxHp}</b></span>
-                      <span>POTIONS <b>🧪 {game.potions}/5</b></span>
-                    </section>}
+                    {!merchant && <RecoverySupplies hp={game.hp} maxHp={game.maxHp} potions={game.potions} />}
                     <button className={`${styles.secondary} ${styles.recoveryPotion}`} onClick={() => gameplay({ type: 'use-potion' })} disabled={game.potions === 0 || game.hp >= game.maxHp}>USE OWN POTION SAFELY · {game.potions}/5</button>
                     <RelicLoadout game={game} onEquip={(relicId) => gameplay({ type: 'equip-relic', relicId })} />
                     <button className={styles.primary} onClick={() => gameplay({ type: 'enter-next-room' })}>ENTER ROOM {game.roomsCleared + 1}</button>

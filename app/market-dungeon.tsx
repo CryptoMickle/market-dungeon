@@ -4,6 +4,7 @@ import Image from 'next/image';
 import { GameLogo } from './game-logo';
 import { GameModeNav } from './game-mode-nav';
 import { OmenGuide } from './omen-guide';
+import { RecoverySupplies } from './recovery-supplies';
 import replayStyles from './historical-judge.module.css';
 import { useGameAudio } from './game-audio';
 import { BossOutcomeScene } from './boss-outcome-scene';
@@ -1960,11 +1961,9 @@ function LegacyMarketDungeon({
         </section>
 
         {phase !== 'JUDGE_SETUP' && <section className={`action-dock action-dock-${phase.toLowerCase()} ${['VICTORY', 'DEAD'].includes(phase) ? 'action-dock-terminal' : ''}`}>
-          {judgeMode && ['CLEARED', 'MERCHANT', 'FINAL_MERCHANT'].includes(phase) && <section className="judge-recovery-supplies" aria-label="Recovery supplies">
-            <div><span>YOUR HP</span><strong>❤️ {hp}/100</strong></div>
-            <div><span>POTIONS</span><strong>🧪 {potions}/{MAX_POTIONS}</strong></div>
+          {judgeMode && ['CLEARED', 'MERCHANT', 'FINAL_MERCHANT', 'ORACLE'].includes(phase) && <RecoverySupplies hp={hp} maxHp={100} potions={potions} maxPotions={MAX_POTIONS}>
             {phase === 'MERCHANT' && <><div><span>GOLD</span><strong><GoldIcon /> {gold}</strong></div><div><span>GEAR</span><strong>⚔️ {weapon} · 🛡️ {armor}</strong></div></>}
-          </section>}
+          </RecoverySupplies>}
           {phase === 'SETUP' ? (
             <div className="judge-entry">
               <div className="desktop-omen-picker" aria-label="Choose BTC direction">
