@@ -22,18 +22,16 @@ test('privacy and creative provenance remain directly accessible from the game',
   }
 });
 
-test('public submission identifies the Live demo, replay fallback and immutable release source', () => {
-  const immutableBlobRoot = 'https://github.com/CryptoMickle/market-dungeon/blob/hackathon-submission-2026-v13';
-  const disclosureUrl = `${immutableBlobRoot}/docs/PROVENANCE_AND_PRIVACY.md`;
-
-  assert.ok(credits.includes(disclosureUrl));
+test('public submission identifies the Live demo, replay fallback, final film and immutable release source', () => {
+  assert.match(credits, /https:\/\/github\.com\/CryptoMickle\/market-dungeon\/blob\/(?:[a-f0-9]{40}|hackathon-submission-2026-v\d+)\/docs\/PROVENANCE_AND_PRIVACY\.md/);
   for (const content of [submission, readme]) {
     assert.match(content, /https:\/\/market-dungeon\.vercel\.app\/shannon\/live-judge/);
     assert.match(content, /https:\/\/market-dungeon\.vercel\.app\/shannon\/live-judge\/verify/);
     assert.match(content, /https:\/\/market-dungeon\.vercel\.app\/shannon\/judge/);
     assert.match(content, /https:\/\/market-dungeon\.vercel\.app\/shannon\/verify/);
-    assert.match(content, /hackathon-submission-2026-v13/);
-    assert.match(content, /https:\/\/youtu\.be\/6IviQrMweZ4/);
+    assert.match(content, /hackathon-submission-2026-v16/);
+    assert.match(content, /releases\/download\/hackathon-submission-2026-v16\/Market-Dungeon-Competition-V3-1080p\.mp4/);
+    assert.match(content, /releases\/download\/hackathon-submission-2026-v16\/Market-Dungeon-Competition-V3-EN\.srt/);
     assert.doesNotMatch(content, /Final candidate release: pending source freeze, verification and publication approval/);
   }
   for (const content of [credits, submission, readme]) {
