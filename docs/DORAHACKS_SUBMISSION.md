@@ -1,10 +1,12 @@
-# Market Dungeon — DoraHacks submission copy
+# Market Dungeon — published DoraHacks description
 
-Updated 11 September 2026. [Live Judge Demo](https://market-dungeon.vercel.app/shannon/live-judge) · [Source](https://github.com/CryptoMickle/market-dungeon) · [v16 release](https://github.com/CryptoMickle/market-dungeon/releases/tag/hackathon-submission-2026-v16) · [Download the 2:08 demo (1080p)](https://github.com/CryptoMickle/market-dungeon/releases/download/hackathon-submission-2026-v16/Market-Dungeon-Competition-V3-1080p.mp4)
-
-## One-line pitch
+Published and checked on 11 September 2026 at [BUIDL 48083](https://dorahacks.io/buidl/48083). The body below matches the published description; its video embed appears here as a linked thumbnail.
 
 **Defeat the boss. Predict the market. Survive both.**
+
+[PLAY THE LIVE 1-MINUTE JUDGE DEMO](https://market-dungeon.vercel.app/shannon/live-judge) · [WATCH THE 2:08 FILM](https://youtu.be/kkFKUrC-fYk) · [FULL EXPEDITION](https://market-dungeon.vercel.app)
+
+[![Watch the 2:08 Market Dungeon film](https://github.com/CryptoMickle/market-dungeon/releases/download/hackathon-submission-2026-v16/Market-Dungeon-YouTube-Thumbnail.png)](https://youtu.be/kkFKUrC-fYk)
 
 A fantasy roguelite where a real dreamDEX Event Contract decides whether the boss you defeated stays down.
 
@@ -39,7 +41,7 @@ Built with Next.js and the official `@somnia-chain/markets-sdk`, Market Dungeon 
 
 The Live Judge server signs the exact market, direction, combat seed and stated lock time. A pre-expiry snapshot binds the active, unresolved market to its oracle target. The server and separate browser verifier reproduce the combat transcript and verify `BinaryModule.markets(marketId)` and `BinarySettlement.getSettlement(marketKey)` at one canonical block hash using EIP-1898. The result comes from the verified payout. Pending or contradictory evidence cannot award a verified outcome.
 
-The lock is server-attested, not an onchain player transaction or independent timestamp. A valid combat transcript does not prove human play. Full Expedition checks settlement independently, while honestly treating its direction lock and combat as local gameplay. See the [integration report](https://github.com/CryptoMickle/market-dungeon/blob/fa19f618495cbaee7372b7b353cd6209314e35c8/docs/DREAMDEX_INTEGRATION_REPORT.md) and [evidence pack](https://github.com/CryptoMickle/market-dungeon/blob/fa19f618495cbaee7372b7b353cd6209314e35c8/docs/JUDGE_EVIDENCE_PACK.md).
+The lock is server-attested, not an onchain player transaction or independent timestamp. A valid combat transcript does not prove human play. Full Expedition checks settlement independently, while honestly treating its direction lock and combat as local gameplay. See the [integration report](https://github.com/CryptoMickle/market-dungeon/blob/869ed1f6753cfd3fd53cac21e472cccb712e2cc4/docs/DREAMDEX_INTEGRATION_REPORT.md) and [evidence pack](https://github.com/CryptoMickle/market-dungeon/blob/869ed1f6753cfd3fd53cac21e472cccb712e2cc4/docs/JUDGE_EVIDENCE_PACK.md).
 
 ## Why this helps dreamDEX
 
@@ -54,6 +56,6 @@ The build claims no trading volume, verified referral conversion, partnership or
 - [Live Judge Demo](https://market-dungeon.vercel.app/shannon/live-judge) · [Independent verifier](https://market-dungeon.vercel.app/shannon/live-judge/verify)
 - [Full Expedition](https://market-dungeon.vercel.app) · [Historical Replay](https://market-dungeon.vercel.app/shannon/judge) · [Historical verifier](https://market-dungeon.vercel.app/shannon/verify)
 - [Source repository](https://github.com/CryptoMickle/market-dungeon) · [v16 release and checks](https://github.com/CryptoMickle/market-dungeon/releases/tag/hackathon-submission-2026-v16)
-- [Download the 2:08 demo (1080p)](https://github.com/CryptoMickle/market-dungeon/releases/download/hackathon-submission-2026-v16/Market-Dungeon-Competition-V3-1080p.mp4) · [English captions (SRT)](https://github.com/CryptoMickle/market-dungeon/releases/download/hackathon-submission-2026-v16/Market-Dungeon-Competition-V3-EN.srt) · [Transcript](https://github.com/CryptoMickle/market-dungeon/releases/download/hackathon-submission-2026-v16/Market-Dungeon-Competition-V3-Transcript-EN.txt)
-- [dreamDEX integration](https://github.com/CryptoMickle/market-dungeon/blob/fa19f618495cbaee7372b7b353cd6209314e35c8/docs/DREAMDEX_INTEGRATION_REPORT.md) · [Evidence and limits](https://github.com/CryptoMickle/market-dungeon/blob/fa19f618495cbaee7372b7b353cd6209314e35c8/docs/JUDGE_EVIDENCE_PACK.md)
+- [Watch on YouTube](https://youtu.be/kkFKUrC-fYk) · [Download the 2:08 demo (1080p)](https://github.com/CryptoMickle/market-dungeon/releases/download/hackathon-submission-2026-v16/Market-Dungeon-Competition-V3-1080p.mp4) · [English captions (SRT)](https://github.com/CryptoMickle/market-dungeon/releases/download/hackathon-submission-2026-v16/Market-Dungeon-Competition-V3-EN.srt) · [Transcript](https://github.com/CryptoMickle/market-dungeon/releases/download/hackathon-submission-2026-v16/Market-Dungeon-Competition-V3-Transcript-EN.txt)
+- [dreamDEX integration](https://github.com/CryptoMickle/market-dungeon/blob/869ed1f6753cfd3fd53cac21e472cccb712e2cc4/docs/DREAMDEX_INTEGRATION_REPORT.md) · [Evidence and limits](https://github.com/CryptoMickle/market-dungeon/blob/869ed1f6753cfd3fd53cac21e472cccb712e2cc4/docs/JUDGE_EVIDENCE_PACK.md)
 - [Privacy, credits and AI disclosure](https://market-dungeon.vercel.app/credits)

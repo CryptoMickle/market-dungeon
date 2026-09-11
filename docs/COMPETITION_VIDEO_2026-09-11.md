@@ -14,14 +14,16 @@ The **Continue on dreamDEX** destination is explicitly a separate five-minute ma
 
 ## Publication
 
-Published as assets of the existing v16 GitHub release:
+[Watch the 2:08 demo on YouTube](https://youtu.be/kkFKUrC-fYk), publicly available in 1080p with English closed captions. Public playback, 1080p quality and the CC switch were checked after publication. The caption track uses the supplied English transcript through YouTube Auto-sync.
+
+The original files remain available as assets of the existing v16 GitHub release:
 
 - [Download the 2:08 demo (1080p)](https://github.com/CryptoMickle/market-dungeon/releases/download/hackathon-submission-2026-v16/Market-Dungeon-Competition-V3-1080p.mp4)
 - [English captions (SRT)](https://github.com/CryptoMickle/market-dungeon/releases/download/hackathon-submission-2026-v16/Market-Dungeon-Competition-V3-EN.srt)
 - [English transcript](https://github.com/CryptoMickle/market-dungeon/releases/download/hackathon-submission-2026-v16/Market-Dungeon-Competition-V3-Transcript-EN.txt)
 - [Video thumbnail](https://github.com/CryptoMickle/market-dungeon/releases/download/hackathon-submission-2026-v16/Market-Dungeon-YouTube-Thumbnail.png)
 
-The uploaded assets were checked against the local files by SHA-256. YouTube upload, its caption track and the DoraHacks video-field update remain pending. The [older 1:52 YouTube video](https://youtu.be/6IviQrMweZ4) remains a historical baseline.
+The GitHub assets were checked against the local files by SHA-256. [DoraHacks BUIDL 48083](https://dorahacks.io/buidl/48083) now uses the same YouTube film in its demo-video field and published description; both were checked after saving and reloading. The [older 1:52 YouTube video](https://youtu.be/6IviQrMweZ4) remains a historical baseline.
 
 The current software release is [v16](https://github.com/CryptoMickle/market-dungeon/releases/tag/hackathon-submission-2026-v16). Adding video materials does not change that release’s source identity or count as new software validation.
 
