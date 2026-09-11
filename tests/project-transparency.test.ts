@@ -30,8 +30,8 @@ test('public submission identifies the Live demo, replay fallback, final film an
     assert.match(content, /https:\/\/market-dungeon\.vercel\.app\/shannon\/judge/);
     assert.match(content, /https:\/\/market-dungeon\.vercel\.app\/shannon\/verify/);
     assert.match(content, /hackathon-submission-2026-v16/);
-    assert.match(content, /releases\/download\/hackathon-submission-2026-v16\/Market-Dungeon-Competition-V3-1080p\.mp4/);
-    assert.match(content, /releases\/download\/hackathon-submission-2026-v16\/Market-Dungeon-Competition-V3-EN\.srt/);
+    assert.match(content, /releases\/download\/hackathon-submission-2026-v16\/Market-Dungeon-Competition-V3-1-1080p\.mp4/);
+    assert.match(content, /releases\/download\/hackathon-submission-2026-v16\/Market-Dungeon-Competition-V3-1-EN\.srt/);
     assert.doesNotMatch(content, /Final candidate release: pending source freeze, verification and publication approval/);
   }
   for (const content of [credits, submission, readme]) {
