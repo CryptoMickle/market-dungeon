@@ -210,6 +210,7 @@
 .journeyArt { display: none; }
 .journeyImage { position: absolute; z-index: 0; inset: 0; }
 .stageHeader, .stagePlayer, .relicComparison { display: none; }
+.stageHeader > :global([aria-label^="Room progress:"]) { margin: 12px auto 0; }
 .stagePlayer { display: block; margin-bottom: 10px; }
 @media (max-width: 800px) {
   .shell.activeExpedition:not(.mobileCombatActive) { padding: max(8px,env(safe-area-inset-top)) 10px 54px; }

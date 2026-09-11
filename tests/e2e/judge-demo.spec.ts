@@ -590,7 +590,7 @@ test('mobile Full Expedition starts cleanly and restores exact combat state afte
 
   await page.goto('/');
   await page.getByRole('button', { name: 'ENTER THE DUNGEON' }).click();
-  await expect(page.getByRole('region', { name: 'Tier progress' })).toBeVisible();
+  await expect(page.getByRole('list', { name: 'Room progress: tier 1, room 1 of 10', exact: true })).toBeVisible();
   await expect(page.getByRole('region', { name: 'Player status', exact: true })).toContainText('T1 · ROOM 1/40');
   await expect(page.getByText('$60,000.00')).toBeVisible();
   await expect(page.getByText(/Grave Belle|Gary|Thud/)).toHaveCount(0);

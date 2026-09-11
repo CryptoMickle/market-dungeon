@@ -48,11 +48,11 @@ export function KevinRivalPanel({ mode, onModeChange, round, playerDirection, ma
   const body = <div className={styles.body}>
     <div className={styles.introduction}>
       <div className={styles.portrait}>
-        <Image src="/characters/merchant-quartermaster-kevin.webp" alt="Quartermaster Kevin, your dungeon shopkeeper and prediction rival" fill sizes="88px" />
+        <Image src="/characters/merchant-quartermaster-kevin.webp" alt="Somnia Agent Kevin, your dungeon shopkeeper and prediction rival" fill sizes="88px" />
       </div>
       <div>
-        <span className={styles.eyebrow}>QUARTERMASTER KEVIN · YOUR RIVAL</span>
-        <h2>Can you outcall the quartermaster?</h2>
+        <span className={styles.eyebrow}>SOMNIA AGENT KEVIN · YOUR RIVAL</span>
+        <h2>Can you beat Kevin’s market call?</h2>
         <p>He sells potions. Apparently, he also has opinions.</p>
       </div>
     </div>

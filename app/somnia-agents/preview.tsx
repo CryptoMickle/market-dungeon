@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
 import type { RivalRound } from '../../lib/somnia-agents/types';
 import { KevinRivalPanel } from './rival-panel';
+import { GameModeNav } from '../game-mode-nav';
 import styles from './rival-panel.module.css';
 
 type Direction = 'UP' | 'DOWN';
@@ -53,17 +54,17 @@ export default function KevinRivalPreview() {
 
   return <main className={styles.playground}>
     <div className={styles.previewShell}>
+      <GameModeNav current="agents" />
       <nav className={styles.previewNav} aria-label="Local prototype navigation">
-        <Link href="/">← Play Full Expedition with Kevin</Link>
-        <Link href="/shannon/live-judge">Judge demo · original game, no rival</Link>
+        <Link href="/somnia-agents">← Play Somnia Agents with Kevin</Link>
       </nav>
       <header className={styles.previewHeader}>
         <span className={styles.eyebrow}>MARKET DUNGEON · LOCAL RIVAL PLAYGROUND</span>
-        <h1>Kevin has a market opinion.<br />Of course he does.</h1>
+        <h1>Somnia Agent Kevin has an opinion.<br />Of course he does.</h1>
         <p>Try the rival experience in seconds. Pick your omen, see Kevin’s random test choice, then choose a pretend market result.</p>
         <div className={`${styles.modeNotice} ${styles.simulationNotice}`} role="note">
           <strong>SIMULATION ONLY · NO REAL MARKET · NO SOMNIA AGENT</strong>
-          <span>Every round on this page is made up. No wallet, payment or blockchain request is involved. Actual market play is in Full Expedition.</span>
+          <span>Every round on this page is made up. No wallet, payment or blockchain request is involved. Play the Somnia Agents mode to compete alongside a real market.</span>
         </div>
       </header>
       <div className={styles.previewGrid}>

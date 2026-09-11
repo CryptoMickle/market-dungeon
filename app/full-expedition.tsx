@@ -7,7 +7,7 @@ import { BossOutcomeScene, type BossSceneOutcome } from './boss-outcome-scene';
 import { DesktopNavigation, KeyboardHint } from './desktop-navigation';
 import { GameModeNav } from './game-mode-nav';
 import Link from 'next/link';
-import { CriticalHitResult, MobileBattle, PlayerHeader, RelicInfo } from './mobile-battle';
+import { CriticalHitResult, MobileBattle, PlayerHeader, RelicInfo, RoomProgress } from './mobile-battle';
 import { GameText, GoldIcon as Gold, LoadoutSummary } from './game-icons';
 import { dreamDexBtcEventContractUrl } from './dreamdex-link';
 import { LiveMarketOdds } from './live-market-odds';
@@ -69,6 +69,7 @@ import {
 import styles from './full-expedition.module.css';
 import { useKevinRival } from './somnia-agents/use-kevin-rival';
 import { KevinRivalPanel } from './somnia-agents/rival-panel';
+import { KevinRivalStatus } from './somnia-agents/rival-status';
 import { compareRival, type RivalOutcome } from '../lib/somnia-agents/types';
 
 const LOOT_ART = [
@@ -233,6 +234,7 @@ export default function FullExpedition({ localAgents = false }: { localAgents?: 
   const tier = Math.min(4, Math.max(1, Math.ceil(Math.max(1, room) / 10)));
   const isBoss = game?.monsterType === 3 && game.monsterMaxHp > 0;
   const merchant = game ? getMerchantVisit(game) : null;
+  const merchantName = localAgents ? 'Somnia Agent Kevin' : 'Quartermaster Kevin';
   const marketRemaining = session?.market ? Math.max(0, session.market.expiry - now) : 0;
   const candidateRemaining = marketCandidate ? Math.max(0, Number(marketCandidate.expiry) - now) : 0;
   const activeRelic = game ? getRelicDefinition(game.equippedRelic) : RELIC_CATALOG[0];
@@ -258,12 +260,13 @@ export default function FullExpedition({ localAgents = false }: { localAgents?: 
   const rivalProps = { mode: rival.mode, onModeChange: rival.setMode, round: rivalRound,
     playerDirection: selectedRivalAttempt?.direction, marketOutcome: rivalOutcome, canConfigure: !run?.currentAttempt };
   const rivalPanel = localAgents && <KevinRivalPanel {...rivalProps} />;
-  const rivalHint = rivalRound?.status === 'locked' ? `Kevin: BTC ${rivalRound.direction} · ${rivalRound.mode === 'simulation' ? 'SIMULATED' : 'SOMNIA AGENT'} · Details`
-    : rivalRound?.status === 'unavailable' ? 'Kevin sits this round out · Details'
-      : rivalRound ? 'Kevin is choosing · Keep fighting · Details' : null;
-  const omenHint = localAgents && rivalHint ? rivalHint : marketRemaining > 0 ? 'You can keep fighting after 00:00.' : 'Market closed. Keep fighting to reach the boss result.';
+  const rivalStatus = localAgents && <KevinRivalStatus {...rivalProps}>
+    {rivalPanel}
+    {run && run.settlements.length > 0 && <RivalScoreboard rounds={rival.rounds} settlements={run.settlements} />}
+  </KevinRivalStatus>;
+  const omenHint = marketRemaining > 0 ? 'You can keep fighting after 00:00.' : 'Market closed. Keep fighting to reach the boss result.';
   const relicSummary = game?.equippedRelic ? <RelicInfo name={activeRelic.name}><p>{activeRelic.effect}</p><p>{activeRelic.tradeoff}</p><RelicReviveStatus game={game} relicId={game.equippedRelic} /><p>Relics can only be changed between fights when the loadout controls are available.</p></RelicInfo> : activeRelic.name;
-  const omenDetails = <>{rivalPanel}<p>LOCKED TIER OMEN · BTC {run?.currentAttempt?.direction}</p><p>Opening reference: {session?.market ? formatUsd(session.market.strikeUsd) : 'Unavailable'}</p><p>{marketRemaining > 0 ? `Market closes in ${formatTime(marketRemaining)}. You can keep fighting after 00:00.` : 'Market closed. Defeat the boss to check the result; settlement can take longer.'}</p><OmenGuide mode="expedition" /><p>Live five-minute dreamDEX Event Contract · Somnia Mainnet.</p></>;
+  const omenDetails = <><p>LOCKED TIER OMEN · BTC {run?.currentAttempt?.direction}</p><p>Opening reference: {session?.market ? formatUsd(session.market.strikeUsd) : 'Unavailable'}</p><p>{marketRemaining > 0 ? `Market closes in ${formatTime(marketRemaining)}. You can keep fighting after 00:00.` : 'Market closed. Defeat the boss to check the result; settlement can take longer.'}</p><OmenGuide mode="expedition" /><p>Live five-minute dreamDEX Event Contract · Somnia Mainnet.</p></>;
   const merchantStage = Boolean(merchant && run?.phase === 'exploring' && game?.monsterHp === 0);
   const closedGate = run?.phase === 'boss-lock-required' && !run.rematchRequired;
   const latestSettlement = run?.settlements.at(-1) ?? null;
@@ -305,7 +308,6 @@ export default function FullExpedition({ localAgents = false }: { localAgents?: 
     window.scrollTo({ top: 0, behavior: 'instant' });
     journeyFocus.current?.focus({ preventScroll: true });
   }, [mobileCombat, run?.phase]);
-  const tierNodes = useMemo(() => [1, 2, 3, 4], []);
 
   useEffect(() => {
     if (!showHome) return;
@@ -486,22 +488,24 @@ export default function FullExpedition({ localAgents = false }: { localAgents?: 
     <main className={`${styles.shell} ${mobileCombat ? styles.mobileCombatActive : ''} ${run && game ? styles.activeExpedition : styles.homeScreen}`}>
       <DesktopNavigation />
       <div className={styles.column}>
-        <div className={styles.modeNavigation}><GameModeNav current="expedition" /></div>
-        {localAgents && !mobileCombat && <aside className={styles.localAgentsBanner}>
-          <b>LOCAL AGENTS EDITION · KEVIN THE RIVAL</b>
-          <Link href="/somnia-agents">TRY THE QUICK RIVAL PLAYGROUND →</Link>
+        <div className={styles.modeNavigation}><GameModeNav current={localAgents ? 'agents' : 'expedition'} /></div>
+        {localAgents && !run && <aside className={styles.localAgentsBanner}>
+          <b>LOCAL AGENTS EDITION · SOMNIA AGENT KEVIN</b>
+          <Link href="/somnia-agents/playground">TRY THE QUICK RIVAL PLAYGROUND →</Link>
         </aside>}
         {mobileCombat && game && run && <MobileBattle
           room={room}
+          roomsCleared={game.roomsCleared}
           onHome={() => setShowHome(true)}
           location={`T${tier} · ROOM ${room}/40`} loadout={{ gold: game.gold, weapon: game.weaponLevel, armor: game.armorLevel, progress: `T${tier} · R${room}` }}
-          mode="FULL EXPEDITION"
+          mode={localAgents ? 'SOMNIA AGENTS' : 'FULL EXPEDITION'}
           desktopSummary={<LoadoutSummary gold={game.gold} weapon={game.weaponLevel} armor={game.armorLevel} relic={relicSummary} potions={`${game.potions}/5`} />}
           hp={game.hp} maxHp={game.maxHp}
           enemy={{ name: persona.name, image: persona.image, hp: game.monsterHp, maxHp: game.monsterMaxHp, incoming: `${incoming[0]}–${incoming[1]}`, flavor: persona.flavor, isBoss }}
           omen={omenSummary ?? 'OMEN NOT LOCKED'}
           omenDetails={omenDetails}
           omenHint={omenHint}
+          rivalStatus={rivalStatus}
           gear={gearDetails}
           log={game.log}
           logPreview={monsterRemark}
@@ -513,7 +517,8 @@ export default function FullExpedition({ localAgents = false }: { localAgents?: 
           onAttack={() => gameplay({ type: 'attack' })} onStorm={() => gameplay({ type: 'storm' })} onPotion={() => gameplay({ type: 'use-potion' })}
         />}
         {run && game && !mobileCombat && <div className={styles.stageHeader}>
-          <PlayerHeader mode="FULL EXPEDITION" onHome={() => setShowHome(true)} summary={<LoadoutSummary gold={game.gold} weapon={game.weaponLevel} armor={game.armorLevel} relic={relicSummary} potions={`${game.potions}/5`} />} hp={game.hp} maxHp={game.maxHp} location={`T${tier} · ROOM ${room}/40`} loadout={{ gold: game.gold, weapon: game.weaponLevel, armor: game.armorLevel, progress: `T${tier} · R${room}` }} potions={game.potions} omen={omenSummary} omenHint={run.currentAttempt ? omenHint : undefined} omenDetails={omenDetails} gear={gearDetails} />
+          <PlayerHeader mode={localAgents ? 'SOMNIA AGENTS' : 'FULL EXPEDITION'} onHome={() => setShowHome(true)} summary={<LoadoutSummary gold={game.gold} weapon={game.weaponLevel} armor={game.armorLevel} relic={relicSummary} potions={`${game.potions}/5`} />} hp={game.hp} maxHp={game.maxHp} location={`T${tier} · ROOM ${room}/40`} loadout={{ gold: game.gold, weapon: game.weaponLevel, armor: game.armorLevel, progress: `T${tier} · R${room}` }} potions={game.potions} omen={omenSummary} omenHint={run.currentAttempt ? omenHint : undefined} omenDetails={omenDetails} gear={gearDetails} rivalStatus={rivalStatus} />
+          <RoomProgress room={room} roomsCleared={game.roomsCleared} />
         </div>}
         <header className={styles.header}>
           <p>DELVEWORN · EVENT CONTRACTS EDITION</p>
@@ -571,19 +576,14 @@ export default function FullExpedition({ localAgents = false }: { localAgents?: 
               {verifiedBossMoment?.outcome === 'CURSED' && verifiedBossStatus}
             </div> : !mobileCombat && <div className={`${styles.journeyArt} ${merchantStage || closedGate ? styles.merchantArt : ''} ${loot && !merchantStage ? styles.lootArt : ''}`} data-loot={loot ? game.lastLootType : undefined} data-crop={!merchantStage && !closedGate && !loot}>
               <div className={styles.journeyImage}>
-                <Image src={closedGate ? '/assets/market-dungeon-closed-gate-v1.png' : merchantStage ? '/characters/merchant-quartermaster-kevin.webp' : loot ? loot.image : persona.image} alt={closedGate ? 'Closed dungeon gate' : merchantStage ? 'Quartermaster Kevin' : loot ? `Loot: ${lootLabel}` : persona.name} fill priority sizes="(max-width: 800px) 1px, 55vw" />
+                <Image src={closedGate ? '/assets/market-dungeon-closed-gate-v1.png' : merchantStage ? '/characters/merchant-quartermaster-kevin.webp' : loot ? loot.image : persona.image} alt={closedGate ? 'Closed dungeon gate' : merchantStage ? merchantName : loot ? `Loot: ${lootLabel}` : persona.name} fill priority sizes="(max-width: 800px) 1px, 55vw" />
               </div>
             </div>}
             <div className={styles.journeyDetails} data-keyboard-actions data-keyboard-vertical={(run.phase === 'exploring' && game.monsterHp === 0) || run.phase === 'boss-reward' ? 'edges' : undefined}>
-            <section className={styles.tiers} aria-label="Tier progress">
-              {tierNodes.map((number) => <div key={number} className={number < tier || run.phase === 'complete' ? styles.done : number === tier ? styles.active : ''}><b>{number < tier || run.phase === 'complete' ? '✓' : number}</b><span>TIER {number}</span></div>)}
-            </section>
 
             {game.monsterHp === 0 && game.lastCritical && <CriticalHitResult damage={game.lastRolledDamage ?? game.lastPlayerDamage} />}
 
             {verifiedBossMoment?.outcome !== 'CURSED' && verifiedBossStatus}
-            {localAgents && run.phase !== 'boss-lock-required' && <KevinRivalPanel {...rivalProps} compact={run.phase === 'exploring' || run.phase === 'boss-combat'} />}
-            {localAgents && run.settlements.length > 0 && <RivalScoreboard rounds={rival.rounds} settlements={run.settlements} />}
 
             {run.phase === 'boss-lock-required' ? (
               <section className={`${styles.panel} ${styles.oraclePanel}`}>
@@ -615,7 +615,6 @@ export default function FullExpedition({ localAgents = false }: { localAgents?: 
                   <button aria-pressed={direction === 'DOWN'} className={direction === 'DOWN' ? styles.downSelected : ''} onClick={() => setDirection('DOWN')}><b>🌑 SHADOWS RISE</b><small>BTC DOWN</small></button>
                 </div>
                 {!run.rematchRequired && <OmenGuide mode="expedition" />}
-                {rivalPanel}
                 <button className={styles.primary} onClick={lockActiveOmen} disabled={busy || !marketCandidate || candidateRemaining <= 0}>{run.rematchRequired ? `LOCK BTC ${direction} · REMATCH BOSS` : `LOCK BTC ${direction} · ENTER TIER ${tier}`}</button>
                 <small className={styles.disclosure}>{localAgents && rival.mode === 'somnia'
                   ? 'The dungeon is free to play. Kevin’s optional Somnia Agent request asks for a testnet STT deposit and a wallet signature. Declining does not stop your expedition.'
@@ -673,7 +672,7 @@ export default function FullExpedition({ localAgents = false }: { localAgents?: 
                       <Image src={loot.image} alt={`Loot: ${lootLabel}`} width={160} height={160} sizes="(max-width: 800px) 64px, 80px" />
                     </div>}
                     <blockquote>{game.log.find((entry) => entry.startsWith('☠️'))?.replace(/^☠️ /, '')}</blockquote>
-                    {merchant && <Merchant game={game} onBuy={(item) => gameplay({ type: 'buy', item })} />}
+                    {merchant && <Merchant game={game} name={merchantName} onBuy={(item) => gameplay({ type: 'buy', item })} />}
                     {!merchant && <RecoverySupplies hp={game.hp} maxHp={game.maxHp} potions={game.potions} />}
                     <button className={`${styles.secondary} ${styles.recoveryPotion}`} onClick={() => gameplay({ type: 'use-potion' })} disabled={game.potions === 0 || game.hp >= game.maxHp}>USE OWN POTION SAFELY · {game.potions}/5</button>
                     <RelicLoadout game={game} onEquip={(relicId) => gameplay({ type: 'equip-relic', relicId })} />
@@ -764,8 +763,9 @@ function RelicLoadout({ game, onEquip }: { game: FullRunSession['run']['game']; 
   </details>;
 }
 
-function Merchant({ game, onBuy }: {
+function Merchant({ game, onBuy, name }: {
   game: NonNullable<FullRunSession['run']['game']>;
+  name: string;
   onBuy: (item: 'supply-bandage' | 'supply-potion' | 'camp-rest' | 'camp-potion' | 'camp-weapon' | 'camp-armor') => void;
 }) {
   const visit = getMerchantVisit(game);
@@ -774,8 +774,8 @@ function Merchant({ game, onBuy }: {
   const camp = campPrices(game);
   return (
     <div className={styles.merchant}>
-      <div><span>{visit === 'camp' ? 'CAMP BEFORE THE BOSS' : 'SUPPLY STOP'}</span><b>Quartermaster Kevin</b><strong><Gold /> {game.gold}</strong></div>
-      <figure className={styles.mobileMerchantArt}><Image src="/characters/merchant-quartermaster-kevin.webp" alt="Quartermaster Kevin" fill sizes="(max-width: 800px) 96px, 1px" /></figure>
+      <div><span>{visit === 'camp' ? 'CAMP BEFORE THE BOSS' : 'SUPPLY STOP'}</span><b>{name}</b><strong><Gold /> {game.gold}</strong></div>
+      <figure className={styles.mobileMerchantArt}><Image src="/characters/merchant-quartermaster-kevin.webp" alt={name} fill sizes="(max-width: 800px) 96px, 1px" /></figure>
       <section className={styles.merchantStats} aria-label="Supplies at Kevin">
         <dl>
           <div><dt>HEALTH</dt><dd>{game.hp}/{game.maxHp}</dd></div>

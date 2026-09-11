@@ -2,7 +2,7 @@ import { expect, test, type Page } from '@playwright/test';
 import { encodeFunctionData, toHex, zeroAddress } from 'viem';
 import { deriveDreamDexClobOdds } from '../../app/clob-odds';
 import { createMarketDungeonRun, FULL_RUN_MARKET_PROOF_VERSION, transitionMarketDungeon, type MarketDungeonAction, type MarketDungeonRun } from '../../app/gameplay/event-boss-engine';
-import { parseFullRunSession, serializeFullRunSession, type FullRunSession } from '../../app/gameplay/full-run-storage';
+import { FULL_RUN_STORAGE_KEY, parseFullRunSession, serializeFullRunSession, type FullRunSession } from '../../app/gameplay/full-run-storage';
 import { buildKevinPayload, SOMNIA_AGENTS_ABI, SOMNIA_AGENTS_TESTNET, type MarketSnapshot } from '../../lib/somnia-agents/protocol';
 import type { RivalRound, RivalTransaction } from '../../lib/somnia-agents/types';
 
@@ -27,6 +27,16 @@ const transaction: RivalTransaction = {
 
 async function savedRun(page: Page): Promise<FullRunSession | null> {
   return page.evaluate(key => JSON.parse(localStorage.getItem(key) ?? 'null'), LOCAL_RUN_KEY);
+}
+
+function rivalStatus(page: Page) { return page.getByRole('button', { name: /^Somnia Agent Kevin:/ }); }
+
+async function expectRivalOnlyInStatus(page: Page, direction = 'UP') {
+  await expect(rivalStatus(page)).toHaveCount(1);
+  await expect(rivalStatus(page)).toBeVisible();
+  await expect(rivalStatus(page)).toContainText(`BTC ${direction}`);
+  await expect(page.getByTestId('kevin-rival-panel').filter({ visible: true })).toHaveCount(0);
+  await expect(page.getByText('YOUR RIVAL SCORECARD', { exact: true })).not.toBeVisible();
 }
 
 async function installFixtures(page: Page, scenario: 'pending' | 'failed' | 'wallet' = 'pending') {
@@ -57,18 +67,21 @@ async function installFixtures(page: Page, scenario: 'pending' | 'failed' | 'wal
 }
 
 async function enterAndLock(page: Page, mode: 'simulation' | 'somnia' = 'simulation') {
-  await page.goto('/');
-  await expect(page.getByText('LOCAL AGENTS EDITION · KEVIN THE RIVAL', { exact: true })).toBeVisible();
-  await page.getByRole('button', { name: 'ENTER THE DUNGEON', exact: true }).click();
+  await page.goto('/somnia-agents');
+  await expect(page.getByText('LOCAL AGENTS EDITION · SOMNIA AGENT KEVIN', { exact: true })).toBeVisible();
   if (mode === 'somnia') await page.getByRole('button', { name: 'SOMNIA AGENTS Testnet wallet + STT fee', exact: true }).click();
+  await page.getByRole('button', { name: 'ENTER THE DUNGEON', exact: true }).click();
+  await expect(rivalStatus(page)).toHaveAttribute('aria-label', 'Somnia Agent Kevin: Not locked yet');
+  await expect(rivalStatus(page)).toHaveAccessibleDescription(mode === 'somnia' ? 'SOMNIA TESTNET' : 'SIMULATED');
+  await expect(page.getByTestId('kevin-rival-panel').filter({ visible: true })).toHaveCount(0);
   await page.getByRole('button', { name: /SHADOWS RISE/ }).click();
   await page.getByRole('button', { name: 'LOCK BTC DOWN · ENTER TIER 1', exact: true }).click();
   await expect(page.getByRole('region', { name: 'Combat view', exact: true })).toBeVisible();
 }
 
 async function openRivalDetails(page: Page) {
-  await page.getByRole('button', { name: /^Omen details:/ }).click();
-  const dialog = page.getByRole('dialog', { name: 'Omen', exact: true });
+  await page.getByRole('button', { name: /^Somnia Agent Kevin:/ }).click();
+  const dialog = page.getByRole('dialog', { name: 'Somnia Agent Kevin', exact: true });
   await expect(dialog).toBeVisible();
   return dialog.getByTestId('kevin-rival-panel');
 }
@@ -80,7 +93,7 @@ test.beforeEach(async ({ page }, info) => {
 });
 
 test('playground keeps its simulated choice locked until reset and explains all outcomes', async ({ page }) => {
-  await page.goto('/somnia-agents');
+  await page.goto('/somnia-agents/playground');
   await expect(page.getByText('SIMULATION ONLY · NO REAL MARKET · NO SOMNIA AGENT', { exact: true })).toBeVisible();
   const choice = page.getByRole('group', { name: 'Choose your simulated Bitcoin direction' });
   await choice.getByRole('button', { name: 'BTC DOWN SHADOWS RISE', exact: true }).click();
@@ -107,7 +120,7 @@ test('playground keeps its simulated choice locked until reset and explains all 
 });
 
 for (const scenario of ['late', 'unavailable'] as const) test(`playground ${scenario} response sits out without inventing a winner`, async ({ page }) => {
-  await page.goto('/somnia-agents');
+  await page.goto('/somnia-agents/playground');
   await page.getByLabel('Kevin’s response scenario').selectOption(scenario);
   await page.getByRole('button', { name: 'LOCK SIMULATED BTC UP', exact: true }).click();
   await page.clock.runFor(1_300);
@@ -130,23 +143,25 @@ test('Full Expedition omits player direction, shows a timely answer, and recheck
   const saved = (await savedRun(page))!;
   expect(saved.run.currentAttempt?.direction).toBe('DOWN');
   expect(prepared.attemptId).toBe(saved.run.currentAttempt?.attemptId);
-  await expect(page.getByRole('region', { name: 'Player status', exact: true })).toContainText('Kevin is choosing · Keep fighting · Details');
+  await expect(page.getByRole('button', { name: /^Somnia Agent Kevin:/ })).toContainText(/choosing|making|waiting/i);
   fixture.answer();
   await page.clock.runFor(3_100);
-  await expect(page.getByRole('region', { name: 'Player status', exact: true })).toContainText('Kevin: BTC UP · SIMULATED · Details');
+  await expect(page.getByRole('button', { name: /^Somnia Agent Kevin:/ })).toContainText('BTC UP');
+  await expect(page.getByRole('button', { name: /^Somnia Agent Kevin:/ })).toContainText(/simulated|simulator/i);
   const panel = await openRivalDetails(page);
   await expect(panel).toContainText('YOUR LOCKED OMEN');
   await expect(panel).toContainText('BTC DOWN');
   await expect(panel).toContainText('Kevin chose BTC UP');
   await expect(panel).not.toContainText('SIMULATED RIVAL RESULT');
-  await page.getByRole('dialog', { name: 'Omen', exact: true }).getByRole('button', { name: 'Close details', exact: true }).click();
+  await page.getByRole('dialog', { name: 'Somnia Agent Kevin', exact: true }).getByRole('button', { name: 'Close details', exact: true }).click();
   await expect.poll(async () => page.evaluate(key => JSON.parse(localStorage.getItem(key) ?? '{}').rounds?.[0]?.status, RIVAL_KEY)).toBe('locked');
   const statusReadsBeforeReload = fixture.requests.filter(request => request.action === 'status').length;
   await page.reload();
   await expect(page.getByRole('region', { name: 'Combat view', exact: true })).toBeVisible();
   await page.clock.runFor(3_100);
   await expect.poll(() => fixture.requests.filter(request => request.action === 'status').length).toBeGreaterThan(statusReadsBeforeReload);
-  await expect(page.getByRole('region', { name: 'Player status', exact: true })).toContainText('Kevin: BTC UP · SIMULATED · Details');
+  await expect(page.getByRole('button', { name: /^Somnia Agent Kevin:/ })).toContainText('BTC UP');
+  await expect(page.getByRole('button', { name: /^Somnia Agent Kevin:/ })).toContainText(/simulated|simulator/i);
   expect(fixture.requests.filter(request => request.action === 'prepare')).toHaveLength(1);
   expect(fixture.requests.every(request => request.attemptId === prepared.attemptId)).toBe(true);
   expect((await savedRun(page))!.run.currentAttempt).toEqual(saved.run.currentAttempt);
@@ -156,7 +171,7 @@ test('Full Expedition omits player direction, shows a timely answer, and recheck
 test('an unavailable agent leaves normal attacks playable', async ({ page }) => {
   await installFixtures(page, 'failed');
   await enterAndLock(page);
-  await expect(page.getByRole('region', { name: 'Player status', exact: true })).toContainText('Kevin sits this round out');
+  await expect(page.getByRole('button', { name: /^Somnia Agent Kevin:/ })).toContainText(/sits|sitting/i);
   const controls = page.getByRole('region', { name: 'Combat actions', exact: true });
   const before = (await savedRun(page))!.run.game;
   await expect(controls.getByRole('button', { name: /ATTACK/ })).toBeEnabled();
@@ -168,17 +183,17 @@ test('an unavailable agent leaves normal attacks playable', async ({ page }) => 
 test('a successful HTTP response that stays pending stops recovery after the bounded window and combat remains playable', async ({ page }) => {
   const fixture = await installFixtures(page);
   await enterAndLock(page);
-  await expect(page.getByRole('region', { name: 'Player status', exact: true })).toContainText('Kevin is choosing');
+  await expect(page.getByRole('button', { name: /^Somnia Agent Kevin:/ })).toContainText(/choosing|making|waiting/i);
   // The fixture keeps returning HTTP 200 / pending even beyond expiry + 120s.
   // Skip most timer repetitions, then allow the next normal status read to run.
   await page.clock.fastForward((market.expiry - now + 121) * 1000);
   await page.clock.runFor(3_100);
-  await expect(page.getByRole('region', { name: 'Player status', exact: true })).toContainText('Kevin sits this round out');
+  await expect(page.getByRole('button', { name: /^Somnia Agent Kevin:/ })).toContainText(/sits|sitting/i);
   const panel = await openRivalDetails(page);
   await panel.getByText('Request details', { exact: true }).click();
   await expect(panel).toContainText('could not be verified within the recovery window');
   await expect(panel).not.toContainText('SIMULATED RIVAL RESULT');
-  await page.getByRole('dialog', { name: 'Omen', exact: true }).getByRole('button', { name: 'Close details', exact: true }).click();
+  await page.getByRole('dialog', { name: 'Somnia Agent Kevin', exact: true }).getByRole('button', { name: 'Close details', exact: true }).click();
   const readCount = fixture.requests.length;
   await page.clock.runFor(12_100);
   expect(fixture.requests).toHaveLength(readCount);
@@ -234,17 +249,20 @@ test('existing settled boss fixtures show the correct rival verdict and keep sim
       ? { json: { round } }
       : { status: 400, json: { error: 'Controlled settled-boss UI fixture only permits recovery of the saved request.' } });
   });
-  await page.goto('/');
+  await page.goto('/somnia-agents');
   await expect(page.getByRole('heading', { name: 'The boss is back. Lock a fresh omen.', exact: true })).toBeVisible();
   // Even an editable cached answer is rechecked; no fixture launches a request
   // or claims to exercise real network settlement verification.
   await expect(page.getByText('Kevin wins this round.', { exact: true })).not.toBeVisible();
   await page.clock.runFor(3_100);
-  const visiblePanel = page.getByTestId('kevin-rival-panel').filter({ visible: true });
+  await expect(page.getByRole('button', { name: /^Somnia Agent Kevin:/ })).toContainText('BTC DOWN');
+  await expect(page.getByTestId('kevin-rival-panel').filter({ visible: true })).toHaveCount(0);
+  await expect(page.getByText('Kevin wins this round.', { exact: true })).not.toBeVisible();
+  const visiblePanel = await openRivalDetails(page);
   await expect(visiblePanel).toContainText('Kevin wins this round.');
   await expect(visiblePanel).toContainText('MARKET SETTLED BTC DOWN');
   await expect(visiblePanel).toContainText('SOMNIA AGENTS · TESTNET');
-  const score = page.locator('details').filter({ has: page.getByText('YOUR RIVAL SCORECARD', { exact: true }) });
+  const score = page.getByRole('dialog', { name: 'Somnia Agent Kevin', exact: true }).locator('details').filter({ has: page.getByText('YOUR RIVAL SCORECARD', { exact: true }) });
   await score.getByText('YOUR RIVAL SCORECARD', { exact: true }).click();
   await expect(score.locator('p').filter({ hasText: 'LOCAL SIMULATION' })).toHaveText('LOCAL SIMULATIONYou 1 · Kevin 0 · Ties 0 · Void 0');
   await expect(score.locator('p').filter({ hasText: 'SOMNIA AGENT · TESTNET' })).toHaveText('SOMNIA AGENT · TESTNETYou 0 · Kevin 1 · Ties 0 · Void 0');
@@ -262,14 +280,14 @@ test('Somnia mode without a wallet reports the missing wallet and keeps combat r
   await page.addInitScript(() => { delete (window as unknown as { ethereum?: unknown }).ethereum; });
   const fixture = await installFixtures(page, 'wallet');
   await enterAndLock(page, 'somnia');
-  await expect(page.getByRole('region', { name: 'Player status', exact: true })).toContainText('Kevin sits this round out');
+  await expect(page.getByRole('button', { name: /^Somnia Agent Kevin:/ })).toContainText(/sits|sitting/i);
   expect(fixture.requests.find(request => request.action === 'prepare')?.mode).toBe('somnia');
   const panel = await openRivalDetails(page);
   await expect(panel).toContainText('SOMNIA AGENTS · TESTNET');
   await panel.getByText('Request details', { exact: true }).click();
   await expect(panel).toContainText('A browser wallet is needed for a real Somnia request.');
   await expect(panel).not.toContainText('RIVAL RESULT');
-  await page.getByRole('dialog', { name: 'Omen', exact: true }).getByRole('button', { name: 'Close details', exact: true }).click();
+  await page.getByRole('dialog', { name: 'Somnia Agent Kevin', exact: true }).getByRole('button', { name: 'Close details', exact: true }).click();
   const attack = page.getByRole('region', { name: 'Combat actions', exact: true }).getByRole('button', { name: /ATTACK/ });
   await expect(attack).toBeEnabled();
   await attack.click();
@@ -277,7 +295,7 @@ test('Somnia mode without a wallet reports the missing wallet and keeps combat r
   expect(fixture.requests.filter(request => request.action === 'prepare')).toHaveLength(1);
 });
 
-test('the rival hint preserves visible combat controls and a large monster without horizontal scrolling', async ({ page }, info) => {
+test('the permanent rival status preserves visible combat controls and a large monster without horizontal scrolling', async ({ page }, info) => {
   const fixture = await installFixtures(page);
   await enterAndLock(page);
   fixture.answer();
@@ -308,4 +326,284 @@ test('the rival hint preserves visible combat controls and a large monster witho
   expect(painted.height).toBeGreaterThanOrEqual(mobile ? page.viewportSize()!.width * .45 : 250);
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(page.viewportSize()!.width);
   await page.screenshot({ path: info.outputPath('kevin-combat-controls.png') });
+});
+
+/** UI fixtures use the real transition engine, never fabricated phase combinations. */
+function roomFixture(room: number, cleared = false) {
+  let run = createMarketDungeonRun(() => 0);
+  // Leave room below the save validator's cap for random equipment loot.
+  run.game.weaponLevel = 100;
+  run.game.armorLevel = 100;
+  const attemptId = `room_progress_fixture_${room}`;
+  function apply(action: MarketDungeonAction) {
+    const transition = transitionMarketDungeon(run, action, () => 0);
+    expect(transition.accepted, transition.reason).toBe(true);
+    run = transition.run;
+  }
+  apply({ type: 'lock-boss', lock: { attemptId, marketId, direction: 'DOWN', mode: 'live', proofVersion: FULL_RUN_MARKET_PROOF_VERSION, commitment: null } });
+  while (run.game.roomsCleared < room - 1) {
+    apply({ type: 'gameplay', action: { type: 'attack' } });
+    apply({ type: 'gameplay', action: { type: 'enter-next-room' } });
+  }
+  if (cleared) apply({ type: 'gameplay', action: { type: 'attack' } });
+  run.game.hp = 68;
+  run.game.potions = 2;
+  run.game.gold = 120;
+  run.game.lastCritical = false;
+  const session: FullRunSession = { schema: 'market-dungeon/full-run-session/v2', run, market: {
+    marketId, intervalSec: 300, question: market.question, strikeUsd: market.strikeUsd,
+    tradingStart: market.tradingStart, expiry: market.expiry, lockedAt: now - 5,
+  } };
+  const serialized = serializeFullRunSession(session);
+  expect(parseFullRunSession(serialized)).toEqual(session);
+  const round: RivalRound = {
+    attemptId, marketId, expiry: market.expiry, cutoff: market.expiry - 10,
+    mode: 'simulation', status: 'locked', direction: 'UP', finalizedAt: now - 1,
+    reason: 'Controlled UI fixture: a timely simulated rival, not a network proof.',
+  };
+  return { session, serialized, round };
+}
+
+async function installSavedFixture(page: Page, fixture: ReturnType<typeof roomFixture>, agents: boolean) {
+  const requests: Array<Record<string, unknown>> = [];
+  await page.addInitScript(({ key, serialized, rivalKey, round, agents }) => {
+    localStorage.setItem(key, serialized);
+    if (agents) localStorage.setItem(rivalKey, JSON.stringify({ mode: 'simulation', rounds: [round] }));
+  }, { key: agents ? LOCAL_RUN_KEY : FULL_RUN_STORAGE_KEY, serialized: fixture.serialized, rivalKey: RIVAL_KEY, round: fixture.round, agents });
+  await page.route('**/api/market?interval=300', route => route.fulfill({ json: { market, odds: null } }));
+  await page.route('**/api/somnia-agents/rival', route => {
+    const request = route.request().postDataJSON() as Record<string, unknown>;
+    requests.push(request);
+    return route.fulfill(request.action === 'status' && request.attemptId === fixture.round.attemptId
+      ? { json: { round: fixture.round } }
+      : { status: 400, json: { error: 'This controlled fixture can only recover its existing rival.' } });
+  });
+  return requests;
+}
+
+for (const agents of [false, true]) {
+  test(`${agents ? 'Somnia Agents' : 'ordinary Full Expedition'} keeps all ten rooms visible through combat, loot and the next room`, async ({ page }, info) => {
+    test.skip(info.project.name.includes('iphone'), 'This regression specifically covers the former missing desktop room strip.');
+    const fixture = roomFixture(7);
+    const requests = await installSavedFixture(page, fixture, agents);
+    await page.goto(agents ? '/somnia-agents' : '/');
+    const strip = () => page.getByRole('list', { name: /^Room progress:/ }).filter({ visible: true });
+    await expect(strip()).toHaveCount(1);
+    await expect(strip()).toBeVisible();
+    await expect(strip().getByRole('listitem')).toHaveCount(10);
+    await expect(strip().locator('[aria-current="step"]')).toHaveAttribute('aria-label', 'Room 7');
+    await expect(strip().locator('[data-complete="true"]')).toHaveCount(6);
+    await expect(page.getByRole('region', { name: 'Tier progress', exact: true })).toHaveCount(0);
+    if (agents) {
+      await page.clock.runFor(3_100);
+      await expectRivalOnlyInStatus(page);
+    } else await expect(rivalStatus(page)).toHaveCount(0);
+    await page.screenshot({ path: info.outputPath('room-progress-combat.png') });
+    await page.getByRole('region', { name: 'Combat view', exact: true }).getByRole('region', { name: 'Combat actions', exact: true }).getByRole('button', { name: /ATTACK/ }).click();
+    await expect(page.getByText('ROOM 7 CLEARED', { exact: true })).toBeVisible();
+    await expect(strip()).toHaveCount(1);
+    await expect(strip()).toHaveAttribute('aria-label', /room 7 of 10, cleared/);
+    await expect(strip().locator('[data-complete="true"]')).toHaveCount(7);
+    await expect(strip().locator('[aria-current="step"]')).toHaveCount(0);
+    if (agents) {
+      await expectRivalOnlyInStatus(page);
+      const panel = await openRivalDetails(page);
+      await expect(panel).toContainText('Kevin chose BTC UP');
+      await page.getByRole('dialog', { name: 'Somnia Agent Kevin', exact: true }).getByRole('button', { name: 'Close details', exact: true }).click();
+    }
+    await page.screenshot({ path: info.outputPath('room-progress-loot.png') });
+    await page.getByRole('button', { name: 'ENTER ROOM 8', exact: true }).click();
+    await expect(page.getByRole('region', { name: 'Combat view', exact: true })).toBeVisible();
+    await expect(strip().locator('[aria-current="step"]')).toHaveAttribute('aria-label', 'Room 8');
+    await expect(strip().locator('[data-complete="true"]')).toHaveCount(7);
+    if (agents) await expectRivalOnlyInStatus(page);
+    else expect(requests).toHaveLength(0);
+  });
+
+  test(`${agents ? 'Somnia Agent Kevin' : 'Quartermaster Kevin'} camp keeps health beside purchases and preserves the status line`, async ({ page }, info) => {
+    const fixture = roomFixture(9, true);
+    const requests = await installSavedFixture(page, fixture, agents);
+    await page.goto(agents ? '/somnia-agents' : '/');
+    await expect(page.getByText('CAMP BEFORE THE BOSS', { exact: true })).toBeVisible();
+    const mobile = page.viewportSize()!.width <= 800;
+    const supplies = page.getByRole('region', { name: mobile ? 'Supplies at Kevin' : 'Player status', exact: true });
+    await expect(supplies).toContainText('68/100');
+    await expect(supplies).toContainText('2/5');
+    const merchant = page.getByText('CAMP BEFORE THE BOSS', { exact: true }).locator('../..');
+    await expect(merchant).toContainText('120');
+    await expect(merchant.getByText(agents ? 'Somnia Agent Kevin' : 'Quartermaster Kevin', { exact: true })).toBeVisible();
+    if (agents) {
+      await page.clock.runFor(3_100);
+      await expectRivalOnlyInStatus(page);
+    } else {
+      await expect(rivalStatus(page)).toHaveCount(0);
+      await expect(page.getByText('Somnia Agent Kevin', { exact: true })).toHaveCount(0);
+    }
+    const rest = merchant.getByRole('button', { name: /REST \+30/ });
+    await rest.scrollIntoViewIfNeeded();
+    await expect(rest).toBeInViewport({ ratio: 1 });
+    if (mobile) await expect(supplies).toBeInViewport({ ratio: 1 });
+    await page.screenshot({ path: info.outputPath('kevin-camp-health-and-purchases.png') });
+    await rest.click();
+    await expect(supplies).toContainText('98/100');
+    await expect(page.getByRole('region', { name: 'Player status', exact: true })).toContainText('98/100');
+    await expect(rest).toBeDisabled();
+    if (agents) await expectRivalOnlyInStatus(page);
+    else expect(requests).toHaveLength(0);
+    await page.getByRole('button', { name: 'ENTER ROOM 10', exact: true }).click();
+    await expect(page.getByRole('region', { name: 'Combat view', exact: true })).toBeVisible();
+    await expect(page.getByRole('list', { name: /^Room progress:/ }).filter({ visible: true }).locator('[aria-current="step"]')).toHaveAttribute('aria-label', 'Boss 10');
+  });
+}
+
+for (const ending of ['settlement-pending', 'boss-reward', 'dead'] as const) {
+  test(`agent status remains available in ${ending}, with its full rival details confined to the modal`, async ({ page }) => {
+    const fixture = roomFixture(10, ending !== 'dead');
+    if (ending === 'boss-reward') {
+      const result = transitionMarketDungeon(fixture.session.run, { type: 'settle-boss', settlement: {
+        attemptId: fixture.round.attemptId, marketId, direction: 'DOWN', proofVersion: FULL_RUN_MARKET_PROOF_VERSION, commitment: null, outcome: 'BLESSED',
+      } }, () => 0);
+      expect(result.accepted, result.reason).toBe(true);
+      fixture.session.run = result.run;
+      fixture.session.market = null;
+    } else if (ending === 'dead') {
+      const wounded = fixture.session.run;
+      wounded.game.hp = 1;
+      wounded.game.armorLevel = 0;
+      wounded.game.weaponLevel = 0;
+      const result = transitionMarketDungeon(wounded, { type: 'gameplay', action: { type: 'attack' } }, maximum => maximum - 1);
+      expect(result.accepted, result.reason).toBe(true);
+      fixture.session.run = result.run;
+    }
+    expect(fixture.session.run.phase).toBe(ending);
+    fixture.serialized = serializeFullRunSession(fixture.session);
+    expect(parseFullRunSession(fixture.serialized)).toEqual(fixture.session);
+    await installSavedFixture(page, fixture, true);
+    await page.goto('/somnia-agents');
+    await page.clock.runFor(3_100);
+    await expectRivalOnlyInStatus(page);
+    if (ending === 'settlement-pending') {
+      await expect(page.getByRole('region', { name: 'Recovery supplies', exact: true })).toContainText('68/100');
+      await expect(page.getByRole('button', { name: /^REVEAL IN/ })).toBeDisabled();
+    }
+    if (ending === 'boss-reward') await expect(page.getByRole('region', { name: 'Relic reward', exact: true })).toBeVisible();
+    if (ending === 'dead') await expect(page.getByRole('button', { name: 'BEGIN NEW EXPEDITION', exact: true })).toBeVisible();
+    const panel = await openRivalDetails(page);
+    await expect(panel).toContainText(ending === 'boss-reward' ? 'You beat Kevin.' : 'Kevin chose BTC UP');
+    if (ending === 'boss-reward') await expect(panel).toContainText('SIMULATED RIVAL RESULT');
+    else await expect(panel).not.toContainText('SIMULATED RIVAL RESULT');
+  });
+}
+
+
+test('three-mode navigation keeps ordinary and Agent expeditions separate and preserves Judge variants', async ({ page }) => {
+  const fixture = await installFixtures(page);
+  await page.route('**/api/live-judge/**', route => route.fulfill({ status: 503, json: { error: 'Navigation fixture only.' } }));
+  await page.route('**/api/shannon/judge-replay/**', route => route.fulfill({ status: 503, json: { error: 'Navigation fixture only.' } }));
+  const nav = () => page.getByRole('navigation', { name: 'Choose game mode', exact: true });
+  async function check(selected: 'FULL EXPEDITION' | 'JUDGE DEMO' | 'SOMNIA AGENTS New!') {
+    await expect(nav().getByRole('link')).toHaveText(['FULL EXPEDITION', 'JUDGE DEMO', /SOMNIA AGENTS\s*New!/]);
+    await expect(nav().locator('[aria-current="page"]')).toHaveCount(1);
+    await expect(nav().getByRole('link', { name: selected, exact: true })).toHaveAttribute('aria-current', 'page');
+    for (const link of await nav().getByRole('link').all()) {
+      const box = (await link.boundingBox())!;
+      expect(box.width).toBeGreaterThanOrEqual(44);
+      expect(box.height).toBeGreaterThanOrEqual(44);
+    }
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(page.viewportSize()!.width);
+  }
+  await page.goto('/');
+  await check('FULL EXPEDITION');
+  await expect(page.getByRole('navigation', { name: 'Choose Judge demo', exact: true })).toHaveCount(0);
+  await expect(rivalStatus(page)).toHaveCount(0);
+  await expect(page.getByTestId('kevin-rival-panel')).toHaveCount(0);
+  await page.getByRole('button', { name: 'ENTER THE DUNGEON', exact: true }).click();
+  await page.getByRole('button', { name: 'LOCK BTC UP · ENTER TIER 1', exact: true }).click();
+  await expect(page.getByRole('region', { name: 'Combat view', exact: true })).toBeVisible();
+  const ordinaryBefore = await page.evaluate(key => localStorage.getItem(key), FULL_RUN_STORAGE_KEY);
+  expect(ordinaryBefore).not.toBeNull();
+  expect(fixture.requests).toHaveLength(0);
+  await expect(rivalStatus(page)).toHaveCount(0);
+  await enterAndLock(page);
+  await check('SOMNIA AGENTS New!');
+  await expect(page.getByRole('navigation', { name: 'Choose Judge demo', exact: true })).toHaveCount(0);
+  const agentBefore = await page.evaluate(key => localStorage.getItem(key), LOCAL_RUN_KEY);
+  expect(agentBefore).not.toBeNull();
+  expect(agentBefore).not.toBe(ordinaryBefore);
+  expect(await page.evaluate(key => localStorage.getItem(key), FULL_RUN_STORAGE_KEY)).toBe(ordinaryBefore);
+  await nav().getByRole('link', { name: 'FULL EXPEDITION', exact: true }).click();
+  await expect(page).toHaveURL(/\/$/);
+  await check('FULL EXPEDITION');
+  await expect(page.getByRole('region', { name: 'Combat view', exact: true })).toBeVisible();
+  await expect(rivalStatus(page)).toHaveCount(0);
+  const ordinaryReads = fixture.requests.length;
+  await page.clock.runFor(3_100);
+  expect(fixture.requests).toHaveLength(ordinaryReads);
+  expect(await page.evaluate(key => localStorage.getItem(key), FULL_RUN_STORAGE_KEY)).toBe(ordinaryBefore);
+  expect(await page.evaluate(key => localStorage.getItem(key), LOCAL_RUN_KEY)).toBe(agentBefore);
+  await nav().getByRole('link', { name: 'JUDGE DEMO', exact: true }).click();
+  await expect(page).toHaveURL(/\/shannon\/live-judge$/);
+  await check('JUDGE DEMO');
+  const variants = page.getByRole('navigation', { name: 'Choose Judge demo', exact: true });
+  await expect(variants.getByRole('link')).toHaveText(['LIVE · 1 MIN', 'HISTORICAL REPLAY']);
+  await expect(variants.getByRole('link', { name: 'LIVE · 1 MIN', exact: true })).toHaveAttribute('aria-current', 'page');
+  await variants.getByRole('link', { name: 'HISTORICAL REPLAY', exact: true }).click();
+  await expect(page).toHaveURL(/\/shannon\/judge$/);
+  await check('JUDGE DEMO');
+  await expect(variants.getByRole('link', { name: 'HISTORICAL REPLAY', exact: true })).toHaveAttribute('aria-current', 'page');
+  await expect(rivalStatus(page)).toHaveCount(0);
+  expect(fixture.requests).toHaveLength(ordinaryReads);
+  await nav().getByRole('link', { name: 'SOMNIA AGENTS New!', exact: true }).click();
+  await expect(page).toHaveURL(/\/somnia-agents$/);
+  await check('SOMNIA AGENTS New!');
+  await expect(page.getByRole('region', { name: 'Combat view', exact: true })).toBeVisible();
+  await expect(rivalStatus(page)).toBeVisible();
+  expect(await page.evaluate(key => localStorage.getItem(key), LOCAL_RUN_KEY)).toBe(agentBefore);
+  expect(fixture.requests.filter(request => request.action === 'prepare')).toHaveLength(1);
+});
+
+test('narrow desktop status keeps Kevin text inside its button before lock and during wallet approval', async ({ page }, info) => {
+  test.skip(info.project.name.includes('iphone'), 'Checks the desktop header immediately above its 800px breakpoint.');
+  await page.setViewportSize({ width: 820, height: 1000 });
+  await installFixtures(page, 'wallet');
+  await page.addInitScript(() => {
+    // Hold a fake wallet prompt open; no real wallet or transaction is contacted.
+    (window as unknown as { ethereum: { request: () => Promise<never> } }).ethereum = { request: () => new Promise<never>(() => {}) };
+  });
+  async function measure(label: string) {
+    const status = rivalStatus(page);
+    await expect(status).toBeVisible();
+    const geometry = await status.evaluate(element => {
+      const outer = element.getBoundingClientRect();
+      return {
+        clientWidth: element.clientWidth, scrollWidth: element.scrollWidth,
+        outside: [...element.children].some(child => {
+          const box = child.getBoundingClientRect();
+          return box.left < outer.left || box.right > outer.right;
+        }),
+      };
+    });
+    await page.screenshot({ path: info.outputPath(`narrow-desktop-${label}.png`) });
+    expect(geometry.scrollWidth, `${label}: Kevin status must fit within its own button`).toBeLessThanOrEqual(geometry.clientWidth + 1);
+    expect(geometry.outside, `${label}: no status text should overlap neighboring header content`).toBe(false);
+    const buttonBox = (await status.boundingBox())!;
+    const logoBox = (await page.getByRole('button', { name: 'Market Dungeon — back to home', exact: true }).boundingBox())!;
+    expect(buttonBox.x < logoBox.x + logoBox.width && buttonBox.x + buttonBox.width > logoBox.x
+      && buttonBox.y < logoBox.y + logoBox.height && buttonBox.y + buttonBox.height > logoBox.y,
+    `${label}: Kevin status must not cover the center logo`).toBe(false);
+    const agentsLink = page.getByRole('navigation', { name: 'Choose game mode', exact: true }).getByRole('link', { name: 'SOMNIA AGENTS New!', exact: true });
+    const linkBox = (await agentsLink.boundingBox())!;
+    const soundBox = (await page.getByRole('button', { name: /^(Turn all game sounds (on|off)|Resume game sounds)$/ }).boundingBox())!;
+    expect(linkBox.x < soundBox.x + soundBox.width && linkBox.x + linkBox.width > soundBox.x
+      && linkBox.y < soundBox.y + soundBox.height && linkBox.y + linkBox.height > soundBox.y,
+    `${label}: the sound control must not cover the Somnia Agents mode link`).toBe(false);
+  }
+  await page.goto('/somnia-agents');
+  await page.getByRole('button', { name: 'SOMNIA AGENTS Testnet wallet + STT fee', exact: true }).click();
+  await page.getByRole('button', { name: 'ENTER THE DUNGEON', exact: true }).click();
+  await expect(rivalStatus(page)).toHaveAttribute('aria-label', 'Somnia Agent Kevin: Not locked yet');
+  await measure('before-lock');
+  await page.getByRole('button', { name: 'LOCK BTC UP · ENTER TIER 1', exact: true }).click();
+  await expect(rivalStatus(page)).toHaveAttribute('aria-label', 'Somnia Agent Kevin: Wallet approval');
+  await measure('wallet-approval');
 });
