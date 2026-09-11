@@ -1,8 +1,10 @@
-# Market Dungeon — 2:08 competition film
+# Market Dungeon — 2:08 competition film (V3.1)
 
 **Defeat the boss. Predict the market. Survive both.**
 
-The final V3 film is 128 seconds, in 1920 × 1080 at 30 frames per second, with English narration and separate English SRT captions. The picture has no burned-in subtitles.
+The revised V3.1 film is 128 seconds, in 1920 × 1080 at 30 frames per second, with English narration and separate English SRT captions. The picture has no burned-in subtitles.
+
+V3.1 clarifies the opening: first the fresh one-minute contract, then choose and lock, then Attack and Storm, followed by Kevin and safe healing. It uses the same original Marin narration without changing pitch or speed. All 246 words are retained exactly once; the separate SRT has 35 retimed cues with no overlaps. The recorded run, result and proof remain the same.
 
 ## What it shows
 
@@ -14,16 +16,16 @@ The **Continue on dreamDEX** destination is explicitly a separate five-minute ma
 
 ## Publication
 
-[Watch the 2:08 demo on YouTube](https://youtu.be/kkFKUrC-fYk), publicly available in 1080p with English closed captions. Public playback, 1080p quality and the CC switch were checked after publication. The caption track uses the supplied English transcript through YouTube Auto-sync.
+[Watch the 2:08 demo on YouTube](https://youtu.be/oTSAhrxywbw), publicly available in 1080p with English closed captions. Public playback, 1080p quality and the CC switch were checked after publication. The caption track was initially aligned through YouTube Auto-sync, then refined against the supplied SRT. Its exported track was checked: all 35 cues and 246 words match the SRT, with no timing differences or overlaps.
 
-The original files remain available as assets of the existing v16 GitHub release:
+The revised files are available as additional assets of the existing v16 GitHub release:
 
-- [Download the 2:08 demo (1080p)](https://github.com/CryptoMickle/market-dungeon/releases/download/hackathon-submission-2026-v16/Market-Dungeon-Competition-V3-1080p.mp4)
-- [English captions (SRT)](https://github.com/CryptoMickle/market-dungeon/releases/download/hackathon-submission-2026-v16/Market-Dungeon-Competition-V3-EN.srt)
-- [English transcript](https://github.com/CryptoMickle/market-dungeon/releases/download/hackathon-submission-2026-v16/Market-Dungeon-Competition-V3-Transcript-EN.txt)
+- [Download the 2:08 demo (1080p)](https://github.com/CryptoMickle/market-dungeon/releases/download/hackathon-submission-2026-v16/Market-Dungeon-Competition-V3-1-1080p.mp4)
+- [English captions (SRT)](https://github.com/CryptoMickle/market-dungeon/releases/download/hackathon-submission-2026-v16/Market-Dungeon-Competition-V3-1-EN.srt)
+- [English transcript](https://github.com/CryptoMickle/market-dungeon/releases/download/hackathon-submission-2026-v16/Market-Dungeon-Competition-V3-1-Transcript-EN.txt)
 - [Video thumbnail](https://github.com/CryptoMickle/market-dungeon/releases/download/hackathon-submission-2026-v16/Market-Dungeon-YouTube-Thumbnail.png)
 
-The GitHub assets were checked against the local files by SHA-256. [DoraHacks BUIDL 48083](https://dorahacks.io/buidl/48083) now uses the same YouTube film in its demo-video field and published description; both were checked after saving and reloading. The [older 1:52 YouTube video](https://youtu.be/6IviQrMweZ4) remains a historical baseline.
+The three new GitHub assets were checked against the local files by SHA-256 and size; the six existing assets and release tag were preserved. The project entry is [DoraHacks BUIDL 48083](https://dorahacks.io/buidl/48083). The previous [V3 film](https://youtu.be/kkFKUrC-fYk) and its release files are preserved as an earlier edit; the [older 1:52 YouTube video](https://youtu.be/6IviQrMweZ4) remains a historical baseline.
 
 The current software release is [v16](https://github.com/CryptoMickle/market-dungeon/releases/tag/hackathon-submission-2026-v16). Adding video materials does not change that release’s source identity or count as new software validation.
 

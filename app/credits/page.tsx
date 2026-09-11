@@ -55,12 +55,12 @@ export default function CreditsPage() {
 
         <section>
           <h2>Competition film</h2>
-          <p>The September 11 competition film runs for 2:08 and combines actual gameplay, an independently verified Live Judge result, original project artwork, and recorded iPhone footage. The English narration uses the AI-generated Marin voice. Music and effects come from the game&apos;s original browser-generated audio; no separate stock-music track was added. The YouTube film has English closed captions. An SRT caption file and plain-text transcript are also available to download; no subtitles are burned into the picture.</p>
+          <p>The September 11 competition film (V3.1) runs for 2:08 and combines actual gameplay, an independently verified Live Judge result, original project artwork, and recorded iPhone footage. The English narration uses the AI-generated Marin voice. Music and effects come from the game&apos;s original browser-generated audio; no separate stock-music track was added. The YouTube film has English closed captions. The updated SRT caption file and plain-text transcript follow the revised narration order; no subtitles are burned into the picture.</p>
           <div className={styles.links}>
-            <a href="https://youtu.be/kkFKUrC-fYk" target="_blank" rel="noopener noreferrer">WATCH 2:08 FILM ON YOUTUBE ↗</a>
-            <a href="https://github.com/CryptoMickle/market-dungeon/releases/download/hackathon-submission-2026-v16/Market-Dungeon-Competition-V3-1080p.mp4" target="_blank" rel="noopener noreferrer">DOWNLOAD 2:08 FILM · 1080P ↗</a>
-            <a href="https://github.com/CryptoMickle/market-dungeon/releases/download/hackathon-submission-2026-v16/Market-Dungeon-Competition-V3-EN.srt" target="_blank" rel="noopener noreferrer">ENGLISH CAPTIONS · SRT ↗</a>
-            <a href="https://github.com/CryptoMickle/market-dungeon/releases/download/hackathon-submission-2026-v16/Market-Dungeon-Competition-V3-Transcript-EN.txt" target="_blank" rel="noopener noreferrer">ENGLISH TRANSCRIPT ↗</a>
+            <a href="https://youtu.be/oTSAhrxywbw" target="_blank" rel="noopener noreferrer">WATCH 2:08 FILM ON YOUTUBE ↗</a>
+            <a href="https://github.com/CryptoMickle/market-dungeon/releases/download/hackathon-submission-2026-v16/Market-Dungeon-Competition-V3-1-1080p.mp4" target="_blank" rel="noopener noreferrer">DOWNLOAD 2:08 FILM · 1080P ↗</a>
+            <a href="https://github.com/CryptoMickle/market-dungeon/releases/download/hackathon-submission-2026-v16/Market-Dungeon-Competition-V3-1-EN.srt" target="_blank" rel="noopener noreferrer">ENGLISH CAPTIONS · SRT ↗</a>
+            <a href="https://github.com/CryptoMickle/market-dungeon/releases/download/hackathon-submission-2026-v16/Market-Dungeon-Competition-V3-1-Transcript-EN.txt" target="_blank" rel="noopener noreferrer">ENGLISH TRANSCRIPT ↗</a>
           </div>
         </section>
 
@@ -79,7 +79,7 @@ export default function CreditsPage() {
           <p>Somnia, dreamDEX, and DoraHacks names are used descriptively for the hackathon integration. Their respective marks and services remain the property of their owners.</p>
           <div className={styles.links}>
             <a href="https://github.com/CryptoMickle/market-dungeon" target="_blank" rel="noopener noreferrer">SOURCE CODE ↗</a>
-            <a href="https://github.com/CryptoMickle/market-dungeon/blob/869ed1f6753cfd3fd53cac21e472cccb712e2cc4/docs/PROVENANCE_AND_PRIVACY.md" target="_blank" rel="noopener noreferrer">VERSIONED DISCLOSURE ↗</a>
+            <a href="https://github.com/CryptoMickle/market-dungeon/blob/a85be13380663c835e97cdb97f444c26b99d3716/docs/PROVENANCE_AND_PRIVACY.md" target="_blank" rel="noopener noreferrer">VERSIONED DISCLOSURE ↗</a>
           </div>
         </section>
       </article>
