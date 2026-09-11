@@ -4,13 +4,13 @@
 
 Market Dungeon is a playable fantasy roguelite built for the Somnia × dreamDEX Event Contracts Hackathon. Pick a Bitcoin prediction, fight through the dungeon, and let the verified Event Contract settlement decide whether the defeated boss stays down.
 
-[Download the 2:08 demo (1080p)](https://github.com/CryptoMickle/market-dungeon/releases/download/hackathon-submission-2026-v16/Market-Dungeon-Competition-V3-1080p.mp4) · [Play Live Judge](https://market-dungeon.vercel.app/shannon/live-judge) · [Full Expedition](https://market-dungeon.vercel.app) · [DoraHacks](https://dorahacks.io/buidl/48083)
+[Watch the 2:08 demo on YouTube](https://youtu.be/kkFKUrC-fYk) · [Play Live Judge](https://market-dungeon.vercel.app/shannon/live-judge) · [Full Expedition](https://market-dungeon.vercel.app) · [DoraHacks](https://dorahacks.io/buidl/48083)
 
-[![Market Dungeon — Defeat the boss. Predict the market. Survive both.](https://github.com/CryptoMickle/market-dungeon/releases/download/hackathon-submission-2026-v16/Market-Dungeon-YouTube-Thumbnail.png)](https://github.com/CryptoMickle/market-dungeon/releases/download/hackathon-submission-2026-v16/Market-Dungeon-Competition-V3-1080p.mp4)
+[![Market Dungeon — Defeat the boss. Predict the market. Survive both.](https://github.com/CryptoMickle/market-dungeon/releases/download/hackathon-submission-2026-v16/Market-Dungeon-YouTube-Thumbnail.png)](https://youtu.be/kkFKUrC-fYk)
 
 The game reads real dreamDEX markets and Somnia contract state. It requests no wallet connection, signature, approval, order, redemption or other transaction.
 
-The **2:08 competition film** follows a real Live Judge round from choice and combat to market settlement and independent proof verification. It also shows Full Expedition, Historical Replay and actual iPhone play. [English captions (SRT)](https://github.com/CryptoMickle/market-dungeon/releases/download/hackathon-submission-2026-v16/Market-Dungeon-Competition-V3-EN.srt) · [Transcript](https://github.com/CryptoMickle/market-dungeon/releases/download/hackathon-submission-2026-v16/Market-Dungeon-Competition-V3-Transcript-EN.txt) · [Film details](docs/COMPETITION_VIDEO_2026-09-11.md).
+The **2:08 competition film**, available on YouTube with English closed captions, follows a real Live Judge round from choice and combat to market settlement and independent proof verification. It also shows Full Expedition, Historical Replay and actual iPhone play. [Download MP4 (1080p)](https://github.com/CryptoMickle/market-dungeon/releases/download/hackathon-submission-2026-v16/Market-Dungeon-Competition-V3-1080p.mp4) · [English captions (SRT)](https://github.com/CryptoMickle/market-dungeon/releases/download/hackathon-submission-2026-v16/Market-Dungeon-Competition-V3-EN.srt) · [Transcript](https://github.com/CryptoMickle/market-dungeon/releases/download/hackathon-submission-2026-v16/Market-Dungeon-Competition-V3-Transcript-EN.txt) · [Film details](docs/COMPETITION_VIDEO_2026-09-11.md).
 
 ## Choose your run
 

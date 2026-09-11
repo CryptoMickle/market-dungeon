@@ -55,8 +55,9 @@ export default function CreditsPage() {
 
         <section>
           <h2>Competition film</h2>
-          <p>The September 11 competition film runs for 2:08 and combines actual gameplay, an independently verified Live Judge result, original project artwork, and recorded iPhone footage. The English narration uses the AI-generated Marin voice. Music and effects come from the game&apos;s original browser-generated audio; no separate stock-music track was added. English captions and a plain-text transcript are supplied separately, without burned-in subtitles.</p>
+          <p>The September 11 competition film runs for 2:08 and combines actual gameplay, an independently verified Live Judge result, original project artwork, and recorded iPhone footage. The English narration uses the AI-generated Marin voice. Music and effects come from the game&apos;s original browser-generated audio; no separate stock-music track was added. The YouTube film has English closed captions. An SRT caption file and plain-text transcript are also available to download; no subtitles are burned into the picture.</p>
           <div className={styles.links}>
+            <a href="https://youtu.be/kkFKUrC-fYk" target="_blank" rel="noopener noreferrer">WATCH 2:08 FILM ON YOUTUBE ↗</a>
             <a href="https://github.com/CryptoMickle/market-dungeon/releases/download/hackathon-submission-2026-v16/Market-Dungeon-Competition-V3-1080p.mp4" target="_blank" rel="noopener noreferrer">DOWNLOAD 2:08 FILM · 1080P ↗</a>
             <a href="https://github.com/CryptoMickle/market-dungeon/releases/download/hackathon-submission-2026-v16/Market-Dungeon-Competition-V3-EN.srt" target="_blank" rel="noopener noreferrer">ENGLISH CAPTIONS · SRT ↗</a>
             <a href="https://github.com/CryptoMickle/market-dungeon/releases/download/hackathon-submission-2026-v16/Market-Dungeon-Competition-V3-Transcript-EN.txt" target="_blank" rel="noopener noreferrer">ENGLISH TRANSCRIPT ↗</a>
