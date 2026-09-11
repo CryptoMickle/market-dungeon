@@ -4,13 +4,13 @@
 
 Market Dungeon is a playable fantasy roguelite built for the Somnia × dreamDEX Event Contracts Hackathon. Pick a Bitcoin prediction, fight through the dungeon, and let the verified Event Contract settlement decide whether the defeated boss stays down.
 
-[Play the Live Judge Demo](https://market-dungeon.vercel.app/shannon/live-judge) · [Full Expedition](https://market-dungeon.vercel.app) · [DoraHacks](https://dorahacks.io/buidl/48083) · [Source](https://github.com/CryptoMickle/market-dungeon)
+[Download the 2:08 demo (1080p)](https://github.com/CryptoMickle/market-dungeon/releases/download/hackathon-submission-2026-v16/Market-Dungeon-Competition-V3-1080p.mp4) · [Play Live Judge](https://market-dungeon.vercel.app/shannon/live-judge) · [Full Expedition](https://market-dungeon.vercel.app) · [DoraHacks](https://dorahacks.io/buidl/48083)
 
-**iPhone follow-up:** [v14](docs/IPHONE_CONTROLS_2026-09-10.md) keeps combat controls and Kevin's supplies within reach. The [v15 recovery patch](docs/BOSS_RECOVERY_HEALTH_2026-09-10.md) also puts current HP beside potions while waiting for boss settlement and before a rematch. The v13 release remains the preceding feature and proof baseline.
-
-**CLOB follow-up:** [Read recovery](docs/CLOB_READ_RECOVERY_2026-09-10.md) distinguishes empty books from failed reads, shortens mainnet odds deadlines and retries missing quotes sooner while preserving the exact market and any genuine last-trade fallback.
+[![Market Dungeon — Defeat the boss. Predict the market. Survive both.](https://github.com/CryptoMickle/market-dungeon/releases/download/hackathon-submission-2026-v16/Market-Dungeon-YouTube-Thumbnail.png)](https://github.com/CryptoMickle/market-dungeon/releases/download/hackathon-submission-2026-v16/Market-Dungeon-Competition-V3-1080p.mp4)
 
 The game reads real dreamDEX markets and Somnia contract state. It requests no wallet connection, signature, approval, order, redemption or other transaction.
+
+The **2:08 competition film** follows a real Live Judge round from choice and combat to market settlement and independent proof verification. It also shows Full Expedition, Historical Replay and actual iPhone play. [English captions (SRT)](https://github.com/CryptoMickle/market-dungeon/releases/download/hackathon-submission-2026-v16/Market-Dungeon-Competition-V3-EN.srt) · [Transcript](https://github.com/CryptoMickle/market-dungeon/releases/download/hackathon-submission-2026-v16/Market-Dungeon-Competition-V3-Transcript-EN.txt) · [Film details](docs/COMPETITION_VIDEO_2026-09-11.md).
 
 ## Choose your run
 
@@ -111,7 +111,9 @@ Read [judge evidence pack](docs/JUDGE_EVIDENCE_PACK.md) for the exact source/dep
 
 ## Delivery, privacy and license
 
-[Submission copy](docs/DORAHACKS_SUBMISSION.md) and the [judge evidence pack](docs/JUDGE_EVIDENCE_PACK.md) describe this release candidate. Final source, Production identity and publication checks are recorded in [release verification](docs/RELEASE_2026-09-10.md) and the matching [v13 release](https://github.com/CryptoMickle/market-dungeon/releases/tag/hackathon-submission-2026-v13). The [existing 1:52 video](https://youtu.be/6IviQrMweZ4) shows an earlier baseline; replacing it is deferred and it is not presented as a recording of the current live one-minute flow.
+[Submission copy](docs/DORAHACKS_SUBMISSION.md) and the [judge evidence pack](docs/JUDGE_EVIDENCE_PACK.md) describe the current product and its evidence limits. The [v13 release record](docs/RELEASE_2026-09-10.md) establishes the earlier Live Judge feature and proof baseline. Later records cover [iPhone controls](docs/IPHONE_CONTROLS_2026-09-10.md), [HP beside recovery potions](docs/BOSS_RECOVERY_HEALTH_2026-09-10.md) and [CLOB read recovery](docs/CLOB_READ_RECOVERY_2026-09-10.md). The current software release is [v16](https://github.com/CryptoMickle/market-dungeon/releases/tag/hackathon-submission-2026-v16); compare its source identity with `/api/build` when checking a deployment.
+
+The [2:08 film record](docs/COMPETITION_VIDEO_2026-09-11.md) separates the finished video from its publication status. The [older 1:52 demonstration](https://youtu.be/6IviQrMweZ4) remains an archived baseline, with its original music attribution retained.
 
 The game depends on public dreamDEX indexer and Somnia RPC availability. It keeps a pending result retryable instead of fabricating a price, odds or settlement. Browser-local run state and generated cards are separate from exported proof. Sharing actions do not prove a post was published or that an iPhone image reached Photos.
 
