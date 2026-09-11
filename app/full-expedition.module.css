@@ -1,6 +1,15 @@
 .shell { min-height: 100vh; padding: 28px 16px 72px; background: radial-gradient(circle at 50% -12%, rgba(249,115,22,.12), transparent 34%), radial-gradient(circle at 100% 45%, rgba(124,58,237,.09), transparent 30%), #080809; color: #fafafa; }
 .column { width: 100%; max-width: 560px; margin: 0 auto; }
 .modeNavigation { min-width: 0; }
+.localAgentsBanner { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 10px; padding: 12px 0; color: #f4ce82; font-size: 10px; line-height: 1.5; }
+.localAgentsBanner a { color: #d8b4fe; text-underline-offset: 3px; }
+.localRivalHome { margin: 18px 0; text-align: left; }
+.localRivalHome button { margin: 0; box-shadow: none; }
+.localScore { margin: 10px 0; padding: 14px; border: 1px solid #574161; border-radius: 14px; background: #16101e; color: #e4dbef; }
+.localScore summary { min-height: 32px; cursor: pointer; font-size: 12px; font-weight: 800; }
+.localScore p { display: grid; gap: 4px; font-size: 12px; }
+.localScore b { color: #f4ce82; }
+.localScore small { color: #b8adbf; font-size: 11px; line-height: 1.5; }
 .mobileCombatActive .modeNavigation { position: sticky; top: 0; z-index: 30; background: #100b17f2; }
 .mobileCombatActive :global(.mobile-battle-root) { scroll-margin-top: 76px; }
 .header { margin-bottom: 16px; text-align: center; }

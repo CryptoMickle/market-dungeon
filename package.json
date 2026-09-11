@@ -19,7 +19,10 @@
     "test:e2e:iphone": "playwright test --config=playwright.iphone.config.ts",
     "test:smoke:live": "playwright test --config=playwright.live.config.ts",
     "pilot:summarize": "node --experimental-strip-types scripts/summarize-pilot.ts",
-    "release:verify": "npm run lint && npm run typecheck && npm test && npm run test:shannon && npm run build -- --webpack && PLAYWRIGHT_PRODUCTION=1 npm run test:e2e && PLAYWRIGHT_PRODUCTION=1 npm run test:e2e:iphone"
+    "release:verify": "npm run lint && npm run typecheck && npm test && npm run test:shannon && npm run build -- --webpack && PLAYWRIGHT_PRODUCTION=1 npm run test:e2e && PLAYWRIGHT_PRODUCTION=1 npm run test:e2e:iphone",
+    "predev:agents": "node scripts/setup-local.mjs",
+    "dev:agents": "MARKET_DUNGEON_LOCAL_AGENTS=1 next dev --webpack --hostname 127.0.0.1 --port 3001",
+    "test:e2e:agents": "playwright test --config=playwright.agents.config.ts"
   },
   "dependencies": {
     "@somnia-chain/markets-sdk": "0.29.0",

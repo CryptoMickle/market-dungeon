@@ -67,6 +67,9 @@ import {
   type RunShareCardInput,
 } from './share-run-card.ts';
 import styles from './full-expedition.module.css';
+import { useKevinRival } from './somnia-agents/use-kevin-rival';
+import { KevinRivalPanel } from './somnia-agents/rival-panel';
+import { compareRival, type RivalOutcome } from '../lib/somnia-agents/types';
 
 const LOOT_ART = [
   null,
@@ -122,8 +125,10 @@ function resultMessage(transition: MarketDungeonTransition): string {
   return transition.reason;
 }
 
-export default function FullExpedition() {
+export default function FullExpedition({ localAgents = false }: { localAgents?: boolean }) {
   const { playCharacterIntro, playOutcome } = useGameAudio();
+  const rival = useKevinRival(localAgents);
+  const storageKey = localAgents ? 'market-dungeon/local-agents/full-run/v1' : FULL_RUN_STORAGE_KEY;
   const [session, setSession] = useState<FullRunSession | null>(null);
   const [showHome, setShowHome] = useState(false);
   const homeHeading = useRef<HTMLHeadingElement>(null);
@@ -144,19 +149,19 @@ export default function FullExpedition() {
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
-      const raw = window.localStorage.getItem(FULL_RUN_STORAGE_KEY);
+      const raw = window.localStorage.getItem(storageKey);
       const restored = parseFullRunSession(raw);
       setSession(restored);
       setNotice(restored ? 'Saved expedition restored on this device.' : raw ? 'Saved data was invalid and was not loaded.' : 'Ready for a fresh expedition.');
       setReady(true);
     }, 0);
     return () => window.clearTimeout(timer);
-  }, []);
+  }, [storageKey]);
 
   useEffect(() => {
     if (!ready || !session) return;
-    window.localStorage.setItem(FULL_RUN_STORAGE_KEY, serializeFullRunSession(session));
-  }, [ready, session]);
+    window.localStorage.setItem(storageKey, serializeFullRunSession(session));
+  }, [ready, session, storageKey]);
 
   useEffect(() => {
     const timer = window.setInterval(() => setNow(Math.floor(Date.now() / 1_000)), 1_000);
@@ -244,9 +249,21 @@ export default function FullExpedition() {
   const lootLabel = loot && game ? game.lastLootType === 2 ? `${game.lastLootAmount} bonus gold` : loot.label : '';
   const gearDetails = game && <><p><LoadoutSummary gold={game.gold} weapon={game.weaponLevel} armor={game.armorLevel} /></p><p>◆ Active relic: {activeRelic.name}<br />{activeRelic.effect}<br />{activeRelic.tradeoff}</p><RelicReviveStatus game={game} relicId={game.equippedRelic} />{game.ownedRelics.length > 0 && <p>{mobileCombat ? 'After this fight, open CHANGE / UNEQUIP RELIC between rooms. Equipment stays locked during combat.' : run?.rematchRequired || run?.phase === 'settlement-pending' ? 'Equipment stays locked until this boss is resolved.' : 'Use CHANGE / UNEQUIP RELIC in the room panel when available.'}</p>}</>;
   const omenSummary = run?.currentAttempt ? `BTC ${run.currentAttempt.direction} · ${marketRemaining > 0 ? `MARKET CLOSES IN ${formatTime(marketRemaining)}` : 'MARKET CLOSED'}` : undefined;
-  const omenHint = marketRemaining > 0 ? 'You can keep fighting after 00:00.' : 'Market closed. Keep fighting to reach the boss result.';
+  const selectedRivalAttempt = run?.currentAttempt ?? run?.settlements.at(-1);
+  const rivalRound = rival.rounds.find((round) => round.attemptId === selectedRivalAttempt?.attemptId) ?? null;
+  const rivalSettlement = run?.settlements.find((settlement) => settlement.attemptId === rivalRound?.attemptId);
+  const rivalOutcome: RivalOutcome | undefined = rivalSettlement
+    ? rivalSettlement.outcome === 'VOID' ? 'VOID' : rivalSettlement.outcome === 'BLESSED' ? rivalSettlement.direction : rivalSettlement.direction === 'UP' ? 'DOWN' : 'UP'
+    : undefined;
+  const rivalProps = { mode: rival.mode, onModeChange: rival.setMode, round: rivalRound,
+    playerDirection: selectedRivalAttempt?.direction, marketOutcome: rivalOutcome, canConfigure: !run?.currentAttempt };
+  const rivalPanel = localAgents && <KevinRivalPanel {...rivalProps} />;
+  const rivalHint = rivalRound?.status === 'locked' ? `Kevin: BTC ${rivalRound.direction} · ${rivalRound.mode === 'simulation' ? 'SIMULATED' : 'SOMNIA AGENT'} · Details`
+    : rivalRound?.status === 'unavailable' ? 'Kevin sits this round out · Details'
+      : rivalRound ? 'Kevin is choosing · Keep fighting · Details' : null;
+  const omenHint = localAgents && rivalHint ? rivalHint : marketRemaining > 0 ? 'You can keep fighting after 00:00.' : 'Market closed. Keep fighting to reach the boss result.';
   const relicSummary = game?.equippedRelic ? <RelicInfo name={activeRelic.name}><p>{activeRelic.effect}</p><p>{activeRelic.tradeoff}</p><RelicReviveStatus game={game} relicId={game.equippedRelic} /><p>Relics can only be changed between fights when the loadout controls are available.</p></RelicInfo> : activeRelic.name;
-  const omenDetails = <><p>LOCKED TIER OMEN · BTC {run?.currentAttempt?.direction}</p><p>Opening reference: {session?.market ? formatUsd(session.market.strikeUsd) : 'Unavailable'}</p><p>{marketRemaining > 0 ? `Market closes in ${formatTime(marketRemaining)}. You can keep fighting after 00:00.` : 'Market closed. Defeat the boss to check the result; settlement can take longer.'}</p><OmenGuide mode="expedition" /><p>Live five-minute dreamDEX Event Contract · Somnia Mainnet.</p></>;
+  const omenDetails = <>{rivalPanel}<p>LOCKED TIER OMEN · BTC {run?.currentAttempt?.direction}</p><p>Opening reference: {session?.market ? formatUsd(session.market.strikeUsd) : 'Unavailable'}</p><p>{marketRemaining > 0 ? `Market closes in ${formatTime(marketRemaining)}. You can keep fighting after 00:00.` : 'Market closed. Defeat the boss to check the result; settlement can take longer.'}</p><OmenGuide mode="expedition" /><p>Live five-minute dreamDEX Event Contract · Somnia Mainnet.</p></>;
   const merchantStage = Boolean(merchant && run?.phase === 'exploring' && game?.monsterHp === 0);
   const closedGate = run?.phase === 'boss-lock-required' && !run.rematchRequired;
   const latestSettlement = run?.settlements.at(-1) ?? null;
@@ -405,6 +422,8 @@ export default function FullExpedition() {
       },
     }, market);
     if (accepted) {
+      // The player is already locked. Kevin receives only the public market identity.
+      void rival.start(attemptId, market.marketId, market.expiry);
       setMarketCandidate(null);
       setMarketOdds(null);
     } else {
@@ -468,6 +487,10 @@ export default function FullExpedition() {
       <DesktopNavigation />
       <div className={styles.column}>
         <div className={styles.modeNavigation}><GameModeNav current="expedition" /></div>
+        {localAgents && !mobileCombat && <aside className={styles.localAgentsBanner}>
+          <b>LOCAL AGENTS EDITION · KEVIN THE RIVAL</b>
+          <Link href="/somnia-agents">TRY THE QUICK RIVAL PLAYGROUND →</Link>
+        </aside>}
         {mobileCombat && game && run && <MobileBattle
           room={room}
           onHome={() => setShowHome(true)}
@@ -496,7 +519,7 @@ export default function FullExpedition() {
           <p>DELVEWORN · EVENT CONTRACTS EDITION</p>
           <h1 ref={homeHeading} tabIndex={-1}><GameLogo /></h1>
           <strong>DEFEAT THE BOSS · PREDICT THE MARKET · SURVIVE BOTH</strong>
-          <div><span /> SOMNIA MAINNET · LIVE 5-MINUTE EVENT CONTRACTS · NO TRANSACTIONS</div>
+          <div><span /> {localAgents ? 'LOCAL KEVIN RIVAL · LIVE 5-MINUTE MARKETS' : 'SOMNIA MAINNET · LIVE 5-MINUTE EVENT CONTRACTS · NO TRANSACTIONS'}</div>
         </header>
 
         {!run || !game ? (
@@ -508,6 +531,7 @@ export default function FullExpedition() {
               <p>THE FULL EXPEDITION · 40 ROOMS · 4 BOSSES</p>
               <h2>Defeat the boss. Predict correctly. Survive both.</h2>
               <span>Choose BTC UP or DOWN, then fight while a real five-minute market runs. A correct omen keeps the defeated boss down. A wrong one brings that same boss back.</span>
+              {localAgents && <div className={styles.localRivalHome}>{rivalPanel}</div>}
               <section className={styles.homeMarket} aria-label="Expedition market">
                 {session?.market ? <>
                   <div className={styles.marketReference}>
@@ -534,6 +558,7 @@ export default function FullExpedition() {
             </div>
             <div className={styles.homeActions} data-keyboard-actions>
               <button className={styles.primary} onClick={session ? continueExpedition : beginNewRun}>{session ? 'CONTINUE EXPEDITION' : 'ENTER THE DUNGEON'}</button>
+              {localAgents && session && <button className={styles.secondary} onClick={beginNewRun}>START A FRESH LOCAL EXPEDITION</button>}
               <KeyboardHint />
               <Link href="/shannon/live-judge">JUDGES: PLAY THE LIVE 1-MINUTE DEMO →</Link>
               {session && <span>Your expedition is saved on this device. The market timer keeps running.</span>}
@@ -557,6 +582,8 @@ export default function FullExpedition() {
             {game.monsterHp === 0 && game.lastCritical && <CriticalHitResult damage={game.lastRolledDamage ?? game.lastPlayerDamage} />}
 
             {verifiedBossMoment?.outcome !== 'CURSED' && verifiedBossStatus}
+            {localAgents && run.phase !== 'boss-lock-required' && <KevinRivalPanel {...rivalProps} compact={run.phase === 'exploring' || run.phase === 'boss-combat'} />}
+            {localAgents && run.settlements.length > 0 && <RivalScoreboard rounds={rival.rounds} settlements={run.settlements} />}
 
             {run.phase === 'boss-lock-required' ? (
               <section className={`${styles.panel} ${styles.oraclePanel}`}>
@@ -588,8 +615,11 @@ export default function FullExpedition() {
                   <button aria-pressed={direction === 'DOWN'} className={direction === 'DOWN' ? styles.downSelected : ''} onClick={() => setDirection('DOWN')}><b>🌑 SHADOWS RISE</b><small>BTC DOWN</small></button>
                 </div>
                 {!run.rematchRequired && <OmenGuide mode="expedition" />}
+                {rivalPanel}
                 <button className={styles.primary} onClick={lockActiveOmen} disabled={busy || !marketCandidate || candidateRemaining <= 0}>{run.rematchRequired ? `LOCK BTC ${direction} · REMATCH BOSS` : `LOCK BTC ${direction} · ENTER TIER ${tier}`}</button>
-                <small className={styles.disclosure}>Active dreamDEX BTC 5m market · local direction lock · direct Somnia settlement proof · no wallet, order or transaction</small>
+                <small className={styles.disclosure}>{localAgents && rival.mode === 'somnia'
+                  ? 'The dungeon is free to play. Kevin’s optional Somnia Agent request asks for a testnet STT deposit and a wallet signature. Declining does not stop your expedition.'
+                  : 'Active dreamDEX BTC 5m market · local direction lock · direct Somnia settlement proof · no wallet, order or transaction'}</small>
                 {run.rematchRequired && <>
                   <RecoverySupplies hp={game.hp} maxHp={game.maxHp} potions={game.potions} />
                   <button className={`${styles.secondary} ${styles.recoveryPotion}`} onClick={() => gameplay({ type: 'use-potion' })} disabled={busy || game.potions === 0 || game.hp >= game.maxHp}>🧪 USE POTION · {game.potions}/5 · {game.potions === 0 ? 'EMPTY' : game.hp >= game.maxHp ? 'FULL HP' : `+${Math.min(25, game.maxHp - game.hp)} HP · NO RETALIATION`}</button>
@@ -686,12 +716,30 @@ export default function FullExpedition() {
 
         <footer className={styles.footer}>
           <span>FULL GAME · DELVEWORN RULES · ACTIVE 5M DREAMDEX SETTLEMENT</span>
-          <p>No wallet · no approval · no order · no transaction</p>
+          <p>{localAgents ? 'Local prototype · simulator is free · real agent requests use a Shannon testnet wallet and STT' : 'No wallet · no approval · no order · no transaction'}</p>
           <nav><a href={dreamDexBtcEventContractUrl(300)} target="_blank" rel="noopener noreferrer">CONTINUE ON DREAMDEX ↗</a><Link href="/shannon/live-judge">LIVE JUDGE DEMO</Link><Link href="/credits">PRIVACY · CREDITS</Link></nav>
         </footer>
       </div>
     </main>
   );
+}
+
+function RivalScoreboard({ rounds, settlements }: {
+  rounds: ReturnType<typeof useKevinRival>['rounds'];
+  settlements: FullRunSession['run']['settlements'];
+}) {
+  const scores = { simulation: { player: 0, kevin: 0, tie: 0, void: 0 }, somnia: { player: 0, kevin: 0, tie: 0, void: 0 } };
+  for (const settlement of settlements) {
+    const round = rounds.find((item) => item.attemptId === settlement.attemptId && item.marketId === settlement.marketId);
+    if (!round?.direction || round.status !== 'locked') continue;
+    const outcome = settlement.outcome === 'VOID' ? 'VOID' : settlement.outcome === 'BLESSED' ? settlement.direction : settlement.direction === 'UP' ? 'DOWN' : 'UP';
+    scores[round.mode][compareRival(settlement.direction, round.direction, outcome)] += 1;
+  }
+  return <details className={styles.localScore}>
+    <summary>YOUR RIVAL SCORECARD</summary>
+    {(['simulation', 'somnia'] as const).map((mode) => <p key={mode}><b>{mode === 'simulation' ? 'LOCAL SIMULATION' : 'SOMNIA AGENT · TESTNET'}</b><span>You {scores[mode].player} · Kevin {scores[mode].kevin} · Ties {scores[mode].tie} · Void {scores[mode].void}</span></p>)}
+    <small>Only settled markets with a timely rival answer count. Simulator and real agent scores stay separate. No gold or combat bonuses.</small>
+  </details>;
 }
 
 function RelicReviveStatus({ game, relicId }: { game: FullRunSession['run']['game']; relicId: number }) {
