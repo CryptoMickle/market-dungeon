@@ -24,6 +24,7 @@ export type KevinRivalPanelProps = {
   wallet?: WalletConnection;
   onConnectWallet?: () => Promise<void>;
   walletOpenLink?: string;
+  onOpenWalletRequest?: () => void;
 };
 
 function roundStatus(round: RivalRound | null) {
@@ -46,7 +47,7 @@ function outcomeText(result: ReturnType<typeof compareRival>) {
   }
 }
 
-export function KevinRivalPanel({ mode, onModeChange, round, playerDirection, marketOutcome, canConfigure = false, compact = false, wallet, onConnectWallet, walletOpenLink }: KevinRivalPanelProps) {
+export function KevinRivalPanel({ mode, onModeChange, round, playerDirection, marketOutcome, canConfigure = false, compact = false, wallet, onConnectWallet, walletOpenLink, onOpenWalletRequest }: KevinRivalPanelProps) {
   const hosted = useAgentsEnvironment() === 'preview';
   const executionMode = round?.mode ?? mode;
   const simulated = executionMode === 'simulation';
@@ -102,6 +103,7 @@ export function KevinRivalPanel({ mode, onModeChange, round, playerDirection, ma
       <span>MetaMask may also list Ethereum in connection permissions. Kevin’s paid request is restricted to Somnia Shannon testnet.</span>
     </section>}
 
+    {onOpenWalletRequest && <button className={styles.lockButton} type="button" onClick={onOpenWalletRequest}>VIEW WALLET REQUEST</button>}
     {!simulated && walletOpenLink && (wallet?.status === 'connecting' || round?.status === 'awaiting-wallet') && <a className={styles.lockButton} href={walletOpenLink}>OPEN METAMASK</a>}
 
     {round && <div className={styles.round}>

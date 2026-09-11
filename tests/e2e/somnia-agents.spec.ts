@@ -293,6 +293,8 @@ test('declining MetaMask connection leaves the omen unlocked and allows simulate
   const panel = await openRivalDetails(page);
   await panel.getByRole('button', { name: 'SOMNIA AGENTS Testnet wallet + STT fee', exact: true }).click();
   await panel.getByRole('button', { name: 'CONNECT METAMASK', exact: true }).click();
+  await expect(page.getByLabel('Expedition stage', { exact: true }).getByRole('alert')).toContainText('Connection declined. Your omen is still unlocked.');
+  await openRivalDetails(page);
   await expect(panel).toContainText('SOMNIA AGENTS · TESTNET');
   await expect(panel).toContainText('Connection declined. Your omen is still unlocked.');
   await expect(panel).not.toContainText('RIVAL RESULT');
@@ -633,6 +635,8 @@ test('narrow desktop status keeps Kevin text inside its button before lock and d
   await expect(page.getByRole('button', { name: 'LOCK BTC UP · ENTER TIER 1', exact: true })).toBeEnabled();
   expect((await savedRun(page))!.run.currentAttempt).toBeNull();
   await page.getByRole('button', { name: 'LOCK BTC UP · ENTER TIER 1', exact: true }).click();
+  await expect(page.getByTestId('kevin-wallet-loading')).toHaveAttribute('data-phase', 'transaction');
+  await page.getByTestId('kevin-wallet-loading').getByRole('button', { name: 'BACK TO GAME', exact: true }).click();
   await expect(rivalStatus(page)).toHaveAttribute('aria-label', 'Somnia Agent Kevin: Wallet approval');
   await measure('wallet-approval');
 });

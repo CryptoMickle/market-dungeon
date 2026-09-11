@@ -70,6 +70,7 @@ import styles from './full-expedition.module.css';
 import { useKevinRival } from './somnia-agents/use-kevin-rival';
 import { KevinRivalPanel } from './somnia-agents/rival-panel';
 import { KevinRivalStatus } from './somnia-agents/rival-status';
+import { KevinWalletLoading } from './somnia-agents/wallet-loading';
 import { useAgentsEnvironment } from './local-agents-context';
 import { compareRival, type RivalOutcome } from '../lib/somnia-agents/types';
 
@@ -267,9 +268,14 @@ export default function FullExpedition({ localAgents = false, autoEnter = false 
   const wantsRivalWallet = localAgents && rival.mode === 'somnia';
   const needsRivalWallet = wantsRivalWallet && !rival.walletReady;
   const connectingRivalWallet = wantsRivalWallet && rival.wallet.status === 'connecting';
+  // Native Details dialogs sit above ordinary portals, including MetaMask's QR UI.
+  const closeRivalDetails = () => document.querySelectorAll<HTMLDialogElement>('main dialog[open]').forEach(dialog => dialog.close());
+  const connectRivalWallet = async () => { closeRivalDetails(); await rival.connectWallet(); };
+  const showRivalWalletRequest = () => { closeRivalDetails(); rival.showWalletLoading(); };
   const rivalProps = { mode: rival.mode, onModeChange: rival.setMode, round: rivalRound,
     playerDirection: selectedRivalAttempt?.direction, marketOutcome: rivalOutcome, canConfigure: !run?.currentAttempt,
-    wallet: rival.wallet, walletOpenLink: rival.walletOpenLink, onConnectWallet: rival.connectWallet };
+    wallet: rival.wallet, walletOpenLink: rival.walletOpenLink, onConnectWallet: connectRivalWallet,
+    onOpenWalletRequest: rival.walletRequest ? showRivalWalletRequest : undefined };
   const rivalPanel = localAgents && <KevinRivalPanel {...rivalProps} />;
   const rivalStatus = localAgents && <KevinRivalStatus {...rivalProps}>
     {rivalPanel}
@@ -507,7 +513,9 @@ export default function FullExpedition({ localAgents = false, autoEnter = false 
   }
 
   return (
-    <main className={`${styles.shell} ${mobileCombat ? styles.mobileCombatActive : ''} ${run && game ? styles.activeExpedition : styles.homeScreen}`}>
+    <main inert={Boolean(rival.walletLoading) || undefined} aria-busy={Boolean(rival.walletLoading) || undefined}
+      className={`${styles.shell} ${mobileCombat ? styles.mobileCombatActive : ''} ${run && game ? styles.activeExpedition : styles.homeScreen}`}>
+      {rival.walletLoading && <KevinWalletLoading {...rival.walletLoading} walletOpenLink={rival.walletOpenLink} onDismiss={rival.dismissWalletLoading} />}
       <DesktopNavigation />
       <div className={styles.column}>
         {localAgents && !run && <aside className={styles.localAgentsBanner}>
@@ -636,11 +644,12 @@ export default function FullExpedition({ localAgents = false, autoEnter = false 
                   <button aria-pressed={direction === 'DOWN'} className={direction === 'DOWN' ? styles.downSelected : ''} onClick={() => setDirection('DOWN')}><b>🌑 SHADOWS RISE</b><small>BTC DOWN</small></button>
                 </div>
                 {!run.rematchRequired && <OmenGuide mode="expedition" />}
-                <button className={styles.primary} onClick={needsRivalWallet ? () => { void rival.connectWallet(); } : lockActiveOmen}
+                <button className={styles.primary} onClick={needsRivalWallet ? () => { void connectRivalWallet(); } : lockActiveOmen}
                   disabled={busy || connectingRivalWallet || (!needsRivalWallet && (!marketCandidate || candidateRemaining <= 0))}>
                   {needsRivalWallet ? connectingRivalWallet ? 'CONNECTING TO METAMASK…' : 'CONNECT METAMASK FIRST'
                     : run.rematchRequired ? `LOCK BTC ${direction} · REMATCH BOSS` : `LOCK BTC ${direction} · ENTER TIER ${tier}`}
                 </button>
+                {rival.walletRequest && <button className={styles.secondary} onClick={showRivalWalletRequest}>VIEW WALLET REQUEST</button>}
                 {connectingRivalWallet && rival.walletOpenLink && <a className={styles.secondary} href={rival.walletOpenLink}>OPEN METAMASK</a>}
                 {wantsRivalWallet && <small className={styles.disclosure} role="status">
                   {rival.walletReady

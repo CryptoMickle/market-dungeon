@@ -43,7 +43,8 @@
 
 /* Native dialogs make controls outside their top layer inert. The dialog uses
    an inline control, so keep a single visible sound button while it is open. */
-:global(body:has(dialog[open])) .floating { visibility: hidden; }
+:global(body:has(dialog[open])) .floating,
+:global(body:has([data-testid="kevin-wallet-loading"])) .floating { visibility: hidden; }
 
 @media (max-width: 800px) {
   .toggle {

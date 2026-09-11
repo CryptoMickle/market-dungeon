@@ -6,6 +6,7 @@ import { ensureKevinWalletNetwork, sendKevinRequest } from '../../lib/somnia-age
 import { clearKevinWalletConnection, clearKevinWalletOpenLink, connectKevinWallet, getKevinWalletOpenLink, prewarmKevinWallet, subscribeKevinWalletOpenLink, type KevinWalletConnection } from '../../lib/somnia-agents/metamask-connect.ts';
 
 type WalletState = { status: 'disconnected' | 'connecting' | 'connected' | 'error'; account?: string; error?: string };
+type WalletRequest = { phase: 'connect' | 'prepare' | 'transaction'; depositStt?: string };
 
 const STORAGE_KEY = 'market-dungeon/local-kevin-rival/v1';
 const MAX_ROUNDS = 100;
@@ -59,6 +60,8 @@ function restoreRounds(value: unknown): RivalRound[] {
 export function useKevinRival(enabled: boolean) {
   const [mode, setModeState] = useState<RivalMode>('simulation');
   const [wallet, setWallet] = useState<WalletState>({ status: 'disconnected' });
+  const [walletRequest, setWalletRequest] = useState<WalletRequest | null>(null);
+  const [walletRequestDismissed, setWalletRequestDismissed] = useState(false);
   const walletOpenLink = useSyncExternalStore(subscribeKevinWalletOpenLink, getKevinWalletOpenLink, () => undefined);
   const connection = useRef<KevinWalletConnection | undefined>(undefined);
   const walletBusy = useRef(false);
@@ -98,6 +101,8 @@ export function useKevinRival(enabled: boolean) {
   const connectWallet = useCallback(async () => {
     if (!enabled || walletBusy.current) return;
     walletBusy.current = true;
+    setWalletRequestDismissed(false);
+    setWalletRequest({ phase: 'connect' });
     setWallet({ status: 'connecting' });
     try {
       const connected = await connectKevinWallet();
@@ -112,7 +117,11 @@ export function useKevinRival(enabled: boolean) {
       if (mounted.current) setWallet({ status: 'error', error: (error as { code?: number })?.code === 4001
         ? 'Connection declined. Your omen is still unlocked. You can try again or choose simulated Kevin.'
         : error instanceof Error ? error.message : 'Could not connect MetaMask. Your omen is still unlocked. Try again.' });
-    } finally { walletBusy.current = false; clearKevinWalletOpenLink(); }
+    } finally {
+      walletBusy.current = false;
+      clearKevinWalletOpenLink();
+      if (mounted.current) setWalletRequest(null);
+    }
   }, [enabled]);
 
   useEffect(() => {
@@ -203,6 +212,10 @@ export function useKevinRival(enabled: boolean) {
     if (mode === 'somnia' && !connected) return;
     started.current.add(attemptId);
     busy.current.add(attemptId);
+    if (mode === 'somnia') {
+      setWalletRequestDismissed(false);
+      setWalletRequest({ phase: 'prepare' });
+    }
     let round: RivalRound = { attemptId, marketId, expiry, cutoff: expiry - 10, mode, status: 'preparing' };
     update(round);
     try {
@@ -213,7 +226,10 @@ export function useKevinRival(enabled: boolean) {
         const transaction: RivalTransaction = data.transaction;
         round = { ...round, status: 'awaiting-wallet', reason: `Confirm in your wallet: ${transaction.depositStt} testnet STT deposit plus gas. You can decline and keep playing.` };
         update(round);
+        if (mounted.current) setWalletRequest({ phase: 'transaction', depositStt: transaction.depositStt });
         const txHash = await sendKevinRequest(transaction, round.cutoff, connected?.provider, connected?.account);
+        if (mounted.current) setWalletRequest(null);
+        clearKevinWalletOpenLink();
         round = { ...round, status: 'pending', txHash, reason: undefined };
         // Persist the hash immediately so navigation cannot cause a second send.
         update(round);
@@ -227,8 +243,17 @@ export function useKevinRival(enabled: boolean) {
       }
     } catch (error) {
       update({ ...round, status: round.txHash ? 'pending' : 'unavailable', reason: error instanceof Error ? error.message : 'Kevin sits out this round. Your expedition continues.' });
-    } finally { busy.current.delete(attemptId); if (mode === 'somnia') clearKevinWalletOpenLink(); }
+    } finally {
+      busy.current.delete(attemptId);
+      if (mode === 'somnia') {
+        clearKevinWalletOpenLink();
+        if (mounted.current) setWalletRequest(null);
+      }
+    }
   }, [enabled, ready, mode, update]);
 
-  return { mode, setMode, rounds, start, wallet, walletOpenLink, connectWallet, walletReady: wallet.status === 'connected' };
+  return { mode, setMode, rounds, start, wallet, walletOpenLink, connectWallet, walletReady: wallet.status === 'connected',
+    walletRequest, walletLoading: walletRequestDismissed ? null : walletRequest,
+    dismissWalletLoading: () => setWalletRequestDismissed(true),
+    showWalletLoading: () => setWalletRequestDismissed(false) };
 }
