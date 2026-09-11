@@ -128,7 +128,7 @@ test('Home keeps all choices and Enter steady and makes no market, agent or wall
   await expect(detail).not.toContainText('Kevin');
   const baseline = { choices: await box(chooser(page)), enter: await box(enter(page)) };
   const descriptions = new Set<string>();
-  for (const mode of ['Full Expedition', 'Judge Demo', 'Somnia Agents', 'Full Expedition']) {
+  for (const mode of ['Full Expedition', 'Judge Demo', 'Somnia Agent Kevin', 'Full Expedition']) {
     await chooser(page).getByRole('radio', { name: mode, exact: true }).check();
     await expect(detail).toBeVisible();
     descriptions.add(await detail.innerText());
@@ -171,7 +171,7 @@ test('a fresh Full or Agents run starts only after Enter and goes directly to om
     return route.fulfill({ status: 400, json: { error: 'No rival should run before an omen is locked.' } });
   });
   await page.goto('/');
-  for (const [mode, path, key] of [['Full Expedition', '/expedition', FULL_RUN_STORAGE_KEY], ['Somnia Agents', '/somnia-agents', AGENT_RUN_KEY]]) {
+  for (const [mode, path, key] of [['Full Expedition', '/expedition', FULL_RUN_STORAGE_KEY], ['Somnia Agent Kevin', '/somnia-agents', AGENT_RUN_KEY]]) {
     const callsBeforeSelection = marketCalls;
     await chooser(page).getByRole('radio', { name: mode, exact: true }).check();
     await expect(enter(page)).toHaveAccessibleName('ENTER DUNGEON');
@@ -212,7 +212,7 @@ test('Home distinguishes finished runs from active saves and never offers to con
     if (!sessionStorage.getItem(liveKey)) sessionStorage.setItem(liveKey, JSON.stringify(expiredSave));
   }, { terminal, fullKey: FULL_RUN_STORAGE_KEY, agentKey: AGENT_RUN_KEY, liveKey: LIVE_RUN_KEY, expiredSave });
   await page.goto('/');
-  for (const mode of ['Full Expedition', 'Somnia Agents']) {
+  for (const mode of ['Full Expedition', 'Somnia Agent Kevin']) {
     await chooser(page).getByRole('radio', { name: mode, exact: true }).check();
     await expect(enter(page)).toHaveAccessibleName('VIEW LAST RUN');
   }
@@ -234,7 +234,7 @@ for (const agents of [false, true]) {
   test(`${agents ? 'Agents' : 'ordinary Full Expedition'} returns through Home with the exact combat and loot save`, async ({ page }) => {
     const fixture = roomSevenFixture();
     const key = agents ? AGENT_RUN_KEY : FULL_RUN_STORAGE_KEY;
-    const mode = agents ? 'Somnia Agents' : 'Full Expedition';
+    const mode = agents ? 'Somnia Agent Kevin' : 'Full Expedition';
     const path = agents ? '/somnia-agents' : '/expedition';
     const calls: Array<Record<string, unknown>> = [];
     let marketCalls = 0;

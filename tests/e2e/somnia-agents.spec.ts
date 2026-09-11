@@ -398,7 +398,7 @@ async function installSavedFixture(page: Page, fixture: ReturnType<typeof roomFi
 }
 
 for (const agents of [false, true]) {
-  test(`${agents ? 'Somnia Agents' : 'ordinary Full Expedition'} keeps all ten rooms visible through combat, loot and the next room`, async ({ page }, info) => {
+  test(`${agents ? 'Somnia Agent Kevin' : 'ordinary Full Expedition'} keeps all ten rooms visible through combat, loot and the next room`, async ({ page }, info) => {
     test.skip(info.project.name.includes('iphone'), 'This regression specifically covers the former missing desktop room strip.');
     const fixture = roomFixture(7);
     const requests = await installSavedFixture(page, fixture, agents);
@@ -523,7 +523,7 @@ test('Home keeps ordinary and Agent expeditions separate and preserves Judge var
     await expect(choices()).toBeVisible();
     await expect(choices().locator('input:checked')).toHaveCount(0);
   }
-  async function choose(mode: 'Full Expedition' | 'Judge Demo' | 'Somnia Agents') {
+  async function choose(mode: 'Full Expedition' | 'Judge Demo' | 'Somnia Agent Kevin') {
     await expect(choices().getByRole('radio')).toHaveCount(3);
     for (const radio of await choices().getByRole('radio').all()) {
       const box = (await radio.locator('..').boundingBox())!;
@@ -573,7 +573,7 @@ test('Home keeps ordinary and Agent expeditions separate and preserves Judge var
   await expect(rivalStatus(page)).toHaveCount(0);
   expect(fixture.requests).toHaveLength(ordinaryReads);
   await home();
-  await choose('Somnia Agents');
+  await choose('Somnia Agent Kevin');
   await expect(page).toHaveURL(/\/somnia-agents$/);
   await expect(page.getByRole('region', { name: 'Combat view', exact: true })).toBeVisible();
   await expect(rivalStatus(page)).toBeVisible();
@@ -646,7 +646,7 @@ async function headerGeometry(page: Page, agents: boolean, allowMissingOmen = fa
   const elements = {
     sound: page.getByRole('button', { name: /^(Turn all game sounds (on|off)|Resume game sounds)$/ }),
     logo,
-    mode: header.getByText(agents ? 'SOMNIA AGENTS' : 'FULL EXPEDITION', { exact: true }),
+    mode: header.getByText(agents ? 'SOMNIA AGENT KEVIN' : 'FULL EXPEDITION', { exact: true }),
     ...(!allowMissingOmen || await page.getByRole('button', { name: /^Omen details:/ }).count()
       ? { omen: page.getByRole('button', { name: /^Omen details:/ }) } : {}),
     ...(agents ? { kevin: rivalStatus(page) } : {}),

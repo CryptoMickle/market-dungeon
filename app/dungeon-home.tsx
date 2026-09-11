@@ -19,7 +19,7 @@ const AGENTS_SAVE = 'market-dungeon/local-agents/full-run/v1';
 const modes = [
   { id: 'expedition', name: 'Full Expedition' },
   { id: 'judge', name: 'Judge Demo' },
-  { id: 'agents', name: 'Somnia Agents' },
+  { id: 'agents', name: 'Somnia Agent Kevin' },
 ] as const;
 
 const descriptions = {
@@ -49,7 +49,7 @@ const descriptions = {
     facts: [], note: 'No wallet or transactions. You can return from Home in this tab; reloading starts a new replay.',
   },
   agents: {
-    eyebrow: 'SOMNIA AGENTS · LOCAL EDITION', title: 'Can you outpredict Somnia Agent Kevin?',
+    eyebrow: 'SOMNIA AGENT KEVIN · LOCAL EDITION', title: 'Can you outpredict Somnia Agent Kevin?',
     intro: 'Play the full adventure with Kevin as your prediction rival. His call stays beside yours in the status bar while you fight.',
     points: ['You both face the same market. Kevin’s choice does not change your combat or boss result.', 'Compare your calls after settlement. Bragging rights are the prize.'],
     facts: ['40 rooms', 'Kevin as rival', 'Live · 5 min'],
@@ -68,7 +68,7 @@ export default function DungeonHome() {
   const baseContent = descriptions[mode === 'judge' ? demo : mode ?? 'neutral'];
   const content = mode === 'agents' && agentsEnvironment === 'preview' ? {
     ...baseContent,
-    eyebrow: 'SOMNIA AGENTS · PREVIEW',
+    eyebrow: 'SOMNIA AGENT KEVIN · PREVIEW',
     note: 'Starts with Simulated Kevin: random, no AI or wallet. For the real testnet agent, open Kevin’s Details and connect MetaMask before locking. Works from Safari; the agent request uses testnet STT.',
   } : baseContent;
   const key = mode === 'judge' ? demo : mode ?? 'neutral';

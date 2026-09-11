@@ -5,7 +5,7 @@ import { somniaAgentsEnvironment } from '../../lib/somnia-agents/environment';
 
 export const dynamic = 'force-dynamic';
 export const metadata: Metadata = {
-  title: 'Somnia Agents · Market Dungeon',
+  title: 'Somnia Agent Kevin · Market Dungeon',
   robots: { index: false, follow: false },
 };
 

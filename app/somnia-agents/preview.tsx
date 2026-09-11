@@ -60,7 +60,7 @@ export default function KevinRivalPreview() {
         <p>Try the rival experience in seconds. Pick your omen, see Kevin’s random test choice, then choose a pretend market result.</p>
         <div className={`${styles.modeNotice} ${styles.simulationNotice}`} role="note">
           <strong>SIMULATION ONLY · NO REAL MARKET · NO SOMNIA AGENT</strong>
-          <span>Every round on this page is made up. No wallet, payment or blockchain request is involved. Play the Somnia Agents mode to compete alongside a real market.</span>
+          <span>Every round on this page is made up. No wallet, payment or blockchain request is involved. Play the Somnia Agent Kevin mode to compete alongside a real market.</span>
         </div>
       </header>
       <div className={styles.previewGrid}>

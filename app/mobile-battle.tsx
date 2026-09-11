@@ -4,7 +4,7 @@ import Image from 'next/image';
 import { GameLogo } from './game-logo';
 import { GameAudioToggle, useGameAudio } from './game-audio';
 import { KeyboardHint } from './desktop-navigation';
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import styles from './mobile-battle.module.css';
 import { GameText, GoldIcon, playerHealthTone } from './game-icons';
 
@@ -97,7 +97,7 @@ export function PlayerStatus({ hp, maxHp, location, potions, loadout, omen, omen
   const dialog = useRef<HTMLDialogElement>(null);
   const [detail, setDetail] = useState<'Omen' | 'Gear'>('Omen');
   function show(next: typeof detail) { setDetail(next); openDetails(dialog.current); }
-  return <section className={styles.playerStatus} aria-label="Player status">
+  return <section className={styles.playerStatus} aria-label="Player status" data-combat-entry={rivalStatus ? 'kevin' : undefined}>
     <PlayerHealth hp={hp} maxHp={maxHp} location={location} accessories={<div className={styles.inventory}>
         <span aria-label={`Potions ${potions} of 5`}><small className={styles.mobileLabel}>POTIONS</small>🧪 {potions}/5</span>
         <span className={styles.mobileStat} aria-label={`Gold ${loadout.gold}`}><small>GOLD</small><span><GoldIcon /> {loadout.gold}</span></span>
@@ -133,16 +133,19 @@ export function MobileBattle(props: Props) {
   const { playCharacterIntro, setBossBattle } = useGameAudio();
   const bossBattleActive = Boolean(props.enemy.isBoss && props.enemy.hp > 0 && props.hp > 0);
   const screen = useRef<HTMLElement>(null);
+  const hasRivalStatus = Boolean(props.rivalStatus);
   const dialog = useRef<HTMLDialogElement>(null);
   const potionReason = props.potions === 0 ? 'Empty' : props.hp >= props.maxHp ? 'Full HP' : props.potionUses >= props.potionLimit ? 'Limit' : null;
   const percent = (hp: number, max: number) => `${Math.max(0, Math.min(100, max > 0 ? hp / max * 100 : 0))}%`;
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!window.matchMedia('(max-width: 800px)').matches) return;
-    // Locking from the longer setup page can leave its scroll offset behind.
-    // Include the mode navigation and clock above combat; reset only on entry.
-    const frame = window.requestAnimationFrame(() => window.scrollTo({ top: 0, behavior: 'instant' }));
-    return () => window.cancelAnimationFrame(frame);
-  }, []);
+    // Kevin's extra status row needs the space otherwise occupied by the logo.
+    // Position before paint, once per encounter; hits and rival polling must not
+    // take over a player's manual scrolling. Other modes keep their usual entry.
+    const anchor = hasRivalStatus ? screen.current?.querySelector<HTMLElement>('[data-combat-entry="kevin"]') : null;
+    if (anchor) anchor.scrollIntoView({ block: 'start', behavior: 'instant' });
+    else window.scrollTo({ top: 0, behavior: 'instant' });
+  }, [hasRivalStatus, props.room]);
   useEffect(() => {
     // Keep desktop encounter focus and scrolling independent of mobile entry.
     // Neither effect runs again after an individual hit.

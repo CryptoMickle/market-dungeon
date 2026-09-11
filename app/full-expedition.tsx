@@ -519,7 +519,7 @@ export default function FullExpedition({ localAgents = false, autoEnter = false 
           roomsCleared={game.roomsCleared}
           onHome={goHome}
           location={`T${tier} · ROOM ${room}/40`} loadout={{ gold: game.gold, weapon: game.weaponLevel, armor: game.armorLevel, progress: `T${tier} · R${room}` }}
-          mode={localAgents ? 'SOMNIA AGENTS' : 'FULL EXPEDITION'}
+          mode={localAgents ? 'SOMNIA AGENT KEVIN' : 'FULL EXPEDITION'}
           desktopSummary={<LoadoutSummary gold={game.gold} weapon={game.weaponLevel} armor={game.armorLevel} relic={relicSummary} potions={`${game.potions}/5`} />}
           hp={game.hp} maxHp={game.maxHp}
           enemy={{ name: persona.name, image: persona.image, hp: game.monsterHp, maxHp: game.monsterMaxHp, incoming: `${incoming[0]}–${incoming[1]}`, flavor: persona.flavor, isBoss }}
@@ -538,7 +538,7 @@ export default function FullExpedition({ localAgents = false, autoEnter = false 
           onAttack={() => gameplay({ type: 'attack' })} onStorm={() => gameplay({ type: 'storm' })} onPotion={() => gameplay({ type: 'use-potion' })}
         />}
         {run && game && !mobileCombat && <div className={styles.stageHeader}>
-          <PlayerHeader stableFrame mode={localAgents ? 'SOMNIA AGENTS' : 'FULL EXPEDITION'} onHome={goHome} summary={<LoadoutSummary gold={game.gold} weapon={game.weaponLevel} armor={game.armorLevel} relic={relicSummary} potions={`${game.potions}/5`} />} hp={game.hp} maxHp={game.maxHp} location={`T${tier} · ROOM ${room}/40`} loadout={{ gold: game.gold, weapon: game.weaponLevel, armor: game.armorLevel, progress: `T${tier} · R${room}` }} potions={game.potions} omen={omenSummary} omenHint={run.currentAttempt ? omenHint : undefined} omenDetails={omenDetails} gear={gearDetails} rivalStatus={rivalStatus} />
+          <PlayerHeader stableFrame mode={localAgents ? 'SOMNIA AGENT KEVIN' : 'FULL EXPEDITION'} onHome={goHome} summary={<LoadoutSummary gold={game.gold} weapon={game.weaponLevel} armor={game.armorLevel} relic={relicSummary} potions={`${game.potions}/5`} />} hp={game.hp} maxHp={game.maxHp} location={`T${tier} · ROOM ${room}/40`} loadout={{ gold: game.gold, weapon: game.weaponLevel, armor: game.armorLevel, progress: `T${tier} · R${room}` }} potions={game.potions} omen={omenSummary} omenHint={run.currentAttempt ? omenHint : undefined} omenDetails={omenDetails} gear={gearDetails} rivalStatus={rivalStatus} />
           <RoomProgress room={room} roomsCleared={game.roomsCleared} />
         </div>}
         <header className={styles.header}>

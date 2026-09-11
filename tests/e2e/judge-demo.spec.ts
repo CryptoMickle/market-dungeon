@@ -531,15 +531,15 @@ test('homepage begins neutral and explains each mode before entry without fetchi
     const headerBox = (await header.boundingBox())!;
     expect(logo.x + logo.width / 2).toBeCloseTo(headerBox.x + headerBox.width / 2, 0);
     const baseline = (await entry.boundingBox())!;
-    for (const name of ['Full Expedition', 'Judge Demo', 'Somnia Agents']) {
+    for (const name of ['Full Expedition', 'Judge Demo', 'Somnia Agent Kevin']) {
       const choice = choices.getByRole('radio', { name, exact: true });
-      if (!await choice.count()) continue; // Somnia Agents is available only in the local edition.
+      if (!await choice.count()) continue; // Kevin is available only in an enabled local or preview edition.
       await choice.check();
       await expect(choice).toBeChecked();
       await expect(entry).toHaveText('ENTER DUNGEON→');
       await expect(entry).toBeEnabled();
       if (name === 'Full Expedition') await expect(details).toContainText('Fight your way through forty rooms.');
-      if (name === 'Somnia Agents') await expect(details).toContainText('Can you outpredict Somnia Agent Kevin?');
+      if (name === 'Somnia Agent Kevin') await expect(details).toContainText('Can you outpredict Somnia Agent Kevin?');
       if (name === 'Judge Demo') {
         await expect(details).toContainText('One short run. A fresh market result.');
         await details.getByRole('radio', { name: 'Historical replay', exact: true }).check();

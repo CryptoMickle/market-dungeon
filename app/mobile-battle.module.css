@@ -298,7 +298,7 @@
   .topBar > .header, .screen .topBar > .header { position: relative; width: calc(100% - 72px); height: 44px; margin: 0 0 4px; padding-left: 9px; box-sizing: border-box; }
   .topBar .header > span, .topBar .header > small { display: none; }
   .topBar .header > strong > * { display: flex; align-items: center; width: 72px; min-height: 44px; }
-  .playerStatus { display: flex; flex-direction: column; padding-top: 0; }
+  .playerStatus { display: flex; flex-direction: column; padding-top: 0; scroll-margin-top: max(8px,env(safe-area-inset-top)); }
   .playerStatus .player > .statusTop { grid-template-columns: 1.15fr .9fr .8fr 1.3fr 1.1fr; gap: 0; min-height: 48px; }
   .inventory { display: contents; }
   .healthText > small { display: none; }
@@ -315,6 +315,7 @@
   .playerStatus .player { order: 1; padding-bottom: 6px; border-top: 1px solid #463252; border-radius: 0; }
   .omenButton, .mobileMode { margin-left: 0; width: 100%; min-height: 44px; border-top: 0; }
   .omenButton { gap: 5px; }
+  .screen .playerStatus[data-combat-entry="kevin"] .omenButton { padding-right: 64px; }
   .omenButton b { font-size: 10px; }
   .omenButton > span { font-size: 8px; }
   .omenHint { margin: -1px 0 5px; text-align: center; font-size: 9px; }

@@ -1,21 +1,21 @@
-# Market Dungeon · Somnia Agents prototype
+# Market Dungeon · Somnia Agent Kevin prototype
 
-This is a separate local prototype based on the published Market Dungeon build. **Somnia Agents** is its own mode, with **Somnia Agent Kevin** as a prediction rival. Ordinary Full Expedition and Judge Demo keep their original gameplay, so the existing demonstration video remains applicable to those modes. The mode can now also be enabled in a dedicated Vercel Preview. It remains disabled in production; this preview does not update the competition submission or its video.
+This is a separate local prototype based on the published Market Dungeon build. **Somnia Agent Kevin** is its own mode, with **Somnia Agent Kevin** as a prediction rival. Ordinary Full Expedition and Judge Demo keep their original gameplay, so the existing demonstration video remains applicable to those modes. The mode can now also be enabled in a dedicated Vercel Preview. It remains disabled in production; this preview does not update the competition submission or its video.
 
 ## Try it
 
 - **Home:** <http://localhost:3001/>. Opens with no mode selected. Select a name to see its explanation, then enter. No market or agent request starts on Home.
 - **Full Expedition:** <http://localhost:3001/expedition>. The original forty-room game, without the rival. Quartermaster Kevin keeps his ordinary merchant role.
 - **Judge Demo:** <http://localhost:3001/shannon/live-judge>. The original demo, with Live 1 Min and Historical Replay choices inside it. Neither demo sends agent requests.
-- **Somnia Agents · New!:** <http://localhost:3001/somnia-agents>. The separate forty-room rival mode. Enter the dungeon and lock a real five-minute BTC market. Somnia Agent Kevin gets the same market; his status stays with the player header, and **Details** opens the full rivalry. Your boss result still depends on your own prediction.
+- **Somnia Agent Kevin · New!:** <http://localhost:3001/somnia-agents>. The separate forty-room rival mode. Enter the dungeon and lock a real five-minute BTC market. Somnia Agent Kevin gets the same market; his status stays with the player header, and **Details** opens the full rivalry. Your boss result still depends on your own prediction.
 - **Quick playground:** <http://localhost:3001/somnia-agents/playground>. Choose UP or DOWN, lock, and try simulated UP/DOWN/VOID results. The late-answer and no-answer scenarios show how Kevin sits out. This entire page is a simulation.
 - The default **Try locally** (or **Simulated Kevin** on Vercel Preview) mode makes an independent random test choice. It does not run an AI or a Somnia agent. It lets you test the interaction without a wallet.
-- Inside the Somnia Agents game, open Kevin’s **Details**, choose the real-agent option and press **Connect MetaMask**. On iPhone, keep the game in Safari, approve the connection in the MetaMask app, then return to Safari. Connecting does not lock an omen or send STT. Once connected, lock your omen separately; MetaMask then asks you to approve Kevin’s paid request on Shannon testnet. Declining that request leaves the dungeon playable. Use testnet STT, never mainnet funds.
-- The three mode choices appear only on Home. The Market Dungeon logo returns there from the game without preselecting a mode. Judge Demo offers Live 1 Min / Historical Replay on Home and during demo setup. Agent participation belongs exclusively to **Somnia Agents**; historical replay is excluded because its result already exists before the prediction.
+- Inside the Somnia Agent Kevin game, open Kevin’s **Details**, choose the real-agent option and press **Connect MetaMask**. On iPhone, keep the game in Safari, approve the connection in the MetaMask app, then return to Safari. Connecting does not lock an omen or send STT. Once connected, lock your omen separately; MetaMask then asks you to approve Kevin’s paid request on Shannon testnet. Declining that request leaves the dungeon playable. Use testnet STT, never mainnet funds.
+- The three mode choices appear only on Home. The Market Dungeon logo returns there from the game without preselecting a mode. Judge Demo offers Live 1 Min / Historical Replay on Home and during demo setup. Agent participation belongs exclusively to **Somnia Agent Kevin**; historical replay is excluded because its result already exists before the prediction.
 
 To start again, double-click `Start Local Agents.command`, or run `npm run dev:agents` from this directory. Port 3001 keeps the prototype separate from the original localhost:3000 game. The Mac must stay awake and the server must remain running.
 
-Somnia Agents uses a separate expedition save key, so switching modes does not overwrite progress in ordinary Full Expedition or Judge Demo. Home shows **Continue Run** for active saves and **View Last Run** for finished runs; a fresh expedition can be started from the result screen. Live Judge resumes its verified save in the same tab. Historical Replay preserves its original seal and actions across same-tab Home navigation, but a page reload or browser restart starts a new replay. The rival scorecard keeps simulator and real-agent results separate.
+Somnia Agent Kevin uses a separate expedition save key, so switching modes does not overwrite progress in ordinary Full Expedition or Judge Demo. Home shows **Continue Run** for active saves and **View Last Run** for finished runs; a fresh expedition can be started from the result screen. Live Judge resumes its verified save in the same tab. Historical Replay preserves its original seal and actions across same-tab Home navigation, but a page reload or browser restart starts a new replay. The rival scorecard keeps simulator and real-agent results separate.
 
 ## What the genuine integration does
 
@@ -42,7 +42,7 @@ The model sees the market question, target and timing. This first version does n
 
 ## Vercel Preview
 
-The same neutral Home now offers Somnia Agents when the dedicated preview flag is enabled. Kevin stays in the status bar throughout the expedition. Simulated Kevin is clearly marked as random, with no AI or onchain agent. Open his Details before locking an omen to choose a genuine Shannon testnet request.
+The same neutral Home now offers Somnia Agent Kevin when the dedicated preview flag is enabled. Kevin stays in the status bar throughout the expedition. Simulated Kevin is clearly marked as random, with no AI or onchain agent. Open his Details before locking an omen to choose a genuine Shannon testnet request.
 
 On iPhone, both the simulator and genuine requests can start in Safari. Select the real-agent option in Kevin’s Details and press **Connect MetaMask** to connect to the MetaMask app. Approve there and return to Safari; the omen stays unlocked until you separately press **Lock**. Connection shares the selected wallet address but sends no STT. After locking, approve Kevin’s testnet STT request in MetaMask and return to the game. An installed browser wallet can also provide the connection. The server has no wallet or private key and never sends a transaction. Simulated Kevin needs no wallet or STT.
 

@@ -141,7 +141,7 @@ test('Agents-enabled Home stays neutral until selection and clearly separates si
   const detail = page.getByRole('region', { name: 'Selected dungeon', exact: true });
   await expect(detail).not.toContainText('Kevin');
   await expect(page.getByRole('button', { name: 'CHOOSE A MODE', exact: true })).toBeDisabled();
-  await choices.getByRole('radio', { name: 'Somnia Agents', exact: true }).check();
+  await choices.getByRole('radio', { name: 'Somnia Agent Kevin', exact: true }).check();
   await expect(detail).toContainText('Kevin');
   await expect(detail).toContainText(/simulat/i);
   await expect(detail).toContainText(/testnet/i);
