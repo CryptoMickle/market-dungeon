@@ -6,6 +6,19 @@ import { sendKevinRequest } from '../../lib/somnia-agents/wallet.ts';
 
 const STORAGE_KEY = 'market-dungeon/local-kevin-rival/v1';
 const MAX_ROUNDS = 100;
+const MAX_SAVED_BYTES = 2_000_000;
+const validTicket = (ticket: unknown): ticket is string => typeof ticket === 'string'
+  && ticket.length >= 16 && ticket.length <= 16_384 && /^[A-Za-z0-9_.-]+$/.test(ticket);
+
+class RivalRequestError extends Error {
+  constructor(message: string, readonly status: number) { super(message); }
+}
+
+function receivedRound(data: RivalResponse, previous?: RivalRound): RivalRound {
+  if (data.ticket !== undefined && !validTicket(data.ticket)) throw new Error('Kevin’s saved round could not be read. No rival result is counted.');
+  const ticket = data.ticket ?? previous?.ticket;
+  return { ...data.round, ...(ticket ? { ticket } : {}) };
+}
 
 async function callRival(body: Record<string, unknown>): Promise<RivalResponse> {
   const response = await fetch('/api/somnia-agents/rival', {
@@ -13,7 +26,7 @@ async function callRival(body: Record<string, unknown>): Promise<RivalResponse> 
     body: JSON.stringify(body), cache: 'no-store', signal: AbortSignal.timeout(25_000),
   });
   const data = await response.json() as RivalResponse & { error?: string };
-  if (!response.ok || !data.round) throw new Error(data.error ?? 'Kevin could not reach the agent service. Your expedition continues.');
+  if (!response.ok || !data.round) throw new RivalRequestError(data.error ?? 'Kevin could not reach the agent service. Your expedition continues.', response.status);
   return data;
 }
 
@@ -28,9 +41,13 @@ function restoreRounds(value: unknown): RivalRound[] {
     && ['preparing', 'awaiting-wallet', 'pending', 'locked', 'unavailable'].includes(round.status)
     && (round.txHash === undefined || /^0x[0-9a-f]{64}$/i.test(String(round.txHash))))
     .map((round) => {
-      // Re-read decisions from the local server / chain after reload, rather than
+      if (round.ticket !== undefined && !validTicket(round.ticket)) return {
+        ...round, ticket: undefined, status: 'unavailable', direction: undefined, finalizedAt: undefined,
+        reason: 'Kevin’s saved receipt is damaged. No rival result is counted.',
+      };
+      // Re-read decisions from the server / chain after reload, rather than
       // treating an editable browser cache as a verified agent response.
-      if (round.status === 'locked') return { ...round, status: 'pending', direction: undefined };
+      if (round.status === 'locked') return { ...round, status: 'pending', direction: undefined, finalizedAt: undefined };
       if (round.status === 'awaiting-wallet') return { ...round, status: 'unavailable', reason: 'Wallet request interrupted. Kevin sits out; your expedition continues.' };
       return round;
     });
@@ -51,8 +68,11 @@ export function useKevinRival(enabled: boolean) {
       if (enabled) {
         try {
           const raw = localStorage.getItem(STORAGE_KEY);
-          const saved = raw && raw.length <= 160_000 ? JSON.parse(raw) as { rounds?: unknown; mode?: unknown } : null;
-          setRounds(restoreRounds(saved?.rounds));
+          const saved = raw && raw.length <= MAX_SAVED_BYTES ? JSON.parse(raw) as { rounds?: unknown; mode?: unknown } : null;
+          const restored = restoreRounds(saved?.rounds);
+          roundsRef.current = restored;
+          restored.forEach(round => started.current.add(round.attemptId));
+          setRounds(restored);
           if (saved?.mode === 'somnia') setMode('somnia');
         } catch { /* Private browsing or a damaged local cache must not stop combat. */ }
       }
@@ -72,8 +92,12 @@ export function useKevinRival(enabled: boolean) {
 
   const update = useCallback((round: RivalRound) => {
     if (!mounted.current) return;
-    setRounds((previous) => [...previous.filter((item) => item.attemptId !== round.attemptId), round].slice(-MAX_ROUNDS));
-  }, []);
+    const next = [...roundsRef.current.filter((item) => item.attemptId !== round.attemptId), round].slice(-MAX_ROUNDS);
+    roundsRef.current = next;
+    setRounds(next);
+    // Save the receipt/hash before another page or a reload can interrupt React effects.
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify({ mode, rounds: next })); } catch { /* The current tab can continue. */ }
+  }, [mode]);
 
   useEffect(() => {
     if (!enabled || !ready) return;
@@ -84,9 +108,10 @@ export function useKevinRival(enabled: boolean) {
         if (!['preparing', 'pending'].includes(round.status) || busy.current.has(round.attemptId)) continue;
         busy.current.add(round.attemptId);
         try {
-          const data = await callRival({ action: 'status', attemptId: round.attemptId, ...(round.txHash ? { txHash: round.txHash } : {}) });
+          const data = await callRival({ action: 'status', attemptId: round.attemptId,
+            ...(round.ticket ? { ticket: round.ticket } : {}), ...(round.txHash ? { txHash: round.txHash } : {}) });
           if (!cancelled) {
-            const recovered = { ...data.round, ...(round.txHash ? { txHash: round.txHash } : {}) };
+            const recovered = { ...receivedRound(data, round), ...(round.txHash ? { txHash: round.txHash } : {}) };
             // A provider can return a retryable pending status rather than an HTTP
             // error. Bound that recovery too; this local side game must not poll forever.
             if (recovered.status === 'pending' && Date.now() / 1_000 > recovered.expiry + 120) {
@@ -99,7 +124,8 @@ export function useKevinRival(enabled: boolean) {
           if (!cancelled) {
             // A brief read failure is retryable. After the bounded recovery window,
             // omit this rivalry; never substitute an invented agent answer.
-            const terminal = Date.now() / 1_000 > round.expiry + 120;
+            const terminal = Date.now() / 1_000 > round.expiry + 120
+              || (error instanceof RivalRequestError && [400, 403, 404, 409, 410].includes(error.status));
             update({ ...round, status: terminal ? 'unavailable' : 'pending', reason: terminal
               ? 'Kevin’s answer could not be verified. No rival result is counted.'
               : error instanceof Error ? error.message : 'Retrying Kevin’s response…' });
@@ -114,14 +140,14 @@ export function useKevinRival(enabled: boolean) {
   }, [enabled, ready, update]);
 
   const start = useCallback(async (attemptId: string, marketId: string, expiry: number) => {
-    if (!enabled || started.current.has(attemptId)) return;
+    if (!enabled || !ready || started.current.has(attemptId) || roundsRef.current.some(round => round.attemptId === attemptId)) return;
     started.current.add(attemptId);
     busy.current.add(attemptId);
     let round: RivalRound = { attemptId, marketId, expiry, cutoff: expiry - 10, mode, status: 'preparing' };
     update(round);
     try {
       const data = await callRival({ action: 'prepare', attemptId, marketId, mode });
-      round = data.round;
+      round = receivedRound(data);
       update(round);
       if (mode === 'somnia' && data.transaction) {
         const transaction: RivalTransaction = data.transaction;
@@ -136,13 +162,13 @@ export function useKevinRival(enabled: boolean) {
           const other = stored ? restoreRounds((JSON.parse(stored) as { rounds?: unknown }).rounds) : [];
           localStorage.setItem(STORAGE_KEY, JSON.stringify({ mode, rounds: [...other.filter((item) => item.attemptId !== attemptId), round].slice(-MAX_ROUNDS) }));
         } catch { /* The current tab can still poll the exact submitted hash. */ }
-        const checked = await callRival({ action: 'status', attemptId, txHash });
-        update({ ...checked.round, txHash });
+        const checked = await callRival({ action: 'status', attemptId, txHash, ...(round.ticket ? { ticket: round.ticket } : {}) });
+        update({ ...receivedRound(checked, round), txHash });
       }
     } catch (error) {
       update({ ...round, status: round.txHash ? 'pending' : 'unavailable', reason: error instanceof Error ? error.message : 'Kevin sits out this round. Your expedition continues.' });
     } finally { busy.current.delete(attemptId); }
-  }, [enabled, mode, update]);
+  }, [enabled, ready, mode, update]);
 
   return { mode, setMode, rounds, start };
 }

@@ -1,14 +1,23 @@
 'use client';
 
 import { createContext, useContext, type ReactNode } from 'react';
+import type { SomniaAgentsEnvironment } from '../lib/somnia-agents/environment';
 
-const LocalAgentsContext = createContext(false);
+const LocalAgentsContext = createContext<SomniaAgentsEnvironment>('disabled');
 
-/** Only the server's local feature flag enables the extra game-mode link. */
-export function LocalAgentsProvider({ enabled, children }: { enabled: boolean; children: ReactNode }) {
-  return <LocalAgentsContext.Provider value={enabled}>{children}</LocalAgentsContext.Provider>;
+/** The server decides whether this is a local adapter or an enabled hosted preview. */
+export function LocalAgentsProvider({ enabled = false, environment, children }: {
+  enabled?: boolean;
+  environment?: SomniaAgentsEnvironment;
+  children: ReactNode;
+}) {
+  return <LocalAgentsContext.Provider value={environment ?? (enabled ? 'local' : 'disabled')}>{children}</LocalAgentsContext.Provider>;
 }
 
 export function useLocalAgents() {
+  return useContext(LocalAgentsContext) !== 'disabled';
+}
+
+export function useAgentsEnvironment() {
   return useContext(LocalAgentsContext);
 }

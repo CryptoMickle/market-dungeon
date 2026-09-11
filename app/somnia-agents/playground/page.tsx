@@ -1,14 +1,15 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import KevinRivalPreview from '../preview';
+import { somniaAgentsEnvironment } from '../../../lib/somnia-agents/environment';
 
 export const dynamic = 'force-dynamic';
 export const metadata: Metadata = {
-  title: 'Somnia Agent Kevin’s Playground · Market Dungeon Local',
+  title: 'Somnia Agent Kevin’s Playground · Market Dungeon',
   robots: { index: false, follow: false },
 };
 
 export default function SomniaAgentsPlaygroundPage() {
-  if (process.env.MARKET_DUNGEON_LOCAL_AGENTS !== '1' || process.env.VERCEL) notFound();
+  if (somniaAgentsEnvironment(process.env) === 'disabled') notFound();
   return <KevinRivalPreview />;
 }

@@ -14,6 +14,8 @@ export type RivalRound = {
   txHash?: string;
   requestId?: string;
   finalizedAt?: number;
+  /** Opaque server-authenticated preview receipt, carried only in the browser cache. */
+  ticket?: string;
 };
 
 // Only call with the market outcome after the game's independent settlement check.
@@ -34,4 +36,4 @@ export type RivalTransaction = {
   payload: string;
 };
 
-export type RivalResponse = { round: RivalRound; transaction?: RivalTransaction };
+export type RivalResponse = { round: RivalRound; transaction?: RivalTransaction; ticket?: string };

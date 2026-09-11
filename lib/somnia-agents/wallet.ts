@@ -17,7 +17,7 @@ export function validateKevinTransaction(transaction: RivalTransaction): void {
 export async function sendKevinRequest(transaction: RivalTransaction, cutoff: number, provider?: InjectedWallet): Promise<string> {
   validateKevinTransaction(transaction);
   const wallet = provider ?? (typeof window !== 'undefined' ? (window as unknown as { ethereum?: InjectedWallet }).ethereum : undefined);
-  if (!wallet) throw new Error('A browser wallet is needed for a real Somnia request. Kevin sits out this round; select Local simulation for your next omen to try without a wallet.');
+  if (!wallet) throw new Error('A browser wallet is needed for a real Somnia request. On iPhone, open this preview in your wallet’s built-in browser, or choose simulated Kevin in Safari for your next omen. Kevin sits out this round; your expedition continues.');
   const checkDeadline = () => {
     if (Math.floor(Date.now() / 1_000) >= cutoff) throw new Error('The rival cutoff passed. Kevin sits out; your expedition continues.');
   };

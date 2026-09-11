@@ -55,7 +55,7 @@ export default function KevinRivalPreview() {
     <div className={styles.previewShell}>
       <div className={styles.previewNav}><GameLogo compact homeHref="/" /></div>
       <header className={styles.previewHeader}>
-        <span className={styles.eyebrow}>MARKET DUNGEON · LOCAL RIVAL PLAYGROUND</span>
+        <span className={styles.eyebrow}>MARKET DUNGEON · SIMULATED RIVAL PLAYGROUND</span>
         <h1>Somnia Agent Kevin has an opinion.<br />Of course he does.</h1>
         <p>Try the rival experience in seconds. Pick your omen, see Kevin’s random test choice, then choose a pretend market result.</p>
         <div className={`${styles.modeNotice} ${styles.simulationNotice}`} role="note">

@@ -2,8 +2,11 @@ import path from 'node:path';
 import { graphql, hydrateMarket } from '../../dreamdex.ts';
 import { canonicalSnapshot, prepareSomniaRequest, verifySomniaRequest, type MarketSnapshot } from '../../../../lib/somnia-agents/protocol.ts';
 import { createLocalRival, createLocalRivalHandler, RivalError } from '../../../../lib/somnia-agents/local-rival.ts';
+import { createPreviewRival, createPreviewRivalHandler } from '../../../../lib/somnia-agents/preview-rival.ts';
+import { somniaAgentsEnvironment } from '../../../../lib/somnia-agents/environment.ts';
 
 export const runtime = 'nodejs';
+export const maxDuration = 60;
 
 async function readMarket(marketId: string, now: number): Promise<MarketSnapshot> {
   const data = await graphql(`query KevinActiveMarket($id: String!) {
@@ -32,11 +35,24 @@ async function readMarket(marketId: string, now: number): Promise<MarketSnapshot
   return JSON.parse(canonicalSnapshot(snapshot)) as MarketSnapshot;
 }
 
-const rival = createLocalRival({
-  directory: path.join(process.cwd(), '.local', 'somnia-agents'),
+const dependencies = {
   readMarket, canonicalSnapshot,
-  prepareTransaction: (snapshot) => prepareSomniaRequest(snapshot),
-  verifyTransaction: (snapshot, txHash) => verifySomniaRequest(snapshot, txHash),
+  prepareTransaction: (snapshot: MarketSnapshot) => prepareSomniaRequest(snapshot),
+  verifyTransaction: (snapshot: MarketSnapshot, txHash: string) => verifySomniaRequest(snapshot, txHash),
+};
+const rival = createLocalRival({
+  ...dependencies,
+  directory: path.join(process.cwd(), '.local', 'somnia-agents'),
 });
+const localHandler = createLocalRivalHandler(rival, () => somniaAgentsEnvironment(process.env) === 'local');
+const previewHandler = createPreviewRivalHandler(createPreviewRival({ ...dependencies, environment: {
+  VERCEL: process.env.VERCEL,
+  VERCEL_ENV: process.env.VERCEL_ENV,
+  VERCEL_URL: process.env.VERCEL_URL,
+  MARKET_DUNGEON_PREVIEW_AGENTS: process.env.MARKET_DUNGEON_PREVIEW_AGENTS,
+  JUDGE_REPLAY_SEAL_KEY: process.env.JUDGE_REPLAY_SEAL_KEY,
+} }));
 
-export const POST = createLocalRivalHandler(rival, () => process.env.MARKET_DUNGEON_LOCAL_AGENTS === '1' && !process.env.VERCEL);
+export async function POST(request: Request) {
+  return somniaAgentsEnvironment(process.env) === 'preview' ? previewHandler(request) : localHandler(request);
+}

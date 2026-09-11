@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { GameLogo } from './game-logo';
-import { useLocalAgents } from './local-agents-context';
+import { useAgentsEnvironment, useLocalAgents } from './local-agents-context';
 import { FULL_RUN_STORAGE_KEY, parseFullRunSession } from './gameplay/full-run-storage';
 import { getHistoricalResume, getLatestHistoricalProfile } from './historical-navigation';
 import { judgeNetworkProfile } from './judge-network';
@@ -59,12 +59,18 @@ const descriptions = {
 
 export default function DungeonHome() {
   const enabled = useLocalAgents();
+  const agentsEnvironment = useAgentsEnvironment();
   const router = useRouter();
   const [mode, setMode] = useState<DungeonMode | null>(null);
   const [demo, setDemo] = useState<Demo>('live');
   const [saved, setSaved] = useState<Record<string, SavedEntry>>({});
   const [replayHref, setReplayHref] = useState<'/judge' | '/shannon/judge'>('/shannon/judge');
-  const content = descriptions[mode === 'judge' ? demo : mode ?? 'neutral'];
+  const baseContent = descriptions[mode === 'judge' ? demo : mode ?? 'neutral'];
+  const content = mode === 'agents' && agentsEnvironment === 'preview' ? {
+    ...baseContent,
+    eyebrow: 'SOMNIA AGENTS · PREVIEW',
+    note: 'Starts with Simulated Kevin: random, no AI or wallet. For a real Somnia testnet agent, open Kevin’s Details before locking. A wallet browser and testnet STT are required.',
+  } : baseContent;
   const key = mode === 'judge' ? demo : mode ?? 'neutral';
   const resume = saved[key];
 

@@ -70,6 +70,7 @@ import styles from './full-expedition.module.css';
 import { useKevinRival } from './somnia-agents/use-kevin-rival';
 import { KevinRivalPanel } from './somnia-agents/rival-panel';
 import { KevinRivalStatus } from './somnia-agents/rival-status';
+import { useAgentsEnvironment } from './local-agents-context';
 import { compareRival, type RivalOutcome } from '../lib/somnia-agents/types';
 
 const LOOT_ART = [
@@ -127,6 +128,7 @@ function resultMessage(transition: MarketDungeonTransition): string {
 }
 
 export default function FullExpedition({ localAgents = false, autoEnter = false }: { localAgents?: boolean; autoEnter?: boolean }) {
+  const hostedAgents = useAgentsEnvironment() === 'preview';
   const router = useRouter();
   const { playCharacterIntro, playOutcome } = useGameAudio();
   const rival = useKevinRival(localAgents);
@@ -501,7 +503,7 @@ export default function FullExpedition({ localAgents = false, autoEnter = false 
       <DesktopNavigation />
       <div className={styles.column}>
         {localAgents && !run && <aside className={styles.localAgentsBanner}>
-          <b>LOCAL AGENTS EDITION · SOMNIA AGENT KEVIN</b>
+          <b>{hostedAgents ? 'AGENTS PREVIEW · SOMNIA AGENT KEVIN' : 'LOCAL AGENTS EDITION · SOMNIA AGENT KEVIN'}</b>
           <Link href="/somnia-agents/playground">TRY THE QUICK RIVAL PLAYGROUND →</Link>
         </aside>}
         {mobileCombat && game && run && <MobileBattle
@@ -535,7 +537,7 @@ export default function FullExpedition({ localAgents = false, autoEnter = false 
           <p>DELVEWORN · EVENT CONTRACTS EDITION</p>
           <h1 ref={homeHeading} tabIndex={-1}><GameLogo /></h1>
           <strong>DEFEAT THE BOSS · PREDICT THE MARKET · SURVIVE BOTH</strong>
-          <div><span /> {localAgents ? 'LOCAL KEVIN RIVAL · LIVE 5-MINUTE MARKETS' : 'SOMNIA MAINNET · LIVE 5-MINUTE EVENT CONTRACTS · NO TRANSACTIONS'}</div>
+          <div><span /> {localAgents ? 'KEVIN’S RIVAL EXPEDITION · LIVE 5-MINUTE MARKETS' : 'SOMNIA MAINNET · LIVE 5-MINUTE EVENT CONTRACTS · NO TRANSACTIONS'}</div>
         </header>
 
         {!run || !game ? (
@@ -574,7 +576,7 @@ export default function FullExpedition({ localAgents = false, autoEnter = false 
             </div>
             <div className={styles.homeActions} data-keyboard-actions>
               <button className={styles.primary} onClick={session ? continueExpedition : beginNewRun}>{session ? 'CONTINUE EXPEDITION' : 'ENTER THE DUNGEON'}</button>
-              {localAgents && session && <button className={styles.secondary} onClick={beginNewRun}>START A FRESH LOCAL EXPEDITION</button>}
+              {localAgents && session && <button className={styles.secondary} onClick={beginNewRun}>START A FRESH EXPEDITION</button>}
               <KeyboardHint />
               <Link href="/shannon/live-judge">JUDGES: PLAY THE LIVE 1-MINUTE DEMO →</Link>
               {session && <span>Your expedition is saved on this device. The market timer keeps running.</span>}
@@ -726,7 +728,7 @@ export default function FullExpedition({ localAgents = false, autoEnter = false 
 
         <footer className={styles.footer}>
           <span>FULL GAME · DELVEWORN RULES · ACTIVE 5M DREAMDEX SETTLEMENT</span>
-          <p>{localAgents ? 'Local prototype · simulator is free · real agent requests use a Shannon testnet wallet and STT' : 'No wallet · no approval · no order · no transaction'}</p>
+          <p>{localAgents ? `${hostedAgents ? 'Agents preview' : 'Local prototype'} · simulated Kevin is random, no AI · real agent requests use a Shannon testnet wallet and STT` : 'No wallet · no approval · no order · no transaction'}</p>
           <nav><a href={dreamDexBtcEventContractUrl(300)} target="_blank" rel="noopener noreferrer">CONTINUE ON DREAMDEX ↗</a><Link href="/credits">PRIVACY · CREDITS</Link></nav>
         </footer>
       </div>
@@ -738,6 +740,7 @@ function RivalScoreboard({ rounds, settlements }: {
   rounds: ReturnType<typeof useKevinRival>['rounds'];
   settlements: FullRunSession['run']['settlements'];
 }) {
+  const hosted = useAgentsEnvironment() === 'preview';
   const scores = { simulation: { player: 0, kevin: 0, tie: 0, void: 0 }, somnia: { player: 0, kevin: 0, tie: 0, void: 0 } };
   for (const settlement of settlements) {
     const round = rounds.find((item) => item.attemptId === settlement.attemptId && item.marketId === settlement.marketId);
@@ -747,7 +750,7 @@ function RivalScoreboard({ rounds, settlements }: {
   }
   return <details className={styles.localScore}>
     <summary>YOUR RIVAL SCORECARD</summary>
-    {(['simulation', 'somnia'] as const).map((mode) => <p key={mode}><b>{mode === 'simulation' ? 'LOCAL SIMULATION' : 'SOMNIA AGENT · TESTNET'}</b><span>You {scores[mode].player} · Kevin {scores[mode].kevin} · Ties {scores[mode].tie} · Void {scores[mode].void}</span></p>)}
+    {(['simulation', 'somnia'] as const).map((mode) => <p key={mode}><b>{mode === 'simulation' ? hosted ? 'SIMULATED KEVIN' : 'LOCAL SIMULATION' : 'SOMNIA AGENT · TESTNET'}</b><span>You {scores[mode].player} · Kevin {scores[mode].kevin} · Ties {scores[mode].tie} · Void {scores[mode].void}</span></p>)}
     <small>Only settled markets with a timely rival answer count. Simulator and real agent scores stay separate. No gold or combat bonuses.</small>
   </details>;
 }

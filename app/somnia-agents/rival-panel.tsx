@@ -2,6 +2,7 @@
 
 import Image from 'next/image';
 import { compareRival, type RivalMode, type RivalRound } from '../../lib/somnia-agents/types';
+import { useAgentsEnvironment } from '../local-agents-context';
 import styles from './rival-panel.module.css';
 
 type Direction = 'UP' | 'DOWN';
@@ -38,6 +39,7 @@ function outcomeText(result: ReturnType<typeof compareRival>) {
 }
 
 export function KevinRivalPanel({ mode, onModeChange, round, playerDirection, marketOutcome, canConfigure = false, compact = false }: KevinRivalPanelProps) {
+  const hosted = useAgentsEnvironment() === 'preview';
   const executionMode = round?.mode ?? mode;
   const simulated = executionMode === 'simulation';
   const direction = round?.status === 'locked' ? round.direction : undefined;
@@ -58,7 +60,7 @@ export function KevinRivalPanel({ mode, onModeChange, round, playerDirection, ma
     </div>
 
     <div className={`${styles.modeNotice} ${simulated ? styles.simulationNotice : styles.somniaNotice}`}>
-      <strong>{simulated ? 'LOCAL SIMULATION' : 'SOMNIA AGENTS · TESTNET'}</strong>
+      <strong>{simulated ? hosted ? 'SIMULATED KEVIN · NO AI' : 'LOCAL SIMULATION' : 'SOMNIA AGENTS · TESTNET'}</strong>
       <span>{simulated
         ? 'Kevin’s test choice is random. No AI or onchain agent is running in this mode.'
         : 'A real Somnia Agents request runs on Shannon testnet. Your wallet approval and testnet STT are required; this request has a fee.'}</span>
@@ -67,12 +69,16 @@ export function KevinRivalPanel({ mode, onModeChange, round, playerDirection, ma
     {canConfigure && onModeChange && <fieldset className={styles.modePicker}>
       <legend>{round ? 'Kevin’s mode for your next omen' : 'Choose how Kevin makes his call'}</legend>
       <button type="button" aria-pressed={mode === 'simulation'} onClick={() => onModeChange('simulation')}>
-        <strong>TRY LOCALLY</strong><span>Random test rival · no wallet</span>
+        <strong>{hosted ? 'SIMULATED KEVIN' : 'TRY LOCALLY'}</strong><span>Random test rival · no wallet</span>
       </button>
       <button type="button" aria-pressed={mode === 'somnia'} onClick={() => onModeChange('somnia')}>
         <strong>SOMNIA AGENTS</strong><span>Testnet wallet + STT fee</span>
       </button>
     </fieldset>}
+
+    {!simulated && <p className={styles.supporting}>
+      On iPhone, open this preview in your wallet’s built-in browser to approve a testnet request. In Safari, choose Simulated Kevin to play without a wallet.
+    </p>}
 
     {round && <div className={styles.round}>
       <div className={styles.status} role="status" aria-live="polite">
