@@ -499,3 +499,26 @@
   .oraclePanel .marketOverview > .marketReference { grid-template-columns: minmax(0,1fr); align-content: start; gap: 6px; margin-top: 0; padding: 12px; }
   .marketOverview > .marketReference b { grid-column: 1; grid-row: auto; font-size: 10px; }
 }
+
+/* One desktop frame owns navigation and status in every expedition phase.
+   Combat supplies the encounter grid, without adding a second inset frame. */
+@media (min-width: 801px) {
+  .shell.activeExpedition { --expedition-frame-padding: 20px; --expedition-stage-gap: 12px; padding: 20px 16px; }
+  .shell.activeExpedition .column { max-width: 1920px; padding: var(--expedition-frame-padding); border: 1px solid #45334c; border-radius: 20px; background: radial-gradient(ellipse at top,#26182b,#09090b 60%); }
+  .shell.activeExpedition .modeNavigation { position: static; background: none; }
+  .shell.activeExpedition :global(.mobile-battle-root) { max-width: none; margin: 0; padding: 0; border: 0; border-radius: 0; background: none; row-gap: var(--expedition-stage-gap); }
+  .shell.activeExpedition .stageHeader { margin-bottom: var(--expedition-stage-gap); }
+  .shell.activeExpedition .stageHeader > :global([aria-label^="Room progress:"]) { margin-top: var(--expedition-stage-gap); }
+}
+@media (min-width: 801px) and (max-width: 1050px), (min-width: 801px) and (max-height: 800px) {
+  .shell.activeExpedition { --expedition-frame-padding: 14px; }
+}
+@media (min-width: 1200px) and (min-height: 801px) {
+  .shell.activeExpedition { --expedition-frame-padding: clamp(24px,2vw,40px); }
+}
+@media (min-width: 801px) and (max-height: 800px) {
+  .shell.activeExpedition { --expedition-stage-gap: 8px; }
+}
+@media (min-width: 1440px) {
+  .shell.activeExpedition .column { max-width: 1760px; }
+}

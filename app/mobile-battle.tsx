@@ -64,8 +64,8 @@ type PlayerStatusProps = {
 };
 
 /** One status instance: stacked on mobile, three balanced columns on desktop. */
-export function PlayerHeader({ mode, summary, onHome, ...status }: PlayerStatusProps & { mode: string; summary?: ReactNode; onHome?: () => void }) {
-  return <div className={styles.topBar}>
+export function PlayerHeader({ mode, summary, onHome, stableFrame = false, ...status }: PlayerStatusProps & { mode: string; summary?: ReactNode; onHome?: () => void; stableFrame?: boolean }) {
+  return <div className={styles.topBar} data-stable-frame={stableFrame || undefined}>
     <BattleHeader mode={mode} summary={summary} onHome={onHome} />
     <PlayerStatus {...status} mode={mode} />
   </div>;
@@ -147,9 +147,11 @@ export function MobileBattle(props: Props) {
     // Keep desktop encounter focus and scrolling independent of mobile entry.
     // Neither effect runs again after an individual hit.
     if (!window.matchMedia('(min-width: 801px)').matches) return;
-    screen.current?.scrollIntoView({ block: 'start', behavior: 'instant' });
+    // Full Expedition keeps its mode navigation and status in one fixed frame.
+    if (props.room !== undefined) window.scrollTo({ top: 0, behavior: 'instant' });
+    else screen.current?.scrollIntoView({ block: 'start', behavior: 'instant' });
     screen.current?.focus({ preventScroll: true });
-  }, [props.enemy.name]);
+  }, [props.enemy.name, props.room]);
   useEffect(() => {
     setBossBattle(bossBattleActive);
     return () => setBossBattle(false);
@@ -159,7 +161,7 @@ export function MobileBattle(props: Props) {
   }, [playCharacterIntro, props.enemy.name]);
   return (
     <section ref={screen} tabIndex={-1} className={`mobile-battle-root ${styles.screen}`} aria-label="Combat view">
-      <PlayerHeader mode={props.mode} summary={props.desktopSummary} onHome={props.onHome} hp={props.hp} maxHp={props.maxHp} location={props.location} potions={props.potions} loadout={props.loadout} omen={props.omen} omenHint={props.omenHint} omenDetails={props.omenDetails} gear={props.gear} rivalStatus={props.rivalStatus} />
+      <PlayerHeader mode={props.mode} summary={props.desktopSummary} onHome={props.onHome} hp={props.hp} maxHp={props.maxHp} location={props.location} potions={props.potions} loadout={props.loadout} omen={props.omen} omenHint={props.omenHint} omenDetails={props.omenDetails} gear={props.gear} rivalStatus={props.rivalStatus} stableFrame={props.room !== undefined} />
       <div className={styles.encounter}>
         {props.room !== undefined && <RoomProgress room={props.room} roomsCleared={props.roomsCleared} />}
         <div className={styles.enemy} data-boss={Boolean(props.enemy.isBoss)} aria-label={`Enemy health ${props.enemy.hp} of ${props.enemy.maxHp}`}>

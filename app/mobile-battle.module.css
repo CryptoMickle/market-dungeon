@@ -278,6 +278,17 @@
   .log p { font-size: 13px; }
   .actions button { min-height: 72px; }
 }
+/* Reserve the expedition's omen slot after settlement too. A result must not
+   collapse the header and move Kevin, health, the logo or the room indicators. */
+@media (min-width: 801px) {
+  .topBar[data-stable-frame] .playerStatus { grid-template-rows: 44px minmax(24px,auto); }
+  .topBar[data-stable-frame]:has(.rivalStatus) .playerStatus { grid-template-rows: 44px minmax(49px,auto); }
+  .topBar[data-stable-frame] .omenButton { height: 100%; min-height: 0; line-height: 18px; }
+}
+@media (min-width: 801px) and (max-width: 1050px) {
+  .topBar[data-stable-frame] .playerStatus { grid-template-rows: 54px minmax(24px,auto); }
+  .topBar[data-stable-frame]:has(.rivalStatus) .playerStatus { grid-template-rows: 54px minmax(49px,auto); }
+}
 /* Mobile: the home logo and omen above the compact resource row. */
 @media (max-width: 800px) {
   .topBar { display: block; position: relative; }

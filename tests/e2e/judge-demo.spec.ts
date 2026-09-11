@@ -185,11 +185,14 @@ async function expectDesktopCombat(page: Page, width: number, height: number) {
   const potionCount = (await combat.getByRole('button', { name: /POTION/ }).innerText()).match(/\d+\/5/)![0];
   await expect(combat.locator('header > small')).toContainText(`🧪 Potions ${potionCount}`);
   if (width >= 1440 && height >= 800) {
-    const stage = (await combat.boundingBox())!;
+    // Expedition navigation and combat now share the same outer frame.
+    const stageFrame = await combat.locator('[data-stable-frame]').count() ? combat.locator('..') : combat;
+    const stage = (await stageFrame.boundingBox())!;
     expect(stage.width).toBeGreaterThanOrEqual(Math.min(width - 64, 1760));
     expect(stage.width).toBeLessThanOrEqual(1760);
     expect(dashboardBox.width).toBeLessThanOrEqual(480);
-    expect(stage.height).toBeLessThanOrEqual(height);
+    // Footer links may scroll; the complete combat area must fit on screen.
+    expect(combatBox.y + combatBox.height).toBeLessThanOrEqual(height);
     expect(await combat.getByRole('heading').evaluate(el => parseFloat(getComputedStyle(el).fontSize))).toBeGreaterThanOrEqual(28);
   }
   // Check the entire page: old controls must stay hidden after CSS minification.

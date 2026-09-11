@@ -364,12 +364,12 @@ function roomFixture(room: number, cleared = false) {
   return { session, serialized, round };
 }
 
-async function installSavedFixture(page: Page, fixture: ReturnType<typeof roomFixture>, agents: boolean) {
+async function installSavedFixture(page: Page, fixture: ReturnType<typeof roomFixture>, agents: boolean, seedOnce = false) {
   const requests: Array<Record<string, unknown>> = [];
-  await page.addInitScript(({ key, serialized, rivalKey, round, agents }) => {
-    localStorage.setItem(key, serialized);
-    if (agents) localStorage.setItem(rivalKey, JSON.stringify({ mode: 'simulation', rounds: [round] }));
-  }, { key: agents ? LOCAL_RUN_KEY : FULL_RUN_STORAGE_KEY, serialized: fixture.serialized, rivalKey: RIVAL_KEY, round: fixture.round, agents });
+  await page.addInitScript(({ key, serialized, rivalKey, round, agents, seedOnce }) => {
+    if (!seedOnce || localStorage.getItem(key) === null) localStorage.setItem(key, serialized);
+    if (agents && (!seedOnce || localStorage.getItem(rivalKey) === null)) localStorage.setItem(rivalKey, JSON.stringify({ mode: 'simulation', rounds: [round] }));
+  }, { key: agents ? LOCAL_RUN_KEY : FULL_RUN_STORAGE_KEY, serialized: fixture.serialized, rivalKey: RIVAL_KEY, round: fixture.round, agents, seedOnce });
   await page.route('**/api/market?interval=300', route => route.fulfill({ json: { market, odds: null } }));
   await page.route('**/api/somnia-agents/rival', route => {
     const request = route.request().postDataJSON() as Record<string, unknown>;
@@ -607,3 +607,139 @@ test('narrow desktop status keeps Kevin text inside its button before lock and d
   await expect(rivalStatus(page)).toHaveAttribute('aria-label', 'Somnia Agent Kevin: Wallet approval');
   await measure('wallet-approval');
 });
+
+type HeaderRectangle = { x: number; y: number; width: number; height: number; documentX: number; documentY: number };
+type HeaderGeometry = { scrollX: number; scrollY: number; elements: Record<string, HeaderRectangle> };
+
+async function headerGeometry(page: Page, agents: boolean, allowMissingOmen = false): Promise<HeaderGeometry> {
+  const logo = page.getByRole('button', { name: 'Market Dungeon — back to home', exact: true });
+  const header = logo.locator('xpath=ancestor::header[1]');
+  const elements = {
+    navigation: page.getByRole('navigation', { name: 'Choose game mode', exact: true }),
+    logo,
+    mode: header.getByText(agents ? 'SOMNIA AGENTS' : 'FULL EXPEDITION', { exact: true }),
+    ...(!allowMissingOmen || await page.getByRole('button', { name: /^Omen details:/ }).count()
+      ? { omen: page.getByRole('button', { name: /^Omen details:/ }) } : {}),
+    ...(agents ? { kevin: rivalStatus(page) } : {}),
+    loadout: header.locator(':scope > small'),
+    health: page.locator('[aria-label^="Your health "]').filter({ visible: true }),
+    rooms: page.getByRole('list', { name: /^Room progress:/ }).filter({ visible: true }),
+  };
+  const measured: HeaderGeometry = { ...await page.evaluate(() => ({ scrollX: window.scrollX, scrollY: window.scrollY })), elements: {} };
+  for (const [name, element] of Object.entries(elements)) {
+    await expect(element).toHaveCount(1);
+    await expect(element).toBeVisible();
+    measured.elements[name] = await element.evaluate(target => {
+      const box = target.getBoundingClientRect();
+      const rounded = (value: number) => Math.round(value * 100) / 100;
+      return {
+        x: rounded(box.x), y: rounded(box.y), width: rounded(box.width), height: rounded(box.height),
+        documentX: rounded(box.x + window.scrollX), documentY: rounded(box.y + window.scrollY),
+      };
+    });
+  }
+  return measured;
+}
+
+for (const viewport of [{ width: 1440, height: 1000 }, { width: 1280, height: 720 }, { width: 820, height: 900 }]) for (const agents of [false, true]) {
+  test(`desktop header stays anchored between rooms in ${agents ? 'Agents' : 'Full Expedition'} at ${viewport.width}px`, async ({ page }, info) => {
+    test.skip(info.project.name.includes('iphone'), 'Desktop header geometry regression.');
+    await page.setViewportSize(viewport);
+    await installSavedFixture(page, roomFixture(7), agents);
+    await page.goto(agents ? '/somnia-agents' : '/');
+    await expect(page.getByRole('region', { name: 'Combat view', exact: true })).toBeVisible();
+    await page.clock.runFor(3_100);
+    if (agents) await expectRivalOnlyInStatus(page);
+    const combat = await headerGeometry(page, agents);
+    await page.screenshot({ path: info.outputPath('header-room7-combat.png') });
+    await page.getByRole('region', { name: 'Combat view', exact: true }).getByRole('region', { name: 'Combat actions', exact: true }).getByRole('button', { name: /ATTACK/ }).click();
+    await expect(page.getByText('ROOM 7 CLEARED', { exact: true })).toBeVisible();
+    await page.clock.runFor(500);
+    const loot = await headerGeometry(page, agents);
+    await page.screenshot({ path: info.outputPath('header-room7-loot.png') });
+    await page.getByRole('button', { name: 'ENTER ROOM 8', exact: true }).click();
+    await expect(page.getByRole('region', { name: 'Combat view', exact: true })).toBeVisible();
+    await page.clock.runFor(500);
+    const nextCombat = await headerGeometry(page, agents);
+    await page.screenshot({ path: info.outputPath('header-room8-combat.png') });
+    const states = { combat, loot, nextCombat };
+    await info.attach('header-geometry', { body: JSON.stringify(states, null, 2), contentType: 'application/json' });
+    const deltas = Object.fromEntries(Object.entries({ loot, nextCombat }).map(([state, measured]) => [state,
+      Object.fromEntries(Object.entries(combat.elements).map(([element, before]) => [element,
+        Object.fromEntries((['x', 'y', 'width', 'height', 'documentX', 'documentY'] as const).map(axis => [axis, Math.round((measured.elements[element][axis] - before[axis]) * 100) / 100])),
+      ])),
+    ]));
+    await info.attach('header-deltas', { body: JSON.stringify(deltas, null, 2), contentType: 'application/json' });
+    const maxShift = Object.fromEntries(Object.entries(deltas).map(([state, elements]) => [state,
+      Math.max(...Object.values(elements).flatMap(rectangle => Object.values(rectangle).map(value => Math.abs(value)))),
+    ]));
+    console.log(JSON.stringify({ viewport, agents, scroll: { combat: combat.scrollY, loot: loot.scrollY, nextCombat: nextCombat.scrollY }, maxShift }));
+    // Document coordinates expose layout changes independently of focus scrolling.
+    // Viewport coordinates also protect the visible header against automatic jumps.
+    for (const [state, measured] of Object.entries({ loot, nextCombat })) for (const [name, before] of Object.entries(combat.elements)) {
+      for (const axis of ['x', 'y', 'width', 'height', 'documentX', 'documentY'] as const) {
+        expect.soft(Math.abs(measured.elements[name][axis] - before[axis]), `${state}: ${name}.${axis} must stay anchored`).toBeLessThanOrEqual(1);
+      }
+    }
+  });
+}
+
+for (const viewport of [{ width: 1440, height: 1000 }, { width: 820, height: 900 }]) for (const agents of [false, true]) {
+  test(`desktop ${agents ? 'Agent' : 'Full Expedition'} header stays anchored through boss reward and death at ${viewport.width}px`, async ({ page }, info) => {
+    test.skip(info.project.name.includes('iphone'), 'Desktop ending header geometry regression.');
+    await page.setViewportSize(viewport);
+    const pending = roomFixture(10, true);
+    const settled = transitionMarketDungeon(pending.session.run, { type: 'settle-boss', settlement: {
+      attemptId: pending.round.attemptId, marketId, direction: 'DOWN', proofVersion: FULL_RUN_MARKET_PROOF_VERSION, commitment: null, outcome: 'BLESSED',
+    } }, () => 0);
+    expect(settled.accepted, settled.reason).toBe(true);
+    const rewardSession: FullRunSession = { ...pending.session, run: settled.run, market: null };
+    const dead = roomFixture(10);
+    dead.session.run.game.hp = 1;
+    dead.session.run.game.armorLevel = 0;
+    dead.session.run.game.weaponLevel = 0;
+    const ending = transitionMarketDungeon(dead.session.run, { type: 'gameplay', action: { type: 'attack' } }, maximum => maximum - 1);
+    expect(ending.accepted, ending.reason).toBe(true);
+    const deadSession: FullRunSession = { ...dead.session, run: ending.run };
+    expect(pending.session.run.phase).toBe('settlement-pending');
+    expect(rewardSession.run.phase).toBe('boss-reward');
+    expect(deadSession.run.phase).toBe('dead');
+    for (const session of [pending.session, rewardSession, deadSession]) {
+      expect(parseFullRunSession(serializeFullRunSession(session))).toEqual(session);
+    }
+    await installSavedFixture(page, pending, agents, true);
+    await page.goto(agents ? '/somnia-agents' : '/');
+    await page.clock.runFor(3_100);
+    if (agents) await expectRivalOnlyInStatus(page);
+    const states: Record<string, HeaderGeometry> = { pending: await headerGeometry(page, agents) };
+    await page.screenshot({ path: info.outputPath('header-boss-pending.png') });
+    for (const [label, session] of [['reward', rewardSession], ['dead', deadSession]] as const) {
+      await page.evaluate(({ key, value }) => localStorage.setItem(key, value), { key: agents ? LOCAL_RUN_KEY : FULL_RUN_STORAGE_KEY, value: serializeFullRunSession(session) });
+      await page.reload();
+      await page.clock.runFor(3_100);
+      if (agents) await expectRivalOnlyInStatus(page);
+      if (label === 'reward') await expect(page.getByRole('region', { name: 'Relic reward', exact: true })).toBeVisible();
+      else await expect(page.getByRole('button', { name: 'BEGIN NEW EXPEDITION', exact: true })).toBeVisible();
+      states[label] = await headerGeometry(page, agents, true);
+      await page.screenshot({ path: info.outputPath(`header-boss-${label}.png`) });
+    }
+    await info.attach('ending-header-geometry', { body: JSON.stringify(states, null, 2), contentType: 'application/json' });
+    const deltas = Object.fromEntries(Object.entries(states).filter(([state]) => state !== 'pending').map(([state, measured]) => [state,
+      Object.fromEntries(Object.entries(states.pending.elements).filter(([name]) => measured.elements[name]).map(([name, before]) => [name,
+        Object.fromEntries((['x', 'y', 'width', 'height', 'documentX', 'documentY'] as const).map(axis => [axis, Math.round((measured.elements[name][axis] - before[axis]) * 100) / 100])),
+      ])),
+    ]));
+    await info.attach('ending-header-deltas', { body: JSON.stringify(deltas, null, 2), contentType: 'application/json' });
+    const maxShift = Object.fromEntries(Object.entries(deltas).map(([state, elements]) => [state,
+      Math.max(...Object.values(elements).flatMap(rectangle => Object.values(rectangle).map(value => Math.abs(value)))),
+    ]));
+    console.log(JSON.stringify({ viewport, agents, endingMaxShift: maxShift }));
+    for (const [state, measured] of Object.entries(states).filter(([state]) => state !== 'pending')) {
+      for (const [name, before] of Object.entries(states.pending.elements).filter(([name]) => measured.elements[name])) {
+        for (const axis of ['x', 'y', 'width', 'height', 'documentX', 'documentY'] as const) {
+          expect.soft(Math.abs(measured.elements[name][axis] - before[axis]), `${state}: ${name}.${axis} must stay anchored`).toBeLessThanOrEqual(1);
+        }
+      }
+    }
+  });
+}
