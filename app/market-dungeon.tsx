@@ -1679,8 +1679,8 @@ function LegacyMarketDungeon({
     <main className={`game-shell phase-${phase.toLowerCase()} ${['SETUP', 'JUDGE_SETUP'].includes(phase) ? 'setup-shell' : 'in-expedition'} ${judgeMode ? `judge-mode ${replayStyles.shell}` : ''} ${directJudgeEntry ? 'direct-judge-entry' : ''} ${judgeMode && phase === 'COMBAT' ? 'mobile-combat-active' : ''}`}>
       <DesktopNavigation />
       {judgeMode && phase === 'JUDGE_SETUP' && <div className={replayStyles.top}>
-        {phase === 'JUDGE_SETUP' && <GameModeNav current="replay" replayHref={judgeProfile.judgePath} />}
         {phase === 'JUDGE_SETUP' && <header className={replayStyles.header}>
+          <GameModeNav current="replay" replayHref={judgeProfile.judgePath} />
           <GameLogo compact homeHref="/" />
           <div>
             <span className={replayStyles.eyebrow}>HISTORICAL JUDGE REPLAY · {shannonJudge ? 'SHANNON TESTNET' : 'SOMNIA MAINNET'}</span>

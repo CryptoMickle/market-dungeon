@@ -328,8 +328,7 @@ export default function LiveJudge() {
   return <main className={styles.shell} data-setup={!live} data-ended={ended} data-recovery={live && combat.phase === 'between' ? 'true' : undefined}>
     <DesktopNavigation />
     <div className={styles.frame}>
-      {!live && <GameModeNav current="live" />}
-      {!live ? <header className={styles.header}><GameLogo compact homeHref="/" /><div><strong className={styles.eyebrow}>LIVE JUDGE DEMO</strong><span className={styles.subtitle}>1-minute Event Contracts · Somnia testnet</span></div></header>
+      {!live ? <header className={styles.header}><GameModeNav current="live" /><GameLogo compact homeHref="/" /><div><strong className={styles.eyebrow}>LIVE JUDGE DEMO</strong><span className={styles.subtitle}>1-minute Event Contracts · Somnia testnet</span></div></header>
         : <PlayerHeader onHome={goHome} mode="LIVE JUDGE DEMO" summary={summary} hp={shownHp} maxHp={100} location={ended ? 'RUN COMPLETE' : combat.phase === 'between' ? 'GUARD DEFEATED' : 'BOSS DEFEATED'} potions={combat.potions} loadout={{ gold, weapon: 4, armor: 1, progress: `${combat.guardHp === 0 ? combat.bossHp === 0 ? 2 : 1 : 0}/2` }} omen={`BTC ${live.lock.direction} · ${remaining > 0 ? time(remaining) : 'WINDOW CLOSED'}`} omenDetails={omenDetails} gear={gear} />}
       <ol className={styles.steps} aria-label="Judge demo progress">{['1 · LOCK OMEN', '2 · GUARD', '3 · BOSS', '4 · FATE'].map((label, index) => <li key={label} aria-current={step === index ? 'step' : undefined} data-done={step > index}>{label}</li>)}</ol>
       <div className={`${styles.journey} ${live ? styles.result : ''}`} data-result={result?.result}>

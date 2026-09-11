@@ -13,8 +13,10 @@
 }
 .top { max-width: 1600px; margin: auto; }
 .header { display: grid; grid-template-columns: minmax(0,1fr) auto minmax(0,1fr); align-items: center; gap: 20px; padding: 0 0 20px; }
+.header > nav { grid-column: 1; }
 .header > a { grid-column: 2; justify-self: center; }
 .header > div { grid-column: 3; display: flex; flex-direction: column; gap: 6px; min-width: 0; text-align: right; }
+@media (min-width: 801px) and (max-width: 1744px) { .header > div { padding-right: 72px; } }
 .eyebrow { color: #d8b4fe; font-size: 11px; font-weight: 850; letter-spacing: .15em; }
 .subtitle { color: #b9adc9; font-size: 12px; line-height: 1.5; }
 .shell:global(.judge-mode) :global(.desktop-journey) { gap: 24px; min-height: 0; scroll-margin-top: 128px; }
@@ -163,8 +165,10 @@
 @media (max-width: 800px) {
   .shell:global(.game-shell.judge-mode) { padding: 14px 12px 72px; }
   .header { grid-template-columns: minmax(0,1fr); padding: 0 0 14px; gap: 12px; }
+  .header > nav { grid-column: 1; grid-row: 2; }
   .header > a, .header > div { grid-column: 1; justify-self: center; }
-  .header > div { text-align: center; }
+  .header > a { grid-row: 1; }
+  .header > div { grid-row: 3; text-align: center; }
   .eyebrow { font-size: 9px; line-height: 1.5; }
   .subtitle { font-size: 10px; }
   .shell:global(.judge-mode) :global(.desktop-journey) { display: flex; flex-direction: column; gap: 12px; }

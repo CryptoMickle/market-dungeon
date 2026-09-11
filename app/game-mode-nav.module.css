@@ -1,10 +1,9 @@
-.navigation { width: 100%; max-width: 620px; margin: 0 0 16px; }
+.navigation { width: 100%; max-width: 620px; min-width: 0; margin: 0; }
 .variants { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; width: 100%; }
 .variants a { display: flex; align-items: center; justify-content: center; min-height: 44px; padding: 10px 12px; border: 1px solid transparent; border-bottom-color: #493653; border-radius: 6px; background: transparent; color: #a99ab7; font-size: 9px; line-height: 1.4; font-weight: 850; letter-spacing: .03em; text-align: center; text-decoration: none; }
 .variants a[aria-current="page"] { border-bottom-color: #c084fc; background: #2a1b35; color: #f3e8ff; }
 .variants a:hover { border-color: #d8b4fe; color: #fff; }
 .variants a:focus-visible { outline: 3px solid #67e8f9; outline-offset: 3px; }
 @media (max-width: 800px) {
-  .navigation { margin-bottom: 12px; padding-right: 72px; }
   .variants a { padding: 8px 5px; font-size: 9px; letter-spacing: 0; }
 }
