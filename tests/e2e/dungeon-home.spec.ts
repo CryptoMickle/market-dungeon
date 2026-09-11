@@ -1,4 +1,5 @@
-import { expect, test, type Locator, type Page } from '@playwright/test';
+import type { Locator, Page } from '@playwright/test';
+import { expect, test } from './agents-test';
 import { createMarketDungeonRun, FULL_RUN_MARKET_PROOF_VERSION, transitionMarketDungeon, type MarketDungeonAction } from '../../app/gameplay/event-boss-engine';
 import { FULL_RUN_STORAGE_KEY, parseFullRunSession, serializeFullRunSession, type FullRunSession } from '../../app/gameplay/full-run-storage';
 import { LIVE_JUDGE } from '../../app/live-judge-proof';

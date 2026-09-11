@@ -106,6 +106,14 @@ async function expectOptimizedImageLoaded(image: Locator) {
   ))).toBe(true);
 }
 
+async function restoreFullRunFixture(page: Page, value: string) {
+  // Seed outside the mounted game: its deferred restore/persist effects must
+  // not overwrite the fixture with a fresh or previously displayed session.
+  await page.goto('/');
+  await page.evaluate(({ key, value }) => localStorage.setItem(key, value), { key: FULL_RUN_STORAGE_KEY, value });
+  await page.goto('/expedition');
+}
+
 async function expectJudgeBossReward(page: Page) {
   await expect(page.getByLabel('Historical Judge stage', { exact: true })).toContainText('You chose BTC UP. The market settled BTC UP. Your prediction was correct. The final boss stays down and its reward is secured.');
   // The controlled replay starts with 62, earns 18 from the guard and 42 from the boss.
@@ -945,15 +953,13 @@ for (const width of [390, 1280]) test(`Full Expedition logo returns home without
 for (const width of [1280, 1782]) test(`between-room potion remains reachable with open relics at ${width}px`, async ({ page }) => {
   await installDeterministicUpstreams(page);
   await page.setViewportSize({ width, height: 1166 });
-  await page.goto('/expedition');
   const session = uiParitySession({ hp: 33, maxHp: 98, baseMaxHp: 98, potions: 1, roomsCleared: 11, monsterHp: 0, ownedRelics: [1], equippedRelic: 1 });
   const previousMarketId = `0x${'78'.repeat(32)}`;
   session.run.attemptNumber = 2;
   session.run.usedMarketIds = [previousMarketId];
   session.run.resolvedAttemptIds = ['tier_one_1'];
   session.run.settlements = [{ attemptId: 'tier_one_1', marketId: previousMarketId, direction: 'UP', proofVersion: FULL_RUN_MARKET_PROOF_VERSION, commitment: null, outcome: 'BLESSED' }];
-  await page.evaluate(({ key, value }) => localStorage.setItem(key, value), { key: FULL_RUN_STORAGE_KEY, value: serializeFullRunSession(session) });
-  await page.reload();
+  await restoreFullRunFixture(page, serializeFullRunSession(session));
   const summary = page.locator('summary').filter({ hasText: 'CHANGE / UNEQUIP RELIC' });
   const potion = page.getByRole('button', { name: /USE OWN POTION SAFELY/ });
   const nextRoom = page.getByRole('button', { name: 'ENTER ROOM 12', exact: true });
@@ -1061,7 +1067,6 @@ test('relic loadout follows the market disclosure and supports arrow navigation'
 
 test('Delveworn health thresholds, boss palette and equipment icons remain presentation-only', async ({ page }, info) => {
   await page.setViewportSize({ width: 1280, height: 720 });
-  await page.goto('/expedition');
   for (const [hp, tone, color] of [
     [100, 'healthy', 'oklch(0.765 0.177 163.223)'],
     [56, 'healthy', 'oklch(0.765 0.177 163.223)'],
@@ -1071,8 +1076,7 @@ test('Delveworn health thresholds, boss palette and equipment icons remain prese
     [1, 'danger', 'oklch(0.637 0.237 25.331)'],
   ] as const) {
     const value = serializeFullRunSession(uiParitySession({ hp }));
-    await page.evaluate(({ key, value }) => localStorage.setItem(key, value), { key: FULL_RUN_STORAGE_KEY, value });
-    await page.reload();
+    await restoreFullRunFixture(page, value);
     const player = page.getByRole('region', { name: 'Combat view' }).getByLabel(`Your health ${hp} of 100`, { exact: true });
     await expect(player).toHaveAttribute('data-health', tone);
     await expect(player.locator('em')).toHaveCSS('background-color', color);
@@ -1093,8 +1097,7 @@ test('Delveworn health thresholds, boss palette and equipment icons remain prese
   await page.getByRole('button', { name: 'Close details' }).click();
   const boss = uiParitySession({ hp: 50, monsterType: 3, monsterHp: 122, monsterMaxHp: 122, roomsCleared: 9 });
   boss.run.phase = 'boss-combat';
-  await page.evaluate(({ key, value }) => localStorage.setItem(key, value), { key: FULL_RUN_STORAGE_KEY, value: serializeFullRunSession(boss) });
-  await page.reload();
+  await restoreFullRunFixture(page, serializeFullRunSession(boss));
   await expect(combat.getByLabel(/Enemy health/).locator('em')).toHaveCSS('background-color', 'oklch(0.627 0.265 303.9)');
   await expectCompactCombat(page, 320, 568);
   await page.screenshot({ path: info.outputPath('boss-hp-mobile.png') });
@@ -1370,9 +1373,7 @@ test('first boss relic offers an honest claim-without-equipping choice', async (
     },
   };
   const serialized = serializeFullRunSession(session);
-  await page.goto('/expedition');
-  await page.evaluate(({ key, value }) => localStorage.setItem(key, value), { key: FULL_RUN_STORAGE_KEY, value: serialized });
-  await page.reload();
+  await restoreFullRunFixture(page, serialized);
 
   await expect(page.getByRole('heading', { name: 'Blood Price' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'CLAIM & EQUIP' })).toBeVisible();
@@ -1407,15 +1408,13 @@ test('first boss relic offers an honest claim-without-equipping choice', async (
   expect(await page.evaluate(key => JSON.parse(localStorage.getItem(key)!).run, FULL_RUN_STORAGE_KEY)).toEqual(beforeReplay);
   await page.screenshot({path:info.outputPath('desktop-relic-reward.png'),fullPage:true});
   const withCurrentRelic = serializeFullRunSession({ ...session, run: { ...session.run, game: { ...session.run.game, equippedRelic: 3, ownedRelics: [3] } } });
-  await page.evaluate(({ key, value }) => localStorage.setItem(key, value), { key: FULL_RUN_STORAGE_KEY, value: withCurrentRelic });
-  await page.reload();
+  await restoreFullRunFixture(page, withCurrentRelic);
   await page.setViewportSize({width:1280,height:720});
   await expect(page.getByText('CURRENT RELIC · Echo Lens')).toBeVisible();
   await expect(page.getByLabel('Expedition stage').getByText('-20% Storm damage.', {exact:true})).toBeVisible();
   await expect(page.getByRole('button', { name: 'KEEP CURRENT RELIC' })).toBeInViewport({ratio:1});
   await page.screenshot({path:info.outputPath('desktop-relic-comparison.png'),fullPage:true});
-  await page.evaluate(({ key, value }) => localStorage.setItem(key, value), { key: FULL_RUN_STORAGE_KEY, value: serialized });
-  await page.reload();
+  await restoreFullRunFixture(page, serialized);
   await page.getByRole('button', { name: 'CLAIM WITHOUT EQUIPPING' }).click();
   const loadout = page.locator('summary').filter({ hasText: 'CHANGE / UNEQUIP RELIC' });
   await expect(loadout).toContainText('Active: No Relic');

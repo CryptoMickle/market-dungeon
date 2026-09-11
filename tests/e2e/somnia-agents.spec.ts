@@ -1,4 +1,5 @@
-import { expect, test, type Page } from '@playwright/test';
+import type { Page } from '@playwright/test';
+import { expect, test } from './agents-test';
 import { encodeFunctionData, toHex, zeroAddress } from 'viem';
 import { deriveDreamDexClobOdds } from '../../app/clob-odds';
 import { createMarketDungeonRun, FULL_RUN_MARKET_PROOF_VERSION, transitionMarketDungeon, type MarketDungeonAction, type MarketDungeonRun } from '../../app/gameplay/event-boss-engine';

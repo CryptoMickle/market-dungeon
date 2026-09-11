@@ -32,6 +32,14 @@ jobs:
       - run: npm run test:e2e
         env:
           PLAYWRIGHT_PRODUCTION: '1'
+      - name: Keep baseline browser failure evidence
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: baseline-browser-failures
+          path: test-results/
+          if-no-files-found: ignore
+          retention-days: 7
 
   agents-ui:
     runs-on: ubuntu-latest
@@ -48,3 +56,11 @@ jobs:
       - run: npx playwright install --with-deps chromium webkit
       - name: Build and verify Agents, neutral Home, wallet loading and reload safety
         run: npm run release:verify:agents
+      - name: Keep Agents browser failure evidence
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: agents-browser-failures
+          path: test-results/
+          if-no-files-found: ignore
+          retention-days: 7

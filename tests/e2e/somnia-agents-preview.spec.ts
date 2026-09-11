@@ -1,4 +1,5 @@
-import { expect, test, type Page } from '@playwright/test';
+import type { Page } from '@playwright/test';
+import { expect, test } from './agents-test';
 import { encodeFunctionData, toHex, zeroAddress } from 'viem';
 import { buildKevinPayload, SOMNIA_AGENTS_ABI, SOMNIA_AGENTS_TESTNET, type MarketSnapshot } from '../../lib/somnia-agents/protocol';
 import type { RivalRound, RivalTransaction } from '../../lib/somnia-agents/types';
