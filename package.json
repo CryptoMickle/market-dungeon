@@ -19,9 +19,14 @@
     "test:e2e:iphone": "playwright test --config=playwright.iphone.config.ts",
     "test:smoke:live": "playwright test --config=playwright.live.config.ts",
     "pilot:summarize": "node --experimental-strip-types scripts/summarize-pilot.ts",
-    "release:verify": "npm run lint && npm run typecheck && npm test && npm run test:shannon && npm run build -- --webpack && PLAYWRIGHT_PRODUCTION=1 npm run test:e2e && PLAYWRIGHT_PRODUCTION=1 npm run test:e2e:iphone"
+    "release:verify": "npm run lint && npm run typecheck && npm test && npm run test:shannon && npm run build -- --webpack && PLAYWRIGHT_PRODUCTION=1 npm run test:e2e && PLAYWRIGHT_PRODUCTION=1 npm run test:e2e:iphone && npm run release:verify:agents",
+    "release:verify:agents": "MARKET_DUNGEON_LOCAL_AGENTS=1 npm run build -- --webpack && PLAYWRIGHT_PRODUCTION=1 MARKET_DUNGEON_LOCAL_AGENTS=1 npm run test:e2e:agents",
+    "predev:agents": "node scripts/setup-local.mjs",
+    "dev:agents": "MARKET_DUNGEON_LOCAL_AGENTS=1 next dev --webpack --hostname 127.0.0.1 --port 3001",
+    "test:e2e:agents": "playwright test --config=playwright.agents.config.ts"
   },
   "dependencies": {
+    "@metamask/connect-evm": "2.1.1",
     "@somnia-chain/markets-sdk": "0.29.0",
     "@vercel/analytics": "^2.0.1",
     "next": "16.3.3",

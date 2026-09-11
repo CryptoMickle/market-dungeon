@@ -36,7 +36,34 @@ export async function expectSubstantialMobileCombat(page: Page) {
       top: Math.max(0, window.scrollY + element.getBoundingClientRect().top - 84),
       behavior: 'instant',
     }));
-    await expect(element).toBeInViewport({ ratio: 1 });
+    if (element === caption) {
+      // WebKit rounds a clipping parent's clientHeight to an integer. A padded
+      // caption can therefore report a fractional-pixel intersection loss even
+      // when every line is fully readable. Check the actual text against both
+      // the parent clip and the viewport; retain strict checks for art and HP.
+      await expect(caption).toBeVisible();
+      const text = await caption.evaluate(element => {
+        const range = document.createRange();
+        range.selectNodeContents(element);
+        const parent = element.parentElement!;
+        const parentBox = parent.getBoundingClientRect();
+        return {
+          lines: Array.from(range.getClientRects()).filter(rect => rect.width && rect.height)
+            .map(rect => ({ left: rect.left, top: rect.top, right: rect.right, bottom: rect.bottom })),
+          left: Math.max(0, parentBox.left + parent.clientLeft),
+          top: Math.max(0, parentBox.top + parent.clientTop),
+          right: Math.min(innerWidth, parentBox.left + parent.clientLeft + parent.clientWidth),
+          bottom: Math.min(innerHeight, parentBox.top + parent.clientTop + parent.clientHeight),
+        };
+      });
+      expect(text.lines.length).toBeGreaterThan(0);
+      for (const line of text.lines) {
+        expect(line.left, 'Caption text stays inside the visible parent').toBeGreaterThanOrEqual(text.left);
+        expect(line.top, 'Caption text stays inside the visible parent').toBeGreaterThanOrEqual(text.top);
+        expect(line.right, 'Caption text is not clipped horizontally').toBeLessThanOrEqual(text.right);
+        expect(line.bottom, 'Caption text is not clipped vertically').toBeLessThanOrEqual(text.bottom);
+      }
+    } else await expect(element).toBeInViewport({ ratio: 1 });
     const box = (await element.boundingBox())!;
     const dock = (await combat.getByRole('region', { name: 'Combat controls', exact: true }).boundingBox())!;
     expect(box.y + box.height, 'Status, full-size art and caption can be read above the action dock').toBeLessThanOrEqual(dock.y);

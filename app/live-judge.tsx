@@ -1,19 +1,19 @@
 'use client';
 
 import Image from 'next/image';
-import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { BossOutcomeScene } from './boss-outcome-scene';
 import { DesktopNavigation, KeyboardHint } from './desktop-navigation';
 import { useGameAudio } from './game-audio';
 import { GameLogo } from './game-logo';
-import { GameModeNav } from './game-mode-nav';
-import { GameText, GoldIcon, LoadoutSummary } from './game-icons';
+import { LoadoutSummary } from './game-icons';
+import { JudgeDemoHeader, JudgeProgress, JudgeOmenChoices, JudgeResultSummary, JudgeVictoryConditions, JudgeFinalStats, JudgeFooter, JudgeDungeonLog, JudgeDreamDexContinue } from './judge-demo-ui';
 import { DREAMDEX_BTC_5M_URL } from './dreamdex-link';
 import { JUDGE_COMBAT, type JudgeCombatAction, type JudgeCombatActionName } from './judge-combat';
 import { liveJudgeCombatState } from './live-judge-combat';
 import { liveJudgeJournal } from './live-judge-journal';
-import { MobileBattle, PlayerHeader } from './mobile-battle';
+import { CriticalHitResult, MobileBattle, PlayerHeader } from './mobile-battle';
 import { LiveJudgeProofDetails } from './live-judge-proof-details';
 import { LiveMarketOdds } from './live-market-odds';
 import { OmenGuide } from './omen-guide';
@@ -70,6 +70,8 @@ function OmenDetails({ market, direction, locked }: { market: LiveJudgeMarket; d
 }
 
 export default function LiveJudge() {
+  const router = useRouter();
+  const goHome = () => router.push('/');
   const { playCharacterIntro, playOutcome } = useGameAudio();
   const [ready, setReady] = useState(false);
   const [now, setNow] = useState(0);
@@ -308,16 +310,15 @@ export default function LiveJudge() {
 
   const oddsPanel = <LiveMarketOdds {...marketOdds} direction={live?.lock.direction ?? direction} networkLabel="SHANNON TESTNET · 1 MIN" />;
   const omenDetails = market ? <><OmenDetails market={market} direction={live?.lock.direction ?? direction} locked={Boolean(live)} />{live && !ended && <><OmenGuide mode="live" />{oddsPanel}</>}</> : null;
-  const footer = <nav className={styles.footer} aria-label="Live Judge navigation"><Link href="/">FULL EXPEDITION</Link><Link href="/shannon/judge">HISTORICAL REPLAY</Link><Link href="/shannon/live-judge/verify">VERIFY LIVE PROOF</Link><Link href="/credits">PRIVACY · CREDITS</Link></nav>;
-  if (!ready) return <main className={styles.shell}><div className={styles.frame}><GameLogo /><p role="status">Opening the live dungeon…</p></div></main>;
+  const footer = <JudgeFooter verifierHref="/shannon/live-judge/verify" />;
+  if (!ready) return <main className={styles.shell}><div className={styles.frame}><GameLogo homeHref="/" /><p role="status">Opening the live dungeon…</p></div></main>;
 
   if (fighting && live) return <main className={`${styles.shell} ${styles.combat}`}>
     <DesktopNavigation />
-    <div className={styles.combatModes}><GameModeNav current="live" /></div>
     <div className={styles.combatClock} aria-label="Live market countdown"><span>{remaining > 0 ? 'MARKET CLOSES IN' : 'MARKET CLOSED'}</span><b>{remaining > 0 ? time(remaining) : '00:00'}</b><small>{remaining > 0 ? 'You can keep fighting after 00:00.' : 'Keep fighting. The boss result comes after combat.'}</small></div>
-    <MobileBattle mode="LIVE JUDGE DEMO" desktopSummary={summary} location={`${isBoss ? 'BOSS' : 'GUARD'} · ${isBoss ? '2' : '1'} OF 2`} loadout={{ gold, weapon: 4, armor: 1, progress: isBoss ? 'BOSS 2/2' : 'GUARD 1/2' }} hp={combat.hp} maxHp={100}
+    <MobileBattle onHome={goHome} mode="LIVE JUDGE DEMO" desktopSummary={summary} location={`${isBoss ? 'BOSS' : 'GUARD'} · ${isBoss ? '2' : '1'} OF 2`} loadout={{ gold, weapon: 4, armor: 1, progress: isBoss ? 'BOSS 2/2' : 'GUARD 1/2' }} hp={combat.hp} maxHp={100}
       enemy={{ ...(isBoss ? BOSS : GUARD), hp: isBoss ? combat.bossHp : combat.guardHp, maxHp: isBoss ? JUDGE_COMBAT.boss.hp : JUDGE_COMBAT.guard.hp, incoming: isBoss ? '10–16' : '8–13', isBoss }}
-      omen={`BTC ${live.lock.direction} · ${remaining > 0 ? time(remaining) : 'WINDOW CLOSED'}`} omenDetails={omenDetails} gear={gear} log={log} logPreview={journal.preview} firstFightHint={!bossEntered}
+      omen={`BTC ${live.lock.direction} · ${remaining > 0 ? time(remaining) : 'WINDOW CLOSED'}`} omenDetails={omenDetails} gear={gear} log={log} logPreview={journal.preview} firstFightHint={!bossEntered && actions.length === 0}
       lastExchange={combat.lastExchange} attack="15–19" criticalChance={15} storm="0–32" potions={combat.potions} potionUses={combat.potionUses} potionLimit={isBoss ? 3 : 2}
       onAttack={() => act('attack')} onStorm={() => act('storm')} onPotion={() => act('potion')} />
     {footer}
@@ -326,14 +327,14 @@ export default function LiveJudge() {
   return <main className={styles.shell} data-setup={!live} data-ended={ended} data-recovery={live && combat.phase === 'between' ? 'true' : undefined}>
     <DesktopNavigation />
     <div className={styles.frame}>
-      <GameModeNav current="live" />
-      {!live ? <header className={styles.header}><GameLogo compact /><div><strong className={styles.eyebrow}>LIVE JUDGE DEMO</strong><span className={styles.subtitle}>1-minute Event Contracts · Somnia testnet</span></div></header>
-        : <PlayerHeader mode="LIVE JUDGE DEMO" summary={summary} hp={shownHp} maxHp={100} location={ended ? 'RUN COMPLETE' : combat.phase === 'between' ? 'GUARD DEFEATED' : 'BOSS DEFEATED'} potions={combat.potions} loadout={{ gold, weapon: 4, armor: 1, progress: `${combat.guardHp === 0 ? combat.bossHp === 0 ? 2 : 1 : 0}/2` }} omen={`BTC ${live.lock.direction} · ${remaining > 0 ? time(remaining) : 'WINDOW CLOSED'}`} omenDetails={omenDetails} gear={gear} />}
-      <ol className={styles.steps} aria-label="Judge demo progress">{['1 · LOCK OMEN', '2 · GUARD', '3 · BOSS', '4 · FATE'].map((label, index) => <li key={label} aria-current={step === index ? 'step' : undefined} data-done={step > index}>{label}</li>)}</ol>
+      {!live ? <JudgeDemoHeader variant="live" />
+        : <PlayerHeader onHome={goHome} mode="LIVE JUDGE DEMO" summary={summary} hp={shownHp} maxHp={100} location={ended ? 'RUN COMPLETE' : combat.phase === 'between' ? 'GUARD DEFEATED' : 'BOSS DEFEATED'} potions={combat.potions} loadout={{ gold, weapon: 4, armor: 1, progress: `${combat.guardHp === 0 ? combat.bossHp === 0 ? 2 : 1 : 0}/2` }} omen={`BTC ${live.lock.direction} · ${remaining > 0 ? time(remaining) : 'WINDOW CLOSED'}`} omenDetails={omenDetails} gear={gear} />}
+      <JudgeProgress step={step + 1} complete={Boolean(result)} />
       <div className={`${styles.journey} ${live ? styles.result : ''}`} data-result={result?.result}>
         {live && combat.phase === 'complete' ? <BossOutcomeScene name={BOSS.name} image={BOSS.image} maxHp={72} compact={ended} outcome={result?.result === 'BLESSED' ? 'blessed' : result?.result === 'CURSED' ? 'last-strike' : result?.result === 'VOID' ? 'void' : 'pending'} />
           : <div className={styles.art}><Image src={!live ? '/assets/delveworn-tier2-party-hero.webp' : combat.phase === 'between' ? KEVIN : bossEntered ? BOSS.image : GUARD.image} alt={!live ? 'The dungeon awaits' : combat.phase === 'between' ? 'Quartermaster Kevin' : 'The undefeated dungeon enemy'} fill priority sizes="(max-width: 800px) 100vw, 55vw" /><div className={styles.artCaption}><strong>{!live ? 'Your call. Your fate.' : combat.phase === 'between' ? 'A brief appointment with Kevin.' : 'The dungeon wins this one.'}</strong><span>{!live ? 'One guard. One boss. A market that is unfolding now.' : 'Dungeon management appreciates your participation.'}</span></div></div>}
         <section ref={stage} tabIndex={-1} className={styles.panel} data-keyboard-action-scope data-keyboard-actions aria-label="Live Judge stage">
+          {live && !ended && combat.lastExchange?.critical && <CriticalHitResult damage={combat.lastExchange.rolledDamage ?? combat.lastExchange.dealt} />}
           {!live ? <>
             <span className={styles.eyebrow}>{invited ? 'YOU’RE INVITED · MAKE YOUR OWN CALL' : 'A FRESH OUTCOME · EVERY ROUND'}</span>
             <h1>Fight the boss.<br />Let the market decide.</h1>
@@ -345,17 +346,13 @@ export default function LiveJudge() {
               <small className={styles.clockHint}>You can keep fighting after 00:00.</small>
             </div>
             {oddsPanel}
-            <div className={styles.choices} role="group" aria-label="Choose your BTC omen">
-              <button aria-pressed={direction === 'UP'} onClick={() => setDirection('UP')} disabled={busy}><b><GoldIcon /> GOLD AWAKENS</b><small>BTC UP</small><span>At or above the target</span></button>
-              <button aria-pressed={direction === 'DOWN'} onClick={() => setDirection('DOWN')} disabled={busy}><b><span aria-hidden="true">🌑</span> SHADOWS RISE</b><small>BTC DOWN</small><span>Below the target</span></button>
-            </div>
+            <JudgeOmenChoices direction={direction} onChange={setDirection} disabled={busy} />
             <OmenGuide mode="live" />
             <button className={styles.primary} data-keyboard-default="true" onClick={() => void lockOmen()} disabled={!candidate || remaining < 20 || busy || retry > 0}>{busy ? 'LOCKING YOUR OMEN…' : retry > 0 ? `RETRY LOCK IN ${retry}S` : !candidate || remaining < 20 ? 'WAITING FOR A FRESH MARKET' : `LOCK BTC ${direction} & ENTER DUNGEON`}</button>
             <small className={styles.note}>No wallet · No approval · No transaction. Combat and the market run together; settlement can take longer than one minute.</small>
             <KeyboardHint />
             {(issue || marketIssue) && <div className={styles.error} role="status">{issue || marketIssue}</div>}
             <details className={styles.proof}><summary>ABOUT THIS LIVE TESTNET ROUND</summary>{omenDetails}<p>Your signed lock receipt records your choice before the deadline. The server attests the lock time; Somnia independently supplies the settlement. This is a fresh market, not historical replay.</p></details>
-            <Link className={styles.secondary} href="/shannon/judge">USE HISTORICAL REPLAY INSTEAD</Link>
           </> : combat.phase === 'between' ? <>
             <div className={styles.recoveryHeading}>
               <div className={styles.recoveryPortrait}><Image src={KEVIN} alt="Quartermaster Kevin" fill sizes="88px" /></div>
@@ -372,7 +369,6 @@ export default function LiveJudge() {
             <span className={styles.eyebrow}>SOMNIA VERIFIED · {result.result}</span>
             <h1>{result.result === 'BLESSED' ? 'Your omen holds.' : result.result === 'CURSED' ? 'One fatal last strike.' : 'Market voided. Boss defeated.'}</h1>
             <p>{result.result === 'BLESSED' ? 'You won the fight and called the market correctly. The boss stays down. Its 42 gold is yours.' : result.result === 'CURSED' ? 'You won the fight, but your prediction was wrong. The fallen boss rises for a final strike. The run ends here.' : 'The market produced no winning prediction. Your combat victory and boss reward are preserved.'}</p>
-            <div className={styles.verification}><div><small>YOU LOCKED</small><b>BTC {live.lock.direction}</b></div><div><small>MARKET RESULT</small><b>{actualOutcome === 'VOID' ? 'VOID' : `BTC ${actualOutcome}`}</b></div></div>
           </> : <>
             <span className={styles.eyebrow}>COMBAT WON · MARKET FATE PENDING</span><h1>{remaining > 0 ? 'The boss is down. The clock is running.' : 'The boss is down. Its fate is being checked.'}</h1>
             <p>{remaining > 0 ? 'Your locked market is still open. The result will be checked automatically when the window closes.' : 'We are checking the same locked Event Contract on Somnia. A closed window alone is not a confirmed result.'}</p>
@@ -382,38 +378,28 @@ export default function LiveJudge() {
             {expired && <button className={styles.primary} onClick={reset}>START A NEW LIVE ROUND</button>}
             {!issue && <small className={styles.note} role="status">{busy ? 'Checking combat, signed lock and the onchain result…' : remaining > 0 ? 'Automatic verification starts when the market closes.' : 'Settlement pending. Checking again shortly.'}</small>}
             {recoverySupplies}
-            <button className={styles.secondary} disabled={rested || combat.hp >= 100} onClick={() => { setRested(true); playCharacterIntro('Quartermaster Kevin'); }}> {rested ? 'KEVIN’S BANDAGE APPLIED' : 'REST WITH KEVIN · FREE'}</button>
+            <button className={styles.secondary} disabled={rested || combat.hp >= 100} onClick={() => { setRested(true); playCharacterIntro('Quartermaster Kevin'); }}>{rested || combat.hp >= 100 ? 'FULLY RESTED · 100/100 HP' : 'REST WITH KEVIN · FREE'}</button>
             <small className={styles.note}>Rest cannot change your omen or save you from a wrong prediction.</small>
           </>}
-          {ended && <>
-            <div className={styles.conditions} aria-label="Two victory conditions">
-              <div data-state={result ? 'won' : 'lost'}><span>{result ? '✓' : '✕'} CONDITION 1 · COMBAT</span><strong>{result ? 'Boss defeated in combat' : 'Fell before combat was cleared'}</strong></div>
-              <div data-state={result?.result === 'BLESSED' ? 'won' : result?.result === 'CURSED' ? 'lost' : 'neutral'}><span>{result?.result === 'BLESSED' ? '✓' : result?.result === 'CURSED' ? '✕' : '○'} CONDITION 2 · PREDICTION</span><strong>{result?.result === 'BLESSED' ? 'BTC prediction correct' : result?.result === 'CURSED' ? 'BTC prediction incorrect' : result?.result === 'VOID' ? 'Market voided · no prediction penalty' : 'No market outcome applied'}</strong></div>
-            </div>
-            <dl className={styles.finalStats} aria-label="Final run statistics"><div><dt>ENCOUNTERS CLEARED</dt><dd>{encounters}/2</dd></div><div><dt>FINAL GOLD</dt><dd><GoldIcon /> {gold}</dd></div><div><dt>FINAL HEALTH</dt><dd>{shownHp}/100</dd></div><div><dt>POTIONS LEFT</dt><dd>{combat.potions}/5</dd></div></dl>
+          {ended && live && <>
+            <JudgeResultSummary direction={live.lock.direction} marketOutcome={actualOutcome} result={result?.result ?? 'DEFEATED'} />
+            <JudgeVictoryConditions result={result?.result ?? 'DEFEATED'} />
+            <JudgeFinalStats encounters={encounters} gold={gold} hp={shownHp} potions={combat.potions} />
             <button className={styles.primary} data-keyboard-default="true" onClick={reset}>START NEW LIVE DEMO</button>
-            <Link className={styles.secondary} href="/">PLAY FULL EXPEDITION</Link>
           </>}
           {live && <>{!result && <details className={styles.proof}><summary>YOUR LOCKED MARKET & RECEIPT</summary>{omenDetails}<p>Choice locked: {new Date(live.lock.issuedAt * 1_000).toLocaleTimeString()}. Server-signed time; settlement is checked independently on Somnia.</p></details>}
-            <ul className={styles.log} aria-label="Dungeon log">{log.slice(0, 3).map((entry, index) => <li key={index}><GameText>{entry}</GameText></li>)}</ul>
-            {log.length > 3 && <details className={styles.logHistory}><summary>READ FULL DUNGEON LOG · {log.length} ENTRIES</summary><ul className={styles.log} aria-label="Full dungeon log">{log.map((entry, index) => <li key={index}><GameText>{entry}</GameText></li>)}</ul></details>}
+            <JudgeDungeonLog entries={log} />
           </>}
         </section>
       {runShareInput &&
         <div className={styles.sharing}>
           <RunSharePanel input={runShareInput} challengeUrl={challengeUrl} onAction={localShareAction} onChallenge={localShareAction} />
-          {result && <section className={styles.dreamdex} aria-label="Continue on dreamDEX">
-            <span className={styles.eyebrow}>NEXT STEP · DREAMDEX · SOMNIA MAINNET</span>
-            <h2>Take your next call to dreamDEX.</h2>
-            <p>Explore BTC 5-minute Event Contracts on dreamDEX. This opens a separate mainnet market; your one-minute Shannon testnet result stays here.</p>
-            <a className={styles.dreamdexAction} href={DREAMDEX_BTC_5M_URL} target="_blank" rel="noopener noreferrer" aria-label="Continue on dreamDEX — opens in a new tab">CONTINUE ON DREAMDEX ↗</a>
-            <small>Opens in a new tab. Wallet connection and any transaction happen on dreamDEX.</small>
-          </section>}
+          {result && <JudgeDreamDexContinue href={DREAMDEX_BTC_5M_URL} description="Explore BTC 5-minute Event Contracts on dreamDEX. This opens a separate mainnet market; your one-minute Shannon testnet result stays here." />}
           {!result && <section className={styles.defeatNote}><span className={styles.eyebrow}>YOUR RUN · COMBAT DEFEAT</span><h2>Every run has a story.</h2><p>Your card records the encounters you cleared and the omen you locked. This fight ended before market verification, so the card carries no verified market result.</p><p>Start another live round, or try Full Expedition for the complete dungeon.</p></section>}
         </div>
       }
       </div>
-      {result && <div className={styles.resultExtras}><LiveJudgeProofDetails proof={result.proof} /></div>}
+      {result && <details className={`${styles.proof} ${styles.resultExtras}`}><summary>VIEW VERIFIED RUN PROOF</summary><LiveJudgeProofDetails proof={result.proof} /></details>}
       {footer}
     </div>
   </main>;

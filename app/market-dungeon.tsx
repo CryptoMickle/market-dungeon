@@ -2,21 +2,23 @@
 
 import Image from 'next/image';
 import { GameLogo } from './game-logo';
-import { GameModeNav } from './game-mode-nav';
 import { OmenGuide } from './omen-guide';
 import { RecoverySupplies } from './recovery-supplies';
 import replayStyles from './historical-judge.module.css';
+import judgeLayoutStyles from './live-judge.module.css';
+import { JudgeDemoHeader, JudgeProgress, JudgeOmenChoices, JudgeResultSummary, JudgeVictoryConditions, JudgeFinalStats, JudgeFooter, JudgeDungeonLog, JudgeDreamDexContinue } from './judge-demo-ui';
 import { useGameAudio } from './game-audio';
 import { BossOutcomeScene } from './boss-outcome-scene';
 import { DesktopNavigation, KeyboardHint } from './desktop-navigation';
 import FullExpedition from './full-expedition';
 import { attackLogs, stormLogs, getDelvewornPersona } from './gameplay/delveworn-personas';
-import { BattleHeader, CriticalHitResult, MobileBattle, PlayerHeader } from './mobile-battle';
+import { CriticalHitResult, MobileBattle, PlayerHeader } from './mobile-battle';
 import { RunSharePanel } from './run-share-panel';
 import { GameText, GoldIcon, LoadoutSummary } from './game-icons';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from 'react';
+import { clearHistoricalCheckpoint, keepHistoricalCheckpoint, readHistoricalCheckpoint } from './historical-navigation';
 import { replayCountdownSeconds, replayRetrySeconds } from './judge-retry';
 
 import {
@@ -51,7 +53,6 @@ import {
 import {
   liveBtcContextFromMarket,
   liveBtcContextPrice,
-  liveBtcContextTime,
   type LiveBtcContext,
 } from './live-btc-context';
 import {
@@ -109,9 +110,9 @@ type Species = 'Zombie' | 'Goblin' | 'Orc' | 'Boss';
 
 type ReplayStartIssue = 'rate_limited' | 'upstream_retry' | 'config_unavailable' | 'no_candidates' | 'connection' | 'invalid_lock';
 
-function useReplayCountdown(): [number, (seconds: number) => void] {
-  const [remaining, setRemaining] = useState(0);
-  const deadline = useRef(0);
+function useReplayCountdown(initialDeadline = 0): [number, (seconds: number) => void, RefObject<number>] {
+  const [remaining, setRemaining] = useState(() => replayCountdownSeconds(initialDeadline));
+  const deadline = useRef(initialDeadline);
   const start = useCallback((seconds: number) => {
     deadline.current = Date.now() + Math.max(0, seconds) * 1_000;
     setRemaining(replayCountdownSeconds(deadline.current));
@@ -127,7 +128,7 @@ function useReplayCountdown(): [number, (seconds: number) => void] {
       document.removeEventListener('visibilitychange', tick);
     };
   }, []);
-  return [remaining, start];
+  return [remaining, start, deadline];
 }
 
 type Market = {
@@ -153,6 +154,26 @@ type Persona = {
 };
 
 type Monster = Persona & { room: number; hp: number };
+
+/** Already-verified state retained only while navigating within this tab. */
+type HistoricalCheckpoint = {
+  market: Market; marketOdds: DreamDexClobOdds | null; direction: Direction; phase: Phase;
+  tier: number; roster: Monster[]; room: number; turn: number; hp: number; monsterHp: number;
+  potions: number; gold: number; weapon: number; armor: number; combatPotionUses: number;
+  lastExchange: { dealt: number; taken: number; critical?: boolean; rolledDamage?: number; quip?: string } | null;
+  remaining: number; marketEntryRemaining: number | null; notice: string; combatLog: string[];
+  lastReward: string; oracleChecks: number; oracleResult: OracleResult; bandageUsed: boolean;
+  merchantPotions: number; weaponSold: boolean; armorSold: boolean; deathCause: DeathCause;
+  judgeActionLog: JudgeCombatAction[]; liveBtcContext: LiveBtcContext | null; liveBtcContextLoaded: boolean;
+  proofStatus: string; challengeEntry: boolean; judgeStartIssue: ReplayStartIssue | null;
+  replayIssue: 'rate_limited' | 'upstream_retry' | 'config_unavailable' | 'connection' | null;
+  replayRevealDeadline: number; judgeStartRetryDeadline: number; replayRetryDeadline: number;
+  refs: {
+    startedAt: number | null; revealTracked: boolean; terminalTracked: boolean; dreamDexTracked: boolean;
+    entryTracked: boolean; challengeCreated: boolean; challengeOpened: boolean; challengeVerified: boolean;
+    shareEngaged: boolean; shareActions: ShareAction[];
+  };
+};
 
 const TOTAL_ROOMS = 10;
 const TOTAL_TIERS = 4;
@@ -504,72 +525,111 @@ function LegacyMarketDungeon({
   judgeProfileId?: JudgeNetworkProfileId;
 }) {
   const router = useRouter();
+  const goHome = () => {
+    saveNavigationCheckpoint();
+    router.push('/');
+  };
+  const [checkpoint] = useState<HistoricalCheckpoint | undefined>(() => {
+    if (!directJudgeEntry || typeof window === 'undefined' || isChallengeEntry(window.location.search)) return undefined;
+    return readHistoricalCheckpoint<HistoricalCheckpoint>(judgeProfileId);
+  });
   const { playCharacterIntro, playOutcome } = useGameAudio();
   const judgeProfile = judgeNetworkProfile(judgeProfileId);
   const shannonJudge = judgeProfile.id === 'shannon-testnet';
   const judgeChallengeUrl = `${MARKET_DUNGEON_PLAY_URL}${judgeProfile.judgePath}?challenge=1`;
-  const [market, setMarket] = useState<Market>(() => directJudgeEntry ? sealedReplay : fallback);
-  const [marketOdds, setMarketOdds] = useState<DreamDexClobOdds | null>(null);
-  const [direction, setDirection] = useState<Direction>('UP');
-  const [phase, setPhase] = useState<Phase>(() => directJudgeEntry ? 'JUDGE_SETUP' : 'SETUP');
-  const [tier, setTier] = useState(1);
-  const [roster, setRoster] = useState<Monster[]>(() => buildRoster());
-  const [room, setRoom] = useState(0);
-  const [turn, setTurn] = useState(0);
-  const [hp, setHp] = useState(100);
-  const [monsterHp, setMonsterHp] = useState(roster[0].hp);
-  const [potions, setPotions] = useState(START_POTIONS);
-  const [gold, setGold] = useState(0);
-  const [weapon, setWeapon] = useState(1);
-  const [armor, setArmor] = useState(0);
-  const [combatPotionUses, setCombatPotionUses] = useState(0);
-  const [lastExchange, setLastExchange] = useState<{ dealt: number; taken: number; critical?: boolean; rolledDamage?: number; quip?: string } | null>(null);
-  const [remaining, setRemaining] = useState(0);
-  const [marketEntryRemaining, setMarketEntryRemaining] = useState<number | null>(null);
-  const [notice, setNotice] = useState(directJudgeEntry
+  const [market, setMarket] = useState<Market>(() => checkpoint?.market ?? (directJudgeEntry ? sealedReplay : fallback));
+  const [marketOdds, setMarketOdds] = useState<DreamDexClobOdds | null>(checkpoint?.marketOdds ?? null);
+  const [direction, setDirection] = useState<Direction>(checkpoint?.direction ?? 'UP');
+  const [phase, setPhase] = useState<Phase>(() => checkpoint?.phase === 'FINAL_MERCHANT' && directJudgeEntry ? 'ORACLE' : checkpoint?.phase ?? (directJudgeEntry ? 'JUDGE_SETUP' : 'SETUP'));
+  const [tier, setTier] = useState(checkpoint?.tier ?? 1);
+  const [roster, setRoster] = useState<Monster[]>(() => checkpoint?.roster ?? buildRoster());
+  const [room, setRoom] = useState(checkpoint?.room ?? 0);
+  const [turn, setTurn] = useState(checkpoint?.turn ?? 0);
+  const [hp, setHp] = useState(checkpoint?.hp ?? 100);
+  const [monsterHp, setMonsterHp] = useState(checkpoint?.monsterHp ?? roster[0].hp);
+  const [potions, setPotions] = useState(checkpoint?.potions ?? START_POTIONS);
+  const [gold, setGold] = useState(checkpoint?.gold ?? 0);
+  const [weapon, setWeapon] = useState(checkpoint?.weapon ?? 1);
+  const [armor, setArmor] = useState(checkpoint?.armor ?? 0);
+  const [combatPotionUses, setCombatPotionUses] = useState(checkpoint?.combatPotionUses ?? 0);
+  const [lastExchange, setLastExchange] = useState<HistoricalCheckpoint['lastExchange']>(checkpoint?.lastExchange ?? null);
+  const [remaining, setRemaining] = useState(checkpoint?.remaining ?? 0);
+  const [marketEntryRemaining, setMarketEntryRemaining] = useState<number | null>(checkpoint?.marketEntryRemaining ?? null);
+  const [notice, setNotice] = useState(checkpoint?.notice ?? (directJudgeEntry
     ? 'JUDGE DEMO · CHOOSE OMEN BEFORE MARKET SELECTION'
-    : 'LIVE DREAMDEX MARKET · READ ONLY');
-  const [combatLog, setCombatLog] = useState<string[]>(() => directJudgeEntry
+    : 'LIVE DREAMDEX MARKET · READ ONLY'));
+  const [combatLog, setCombatLog] = useState<string[]>(() => checkpoint?.combatLog ?? (directJudgeEntry
     ? ['Choose BTC UP or DOWN first. The server will then draw a random finalized market and return an encrypted seal, commitment, and signed lock receipt.']
-    : []);
-  const [lastReward, setLastReward] = useState('');
+    : []));
+  const [lastReward, setLastReward] = useState(checkpoint?.lastReward ?? '');
+  // Interrupted network work is retryable after returning; it is never resumed
+  // as a second automatic lock or a second reveal request.
   const [oracleBusy, setOracleBusy] = useState(false);
-  const [oracleChecks, setOracleChecks] = useState(0);
-  const [oracleResult, setOracleResult] = useState<OracleResult>(null);
-  const [bandageUsed, setBandageUsed] = useState(false);
-  const [merchantPotions, setMerchantPotions] = useState(2);
-  const [weaponSold, setWeaponSold] = useState(false);
-  const [armorSold, setArmorSold] = useState(false);
+  const [oracleChecks, setOracleChecks] = useState(checkpoint?.oracleChecks ?? 0);
+  const [oracleResult, setOracleResult] = useState<OracleResult>(checkpoint?.oracleResult ?? null);
+  const [bandageUsed, setBandageUsed] = useState(checkpoint?.bandageUsed ?? false);
+  const [merchantPotions, setMerchantPotions] = useState(checkpoint?.merchantPotions ?? 2);
+  const [weaponSold, setWeaponSold] = useState(checkpoint?.weaponSold ?? false);
+  const [armorSold, setArmorSold] = useState(checkpoint?.armorSold ?? false);
   const [judgeMode, setJudgeMode] = useState(directJudgeEntry);
   const [judgeLoading, setJudgeLoading] = useState(false);
-  const [deathCause, setDeathCause] = useState<DeathCause>('COMBAT');
-  const [profileReady, setProfileReady] = useState(false);
+  const [deathCause, setDeathCause] = useState<DeathCause>(checkpoint?.deathCause ?? 'COMBAT');
+  const [profileReady, setProfileReady] = useState(Boolean(checkpoint));
   const [mobileLogOpen, setMobileLogOpen] = useState(false);
-  const [judgeActionLog, setJudgeActionLog] = useState<JudgeCombatAction[]>([]);
-  const [liveBtcContext, setLiveBtcContext] = useState<LiveBtcContext | null>(null);
-  const [liveBtcContextLoaded, setLiveBtcContextLoaded] = useState(false);
-  const [proofStatus, setProofStatus] = useState('');
-  const [challengeEntry, setChallengeEntry] = useState(false);
-  const [replayRevealRemaining, setReplayRevealRemaining] = useReplayCountdown();
-  const [judgeStartRetryRemaining, setJudgeStartRetryRemaining] = useReplayCountdown();
-  const [replayRetryRemaining, setReplayRetryRemaining] = useReplayCountdown();
-  const [judgeStartIssue, setJudgeStartIssue] = useState<ReplayStartIssue | null>(null);
-  const [replayIssue, setReplayIssue] = useState<'rate_limited' | 'upstream_retry' | 'config_unavailable' | 'connection' | null>(null);
+  const [judgeActionLog, setJudgeActionLog] = useState<JudgeCombatAction[]>(checkpoint?.judgeActionLog ?? []);
+  const [liveBtcContext, setLiveBtcContext] = useState<LiveBtcContext | null>(checkpoint?.liveBtcContext ?? null);
+  const [liveBtcContextLoaded, setLiveBtcContextLoaded] = useState(checkpoint?.liveBtcContextLoaded ?? false);
+  const [proofStatus, setProofStatus] = useState(checkpoint?.proofStatus ?? '');
+  const [challengeEntry, setChallengeEntry] = useState(checkpoint?.challengeEntry ?? false);
+  const [replayRevealRemaining, setReplayRevealRemaining, replayRevealDeadline] = useReplayCountdown(checkpoint?.replayRevealDeadline);
+  const [judgeStartRetryRemaining, setJudgeStartRetryRemaining, judgeStartRetryDeadline] = useReplayCountdown(checkpoint?.judgeStartRetryDeadline);
+  const [replayRetryRemaining, setReplayRetryRemaining, replayRetryDeadline] = useReplayCountdown(checkpoint?.replayRetryDeadline);
+  const [judgeStartIssue, setJudgeStartIssue] = useState<ReplayStartIssue | null>(checkpoint?.judgeStartIssue ?? null);
+  const [replayIssue, setReplayIssue] = useState<HistoricalCheckpoint['replayIssue']>(checkpoint?.replayIssue ?? null);
   const judgeStartBusyRef = useRef(false);
   const judgeStartControllerRef = useRef<AbortController | null>(null);
   const judgeRevealControllerRef = useRef<AbortController | null>(null);
   const oracleBusyRef = useRef(false);
   const desktopJourneyRef = useRef<HTMLDivElement>(null);
-  const judgeRunStartedAtRef = useRef<number | null>(null);
-  const judgeRevealAttemptTrackedRef = useRef(false);
-  const judgeTerminalTrackedRef = useRef(false);
-  const dreamDexCtaTrackedRef = useRef(false);
-  const judgeEntryTrackedRef = useRef(false);
-  const challengeCreatedTrackedRef = useRef(false);
-  const challengeOpenedTrackedRef = useRef(false);
-  const challengeVerifiedTrackedRef = useRef(false);
-  const shareEngagedTrackedRef = useRef(false);
-  const shareActionsTrackedRef = useRef<Set<ShareAction>>(new Set());
+  const judgeRunStartedAtRef = useRef<number | null>(checkpoint?.refs.startedAt ?? null);
+  const judgeRevealAttemptTrackedRef = useRef(checkpoint?.refs.revealTracked ?? false);
+  const judgeTerminalTrackedRef = useRef(checkpoint?.refs.terminalTracked ?? false);
+  const dreamDexCtaTrackedRef = useRef(checkpoint?.refs.dreamDexTracked ?? false);
+  const judgeEntryTrackedRef = useRef(checkpoint?.refs.entryTracked ?? false);
+  const challengeCreatedTrackedRef = useRef(checkpoint?.refs.challengeCreated ?? false);
+  const challengeOpenedTrackedRef = useRef(checkpoint?.refs.challengeOpened ?? false);
+  const challengeVerifiedTrackedRef = useRef(checkpoint?.refs.challengeVerified ?? false);
+  const shareEngagedTrackedRef = useRef(checkpoint?.refs.shareEngaged ?? false);
+  const shareActionsTrackedRef = useRef<Set<ShareAction>>(new Set(checkpoint?.refs.shareActions ?? []));
+  const checkpointBelongsToRunRef = useRef(Boolean(checkpoint));
+
+  function saveNavigationCheckpoint() {
+    if (!directJudgeEntry) return;
+    if (!market.replaySeal && !market.replayProof) {
+      // Opening an unaccepted challenge must not erase an existing replay.
+      // A reset or invalidated seal for this run does clear its own checkpoint.
+      if (checkpointBelongsToRunRef.current) clearHistoricalCheckpoint(judgeProfileId);
+      checkpointBelongsToRunRef.current = false;
+      return;
+    }
+    checkpointBelongsToRunRef.current = true;
+    keepHistoricalCheckpoint<HistoricalCheckpoint>(judgeProfileId, {
+      market, marketOdds, direction, phase, tier, roster, room, turn, hp, monsterHp, potions, gold, weapon, armor,
+      combatPotionUses, lastExchange, remaining, marketEntryRemaining,
+      notice: oracleBusy ? 'Verification paused. Your replay is kept; reveal again when ready.' : notice,
+      combatLog, lastReward, oracleChecks, oracleResult, bandageUsed, merchantPotions, weaponSold, armorSold,
+      deathCause, judgeActionLog, liveBtcContext, liveBtcContextLoaded, proofStatus, challengeEntry, judgeStartIssue, replayIssue,
+      replayRevealDeadline: replayRevealDeadline.current,
+      judgeStartRetryDeadline: judgeStartRetryDeadline.current,
+      replayRetryDeadline: replayRetryDeadline.current,
+      refs: { startedAt: judgeRunStartedAtRef.current, revealTracked: judgeRevealAttemptTrackedRef.current,
+        terminalTracked: judgeTerminalTrackedRef.current, dreamDexTracked: dreamDexCtaTrackedRef.current,
+        entryTracked: judgeEntryTrackedRef.current, challengeCreated: challengeCreatedTrackedRef.current,
+        challengeOpened: challengeOpenedTrackedRef.current, challengeVerified: challengeVerifiedTrackedRef.current,
+        shareEngaged: shareEngagedTrackedRef.current, shareActions: [...shareActionsTrackedRef.current] },
+    }, { phase, hp, hasLockedReplay: Boolean(market.replaySeal || market.replayProof) });
+  }
+  useEffect(() => { saveNavigationCheckpoint(); });
 
   useEffect(() => () => {
     judgeStartControllerRef.current?.abort();
@@ -592,15 +652,16 @@ function LegacyMarketDungeon({
   }, [directJudgeEntry]);
 
   useEffect(() => {
+    if (checkpoint) return;
     const timer = window.setTimeout(() => {
       const profile = readProfile();
       setGold(profile.gold); setPotions(profile.potions); setProfileReady(true);
     }, 0);
     return () => window.clearTimeout(timer);
-  }, []);
+  }, [checkpoint]);
 
   useEffect(() => {
-    if (judgeMode && phase !== 'COMBAT' && window.matchMedia('(min-width: 801px)').matches) {
+    if (judgeMode && phase !== 'COMBAT') {
       const frame = requestAnimationFrame(() => {
         window.scrollTo({ top: 0, behavior: 'instant' });
         if (phase !== 'JUDGE_SETUP') desktopJourneyRef.current?.focus({ preventScroll: true });
@@ -685,10 +746,10 @@ function LegacyMarketDungeon({
   }, [judgeMode, market.replayRevealAfter, setReplayRevealRemaining]);
 
   useEffect(() => {
-    if (phase === 'MERCHANT' || phase === 'FINAL_MERCHANT') {
+    if (phase === 'MERCHANT' || phase === 'FINAL_MERCHANT' || (judgeMode && phase === 'CLEARED')) {
       playCharacterIntro('Quartermaster Kevin');
     }
-  }, [phase, playCharacterIntro]);
+  }, [phase, judgeMode, playCharacterIntro]);
 
   const monster = roster[room] ?? roster[0];
   const isBoss = room === TOTAL_ROOMS - 1;
@@ -730,19 +791,6 @@ function LegacyMarketDungeon({
   const expiryLabel = useMemo(() => replaySealed ? 'IDENTITY SEALED' : gateTime(market.expiryIso), [market.expiryIso, replaySealed]);
   const omenName = direction === 'UP' ? 'GOLD AWAKENS' : 'SHADOWS RISE';
   const omenIcon = direction === 'UP' ? <GoldIcon /> : '🌑';
-  const judgeStep = phase === 'JUDGE_SETUP'
-    ? 1
-    : phase === 'DEAD' && deathCause === 'COMBAT'
-      ? isBoss ? 3 : 2
-    : room === TOTAL_ROOMS - 2 && phase === 'COMBAT'
-      ? 2
-      : room === TOTAL_ROOMS - 1 && phase === 'COMBAT'
-        ? 3
-        : phase === 'FINAL_MERCHANT'
-          ? 4
-          : ['ORACLE', 'VICTORY', 'DEAD'].includes(phase)
-            ? 5
-            : 3;
 
   const subtitle = phase === 'SETUP'
     ? MARKET_DUNGEON_SLOGAN
@@ -1064,8 +1112,9 @@ function LegacyMarketDungeon({
   }
 
   function finalMerchantHeal(full = false) {
-    if (phase !== 'FINAL_MERCHANT' || hp >= 100) return;
+    if ((phase !== 'FINAL_MERCHANT' && !(judgeMode && phase === 'ORACLE')) || hp >= 100 || oracleBusyRef.current) return;
     if (judgeMode) {
+      playCharacterIntro('Quartermaster Kevin');
       setHp(100);
       addLog('Kevin offers a free rest. Health restored; your gold, potions and locked market result are unchanged.');
       return;
@@ -1170,7 +1219,9 @@ function LegacyMarketDungeon({
           setReplayIssue(issue);
           const retryAfter = issue === 'config_unavailable' ? 0 : replayRetrySeconds(data?.retryAfter, response.headers.get('retry-after'));
           setReplayRetryRemaining(retryAfter);
-          setNotice(response.status === 429
+          setNotice(issue === 'config_unavailable'
+            ? 'The replay service needs attention.'
+            : response.status === 429
             ? `REPLAY REVEAL RATE-LIMITED · RETRY IN ${retryAfter}S`
             : `SOMNIA READ TEMPORARILY BUSY · RETRY IN ${retryAfter}S`);
           addLog(issue === 'config_unavailable'
@@ -1443,13 +1494,6 @@ function LegacyMarketDungeon({
     : oracleResult === 'CURSED'
       ? `You chose BTC ${direction}. ${marketResultCopy}Your prediction was wrong. You won the combat, but the boss's last stand ends the run.`
       : 'The Event Contract was voided, so the defeated boss remained down without a prediction penalty.';
-  const judgeResultSummary = judgeMode ? (
-    <section className={replayStyles.resultSummary} aria-label="Choice, market result and boss fate" data-outcome={combatDefeat ? 'DEFEATED' : oracleResult}>
-      <div><span>YOUR CHOICE</span><strong>BTC {direction}</strong><small>Locked before the replay was drawn</small></div>
-      <div><span>MARKET RESULT</span><strong>{combatDefeat ? 'NOT REVEALED' : revealedMarketResult === 'VOID' ? 'VOID' : revealedMarketResult ? `BTC ${revealedMarketResult}` : 'NOT AVAILABLE'}</strong><small>{combatDefeat ? 'Combat ended before the reveal' : revealedMarketResult === 'VOID' ? 'No winning direction' : revealedMarketResult ? 'Recorded result verified' : 'No direction can be displayed'}</small></div>
-      <div><span>BOSS FATE</span><strong>{combatDefeat ? 'NOT DEFEATED' : oracleResult === 'CURSED' ? 'FINAL STRIKE' : 'STAYS DOWN'}</strong><small>{combatDefeat ? 'Run ended in combat' : oracleResult === 'CURSED' ? 'Demo ended · no boss reward' : oracleResult === 'VOID' ? 'No prediction loss · reward kept' : 'Demo won · boss reward secured'}</small></div>
-    </section>
-  ) : null;
 
   function verifiedProofInput(): VerifiedRunProofInput | null {
     if (!judgeMode || !market.replayProof || !market.combatProof
@@ -1614,72 +1658,137 @@ function LegacyMarketDungeon({
     </div>
   ) : null;
 
-  return (
-    <main className={`game-shell phase-${phase.toLowerCase()} ${['SETUP', 'JUDGE_SETUP'].includes(phase) ? 'setup-shell' : 'in-expedition'} ${judgeMode ? `judge-mode ${replayStyles.shell}` : ''} ${directJudgeEntry ? 'direct-judge-entry' : ''} ${judgeMode && phase === 'COMBAT' ? 'mobile-combat-active' : ''}`}>
+  if (judgeMode) {
+    const setup = phase === 'JUDGE_SETUP';
+    const between = phase === 'CLEARED';
+    const ended = phase === 'VICTORY' || phase === 'DEAD';
+    const result = combatDefeat ? 'DEFEATED' as const : oracleResult;
+    const encounters = runShareInput?.enemiesDefeated ?? (isBoss ? monsterHp === 0 ? 2 : 1 : between ? 1 : 0);
+    const progressStep = setup ? 1 : phase === 'COMBAT' || combatDefeat ? isBoss ? 3 : 2 : between ? 3 : 4;
+    const summary = <LoadoutSummary gold={gold} weapon={weapon} armor={armor} potions={`${potions}/${MAX_POTIONS}`} />;
+    const omenDetails = <><p>Historical dreamDEX replay · {shannonJudge ? 'Shannon Testnet' : 'Somnia Mainnet'}.</p><p>Your BTC {direction} choice is locked. {ended && !combatDefeat ? 'The historical result was checked against your signed lock, completed combat and Somnia settlement.' : 'The historical market identity and result stay sealed until combat and the signed receipt are verified.'}</p>{!ended && <OmenGuide mode="replay" />}<JudgeLockReceiptEvidence attestation={market.replayLockAttestation} publicKey={market.replayLockPublicKey} /></>;
+    const gear = <><p><LoadoutSummary gold={gold} weapon={weapon} armor={armor} /></p><p>Attack {attackMin}–{attackMax} damage · 15% critical chance. Storm 0–{stormMax} damage · no critical.</p><p>Armor reduces each incoming hit by {armor}. A potion heals up to 25 HP. In combat, the enemy strikes back; between fights, healing is safe.</p></>;
+    const footer = <JudgeFooter verifierHref={judgeProfile.verifierPath} />;
+    const recoverySupplies = <RecoverySupplies hp={hp} maxHp={100} potions={potions} maxPotions={MAX_POTIONS} />;
+
+    if (phase === 'COMBAT') return <main className={`${judgeLayoutStyles.shell} ${judgeLayoutStyles.combat} ${replayStyles.root} phase-combat mobile-combat-active`}>
       <DesktopNavigation />
-      {judgeMode && <div className={replayStyles.top}>
-        <GameModeNav current="replay" replayHref={judgeProfile.judgePath} />
-        {phase === 'JUDGE_SETUP' && <header className={replayStyles.header}>
-          <GameLogo compact />
-          <div>
-            <span className={replayStyles.eyebrow}>HISTORICAL JUDGE REPLAY · {shannonJudge ? 'SHANNON TESTNET' : 'SOMNIA MAINNET'}</span>
-            <span className={replayStyles.subtitle} aria-label="Judge Proof Chamber">2-MINUTE PROOF CHAMBER · Two encounters · A finalized market</span>
+      <MobileBattle onHome={goHome} mode="HISTORICAL JUDGE DEMO" desktopSummary={summary}
+        location={`${isBoss ? 'BOSS' : 'GUARD'} · ${isBoss ? 2 : 1} OF 2`} loadout={{ gold, weapon, armor, progress: isBoss ? 'BOSS 2/2' : 'GUARD 1/2' }}
+        hp={hp} maxHp={100}
+        enemy={{ name: monster.name, image: monster.image, hp: monsterHp, maxHp: monster.hp, incoming: `${Math.max(1, monster.minDamage - armor)}–${Math.max(1, monster.maxDamage - armor)}`, flavor: monster.flavor, isBoss }}
+        omen={`BTC ${direction} · SEALED REPLAY`} omenDetails={omenDetails} gear={gear}
+        log={combatLog} logPreview={turn > 0 ? lastExchange?.quip : undefined} firstFightHint={!isBoss && turn === 0}
+        lastExchange={turn > 0 ? lastExchange : null} attack={`${attackMin}–${attackMax}`} criticalChance={15} storm={`0–${stormMax}`}
+        potions={potions} potionUses={combatPotionUses} potionLimit={combatPotionLimit}
+        onAttack={() => act('attack')} onStorm={() => act('storm')} onPotion={() => act('potion')} />
+      {footer}
+    </main>;
+
+    return <main className={`${judgeLayoutStyles.shell} ${replayStyles.root} phase-${phase.toLowerCase()}`} data-setup={setup} data-ended={ended} data-recovery={between || undefined}>
+      <DesktopNavigation />
+      <div className={judgeLayoutStyles.frame}>
+        {setup ? <JudgeDemoHeader variant="replay" replayHref={judgeProfile.judgePath} networkLabel={shannonJudge ? 'Somnia testnet' : 'Somnia mainnet'} />
+          : <PlayerHeader onHome={goHome} mode="HISTORICAL JUDGE DEMO" summary={summary} hp={hp} maxHp={100}
+            location={ended ? 'RUN COMPLETE' : between ? 'GUARD DEFEATED' : 'BOSS DEFEATED'} potions={potions}
+            loadout={{ gold, weapon, armor, progress: `${encounters}/2` }} omen={`BTC ${direction} · ${ended && !combatDefeat ? 'REPLAY VERIFIED' : 'SEALED REPLAY'}`} omenDetails={omenDetails} gear={gear} />}
+        <JudgeProgress step={progressStep} complete={ended && !combatDefeat} />
+        <div className={`${judgeLayoutStyles.journey} ${!setup ? judgeLayoutStyles.result : ''}`} data-result={result ?? undefined}>
+          {!setup && isBoss && monsterHp === 0
+            ? <BossOutcomeScene name={monster.name} image={monster.image} maxHp={monster.hp} compact={ended} outcome={result === 'BLESSED' ? 'blessed' : result === 'CURSED' ? 'last-strike' : result === 'VOID' ? 'void' : 'pending'} />
+            : <div className={judgeLayoutStyles.art}>
+              <Image src={setup ? '/assets/delveworn-tier2-party-hero.webp' : between ? MERCHANT_IMAGE : monster.image} alt={setup ? 'The dungeon awaits' : between ? 'Quartermaster Kevin' : monster.name} fill priority sizes="(max-width: 800px) 100vw, 55vw" />
+              <div className={judgeLayoutStyles.artCaption}><strong>{setup ? <>The fight is yours.<br />The past holds the verdict.</> : between ? 'A brief appointment with Kevin.' : 'The dungeon wins this one.'}</strong><span>{setup ? 'One guard. One boss. A sealed historical market.' : 'Dungeon management appreciates your participation.'}</span></div>
+            </div>}
+          <div ref={desktopJourneyRef} tabIndex={-1} className={judgeLayoutStyles.panel} data-keyboard-action-scope data-keyboard-actions aria-label="Historical Judge stage">
+            {!ended && currentRoomCleared && turn > 0 && lastExchange?.critical && <CriticalHitResult damage={lastExchange.rolledDamage ?? lastExchange.dealt} />}
+            {setup ? <>
+              <span className={judgeLayoutStyles.eyebrow}>{challengeEntry ? 'YOU’RE INVITED · MAKE YOUR OWN CALL' : 'A SEALED OUTCOME · EVERY ROUND'}</span>
+              <h1>Lock your omen before the replay is drawn.</h1>
+              <p>Choose a Bitcoin prediction. Fight one guard and one boss, then reveal a verified historical result.</p>
+              {challengeEntry && <p className={judgeLayoutStyles.note}>Defeat both encounters, then beat your own hidden market. This is a fresh, separately verified replay.</p>}
+              {!judgeLoading && !judgeStartIssue && notice.includes('LOCK A NEW OMEN') && <div className={judgeLayoutStyles.error} role="status" aria-label="Replay verification status"><b>{notice}</b><p>{combatLog[0]}</p></div>}
+              <div className={replayStyles.context} aria-label="Historical market context">
+                <span>{shannonJudge ? 'HISTORICAL BTC REPLAY' : 'LIVE BTC CONTEXT'}</span>
+                <strong>{shannonJudge ? 'NO LIVE PRICE FEED' : liveBtcContext ? liveBtcContextPrice(liveBtcContext) : liveBtcContextLoaded ? 'REFERENCE UNAVAILABLE' : 'LOADING REFERENCE…'}</strong>
+                <small>{shannonJudge ? 'The historical outcome stays hidden until the reveal. The opening price is not supplied.' : 'A separate current price for context only. It does not belong to your sealed historical replay.'}</small>
+              </div>
+              <JudgeOmenChoices historical direction={direction} onChange={setDirection} disabled={judgeLoading} />
+              <OmenGuide mode="replay" />
+              <button className={judgeLayoutStyles.primary} data-keyboard-default="true" onClick={() => void startJudgeReplay()} disabled={judgeLoading || judgeStartRetryRemaining > 0}>{judgeLoading ? 'LOCKING + SEALING REPLAY…' : judgeStartRetryRemaining > 0 ? `RETRY LOCK IN ${judgeStartRetryRemaining}S` : `LOCK BTC ${direction} & ENTER DUNGEON`}</button>
+              <small className={judgeLayoutStyles.note}>No wallet · No approval · No transaction. Your direction locks before the historical market is drawn.</small>
+              <KeyboardHint />
+              {(judgeLoading || judgeStartIssue) && <div className={judgeLayoutStyles.error} role="status" aria-label="Replay connection status">
+                <b>{judgeLoading ? 'Preparing your sealed replay…' : startIssueTitle}</b>
+                <p>{judgeLoading ? `Your BTC ${direction} choice stays fixed while the market is sealed and its receipt is checked. This can take a few seconds.`
+                  : judgeStartIssue === 'config_unavailable' ? 'Your omen is not locked. The replay service is not configured. Try again after the service is ready.'
+                  : judgeStartIssue === 'no_candidates' ? 'Your omen is not locked. There are no eligible recent markets for this replay. Please try again shortly.'
+                  : `Your omen is not locked. ${judgeStartRetryRemaining > 0 ? `You can retry in ${judgeStartRetryRemaining}s.` : 'Ready to retry — lock your omen when you are ready.'}`}</p>
+              </div>}
+              <details className={judgeLayoutStyles.proof}><summary>ABOUT THIS HISTORICAL REPLAY</summary><p>A finalized dreamDEX market is drawn only after your choice locks. Its identity and outcome stay encrypted while you fight. Your browser then checks the signed receipt, combat and recorded Somnia settlement.</p><HumanProofSummary /><p>Your replay stays available when you return through Home in this tab. Refreshing or closing the tab starts a fresh replay.</p></details>
+            </> : between ? <>
+              <div className={judgeLayoutStyles.recoveryHeading}>
+                <div className={judgeLayoutStyles.recoveryPortrait}><Image src={MERCHANT_IMAGE} alt="Quartermaster Kevin" fill sizes="88px" /></div>
+                <div><span className={judgeLayoutStyles.eyebrow}>GUARD DEFEATED · +{monster.reward} GOLD</span><h1>One boss to go.</h1></div>
+              </div>
+              <p>“You look almost adequately alive. A rare achievement.” — Kevin</p><p>Heal before the boss if you need it. Your historical result stays sealed.</p>
+              {recoverySupplies}
+              <button className={judgeLayoutStyles.secondary} data-game-audio="potion" onClick={useBetweenRoomPotion} disabled={potions === 0 || hp >= 100}>POTION · HEAL +25 HP · {potions}/{MAX_POTIONS}</button>
+              <button className={judgeLayoutStyles.primary} data-keyboard-default="true" onClick={nextRoom}>ENTER FINAL BOSS</button>
+              <small className={judgeLayoutStyles.note}>A potion between fights costs no retaliation.</small>
+            </> : ended ? <>
+              <span className={judgeLayoutStyles.eyebrow}>{combatDefeat ? 'COMBAT LOST' : `SOMNIA VERIFIED · ${result}`}</span>
+              <h1>{combatDefeat ? 'The dungeon keeps its boss.' : result === 'BLESSED' ? 'Your omen holds.' : result === 'CURSED' ? 'One fatal last strike.' : 'Market voided. Boss defeated.'}</h1>
+              <p>{combatDefeat ? 'Your omen cannot save a lost fight. No market outcome was applied to this run.' : resultCopy}</p>
+              <JudgeResultSummary direction={direction} marketOutcome={revealedMarketResult} result={result ?? 'DEFEATED'} historical />
+              <JudgeVictoryConditions result={result ?? 'DEFEATED'} />
+              <JudgeFinalStats encounters={encounters} gold={gold} hp={hp} potions={potions} />
+              <button className={judgeLayoutStyles.primary} data-keyboard-default="true" onClick={reset}>START NEW REPLAY</button>
+            </> : <>
+              <span className={judgeLayoutStyles.eyebrow}>COMBAT WON · MARKET FATE PENDING</span>
+              <h1>The boss is down. Reveal its fate.</h1>
+              <p>Your locked historical outcome is ready to be checked. The result is applied only after combat, the signed lock and Somnia settlement agree.</p>
+              <div className={replayStyles.context} aria-label="Sealed replay status"><span>LOCKED · BTC {direction}</span><strong>{oracleBusy ? 'VERIFYING' : replayRevealRemaining > 0 ? `REVEAL IN ${replayRevealRemaining}S` : replayRetryRemaining > 0 ? `RETRY IN ${replayRetryRemaining}S` : 'READY TO REVEAL'}</strong><small>{replayRevealRemaining > 0 ? 'The replay seal stays closed until its reveal window opens.' : replayRetryRemaining > 0 ? 'Your completed combat and sealed replay are kept while the service recovers.' : 'Your market and direction cannot change during this run.'}</small></div>
+              {recoverySupplies}
+              <button className={judgeLayoutStyles.secondary} data-game-audio="potion" onClick={() => finalMerchantHeal(true)} disabled={hp >= 100 || oracleBusy}>{hp >= 100 ? 'FULLY RESTED · 100/100 HP' : 'REST WITH KEVIN · FREE'}</button>
+              <small className={judgeLayoutStyles.note}>Rest cannot change your omen or save you from a wrong prediction.</small>
+              <button className={judgeLayoutStyles.primary} data-keyboard-default="true" onClick={() => void checkSettlement(false)} disabled={oracleBusy || replayRevealRemaining > 0 || replayRetryRemaining > 0}>{oracleBusy ? 'VERIFYING COMBAT + SETTLEMENT…' : replayRevealRemaining > 0 ? `REVEAL AVAILABLE IN ${replayRevealRemaining}S` : replayRetryRemaining > 0 ? `RETRY REVEAL IN ${replayRetryRemaining}S` : 'REVEAL BOSS FATE'}</button>
+              {replayIssue && !oracleBusy && <div className={judgeLayoutStyles.error} role="status" aria-label="Replay verification status"><b>{notice}</b><p>Your completed combat and locked omen are kept in this run. No outcome has been applied. {replayIssue === 'config_unavailable' ? 'Retry once the replay service is configured.' : replayRetryRemaining > 0 ? `You can retry in ${replayRetryRemaining}s.` : 'You can reveal the same replay again now.'}</p></div>}
+            </>}
+            {!setup && <>
+              {!ended && <details className={judgeLayoutStyles.proof}><summary>YOUR LOCKED MARKET & RECEIPT</summary>{omenDetails}<MarketProof market={market} mode="sealed" profile={judgeProfile} /></details>}
+              <JudgeDungeonLog entries={combatLog} />
+            </>}
           </div>
-        </header>}
-        {phase === 'JUDGE_SETUP' && <section className="judge-setup-progress" aria-label="Judge Demo progress">
-          <span className="active" aria-current="step"><b>1</b> LOCK</span>
-          <span><b>2</b> GUARD</span>
-          <span><b>3</b> BOSS</span>
-          <span><b>4</b> REST</span>
-          <span><b>5</b> REVEAL</span>
-        </section>}
-      </div>}
+          {runSharePanel && <div className={judgeLayoutStyles.sharing}>
+            {runSharePanel}
+            {!combatDefeat && allowsLiveDreamDexContinuation(judgeProfile) && <JudgeDreamDexContinue href={dreamDexBtcEventContractUrl(marketIntervalSeconds)} onContinue={trackDreamDexContinue} description={`Explore BTC ${marketIntervalName} Event Contracts on dreamDEX. This opens a separate live mainnet market; your historical ${shannonJudge ? 'Shannon testnet' : 'Somnia'} result stays here.`} />}
+          </div>}
+        </div>
+        {ended && !combatDefeat && <details className={`${judgeLayoutStyles.proof} ${judgeLayoutStyles.resultExtras}`}><summary>VIEW VERIFIED RUN PROOF</summary><p>Verified means this run matches the recorded market result. Both winning and losing runs can be verified.</p><HumanProofSummary verified />{portableProofPanel}<MarketProof market={market} mode="revealed" profile={judgeProfile} /></details>}
+        {footer}
+      </div>
+    </main>;
+  }
+
+  return (
+    <main className={`game-shell phase-${phase.toLowerCase()} ${['SETUP', 'JUDGE_SETUP'].includes(phase) ? 'setup-shell' : 'in-expedition'} ${directJudgeEntry ? 'direct-judge-entry' : ''}`}>
+      <DesktopNavigation />
+
       <div className="game-column">
-        {judgeMode && phase === 'COMBAT' && <MobileBattle
-          location={`STEP ${judgeStep}/5 · ${isBoss ? 'BOSS' : 'GUARD'}`} loadout={{ gold, weapon, armor, progress: `${judgeStep}/5 · ${isBoss ? 'BOSS' : 'GUARD'}` }}
-          mode="JUDGE · COMBAT REPLAY"
-          desktopSummary={<LoadoutSummary gold={gold} weapon={weapon} armor={armor} potions={`${potions}/${MAX_POTIONS}`}>Two encounters · No wallet or transactions</LoadoutSummary>}
-          hp={hp} maxHp={100}
-          enemy={{ name: monster.name, image: monster.image, hp: monsterHp, maxHp: monster.hp, incoming: `${Math.max(1, monster.minDamage - armor)}–${Math.max(1, monster.maxDamage - armor)}`, flavor: `“${monster.flavor}”`, isBoss }}
-          omen={`BTC ${direction} · SEALED REPLAY`}
-          omenDetails={<><p>Historical dreamDEX replay · {shannonJudge ? 'Shannon Testnet' : 'Somnia Mainnet'}.</p><p>Your BTC {direction} choice is locked. This short Judge walkthrough uses two balanced encounters, not the full expedition difficulty or a live prediction. Heal safely between fights; Storm trades reliability for risk.</p><JudgeLockReceiptEvidence attestation={market.replayLockAttestation} publicKey={market.replayLockPublicKey} /></>}
-          gear={<><p><LoadoutSummary gold={gold} weapon={weapon} armor={armor} /></p><p>Judge loadout · shortened combat for the proof walkthrough. Full Expedition has its own equipment and relic progression.</p></>}
-          log={combatLog}
-          lastExchange={turn > 0 ? lastExchange : null}
-          logPreview={turn > 0 ? lastExchange?.quip : undefined}
-          attack={`${attackMin}–${attackMax}`} storm={`0–${stormMax}`}
-          criticalChance={15}
-          potions={potions} potionUses={combatPotionUses} potionLimit={combatPotionLimit}
-          firstFightHint={!isBoss && turn === 0}
-          onAttack={() => act('attack')} onStorm={() => act('storm')} onPotion={() => act('potion')}
-        />}
-        {judgeMode && !['SETUP', 'JUDGE_SETUP', 'COMBAT'].includes(phase) && <div className="desktop-stage-header">
-          {['VICTORY', 'DEAD'].includes(phase) ? <BattleHeader mode="JUDGE · COMBAT REPLAY" summary={<LoadoutSummary gold={gold} weapon={weapon} armor={armor} potions={`${potions}/${MAX_POTIONS}`}>BTC {direction} · {shannonJudge ? 'Shannon Testnet' : 'Somnia Mainnet'}</LoadoutSummary>} /> :
-          <PlayerHeader mode="JUDGE · COMBAT REPLAY" summary={<LoadoutSummary gold={gold} weapon={weapon} armor={armor} potions={`${potions}/${MAX_POTIONS}`}>BTC {direction} · {shannonJudge ? 'Shannon Testnet' : 'Somnia Mainnet'}</LoadoutSummary>}
-            hp={hp} maxHp={100} location={`STEP ${judgeStep}/5 · ${isBoss ? 'BOSS' : 'GUARD'}`} loadout={{ gold, weapon, armor, progress: `${judgeStep}/5 · ${isBoss ? 'BOSS' : 'GUARD'}` }} potions={potions} omen={`BTC ${direction} · SEALED REPLAY`}
-            omenDetails={<><p>Historical dreamDEX replay · {shannonJudge ? 'Shannon Testnet' : 'Somnia Mainnet'}.</p><p>Your BTC {direction} choice is locked. This is a sealed historical result, not a live prediction.</p><JudgeLockReceiptEvidence attestation={market.replayLockAttestation} publicKey={market.replayLockPublicKey} /></>}
-            gear={<><p><LoadoutSummary gold={gold} weapon={weapon} armor={armor} /></p><p>Judge loadout · shortened combat for the proof walkthrough. Full Expedition has its own equipment and relic progression.</p></>} />}
-        </div>}
-        {!judgeMode && <header className="game-header">
+
+        {<header className="game-header">
           <p className="eyebrow">DELVEWORN · EVENT CONTRACTS EDITION</p>
           <h1><GameLogo /></h1>
-          {judgeMode && <div className="judge-chamber-badge" aria-label="Judge Proof Chamber">
-            <span>JUDGE MODE</span>
-            <b>2-MINUTE PROOF CHAMBER</b>
-            <small>2 ENCOUNTERS · 5 VERIFICATION STEPS · ONCHAIN RESULT</small>
-          </div>}
+
           <p className="subtitle">{subtitle}</p>
           {['SETUP', 'JUDGE_SETUP'].includes(phase) && <KeyboardHint />}
-          <div className="safety-line"><span className="live-dot" /> {shannonJudge ? 'SHANNON TESTNET' : 'SOMNIA MAINNET'} <i /> {judgeMode ? shannonJudge ? 'HISTORICAL DREAMDEX REPLAY' : 'HISTORICAL PROOF · LIVE CONTEXT' : 'LIVE DREAMDEX DATA'} <i /> NO TRANSACTIONS</div>
+          <div className="safety-line"><span className="live-dot" /> {shannonJudge ? 'SHANNON TESTNET' : 'SOMNIA MAINNET'} <i /> {'LIVE DREAMDEX DATA'} <i /> NO TRANSACTIONS</div>
         </header>}
 
-        <div ref={desktopJourneyRef} tabIndex={judgeMode ? -1 : undefined} className={judgeMode ? 'desktop-journey' : undefined}>
-        {judgeMode && phase === 'ORACLE' ? <div className="judge-boss-scene">
-          <BossOutcomeScene name={monster.name} image={monster.image} maxHp={monster.hp} outcome="pending" />
-        </div> : judgeMode && !['COMBAT', 'VICTORY', 'DEAD'].includes(phase) && <div className="desktop-journey-art" data-crop={!['JUDGE_SETUP', 'MERCHANT', 'FINAL_MERCHANT'].includes(phase)}><Image src={phase === 'JUDGE_SETUP' ? '/assets/delveworn-tier2-party-hero.webp' : ['MERCHANT', 'FINAL_MERCHANT'].includes(phase) ? MERCHANT_IMAGE : monster.image} alt={phase === 'JUDGE_SETUP' ? 'Delveworn dungeon party' : ['MERCHANT', 'FINAL_MERCHANT'].includes(phase) ? 'Quartermaster Kevin' : monster.name} fill sizes="(max-width: 800px) 100vw, 55vw" />
-          {phase === 'JUDGE_SETUP' && <div className={replayStyles.artCaption}><strong>The fight is yours.<br />The past holds the verdict.</strong><span>Defeat the guard and the boss. Then discover whether your locked omen keeps dungeon management down.</span></div>}
-        </div>}
-        <div className={judgeMode ? 'desktop-journey-details' : undefined} data-keyboard-actions data-keyboard-vertical={['CLEARED', 'MERCHANT', 'FINAL_MERCHANT', 'TIER_SETUP'].includes(phase) ? 'edges' : undefined}>
+        <div ref={desktopJourneyRef} >
+
+        <div data-keyboard-actions data-keyboard-vertical={['CLEARED', 'MERCHANT', 'FINAL_MERCHANT', 'TIER_SETUP'].includes(phase) ? 'edges' : undefined}>
         {currentRoomCleared && turn > 0 && lastExchange?.critical && <CriticalHitResult damage={lastExchange.rolledDamage ?? lastExchange.dealt} />}
 
         {phase === 'SETUP' && (
@@ -1694,79 +1803,14 @@ function LegacyMarketDungeon({
           </section>
         )}
 
-        {phase === 'JUDGE_SETUP' && (
-          <section className="action-dock action-dock-judge_setup judge-first-lock" aria-label="Start the two-minute Judge Demo">
-            {challengeEntry && (
-              <div className="challenge-entry-banner" role="status" aria-label="Challenge invitation">
-                <span>⚡ BOSS + MARKET CHALLENGE</span>
-                <small>Defeat both encounters, then beat your own hidden market. This is a fresh, separately verified replay.</small>
-              </div>
-            )}
-            <div className="judge-lock-intro">
-              <span>STEP 1 OF 5 · HISTORICAL REPLAY</span>
-              <h2>Lock your omen before the replay is drawn.</h2>
-              <small>Choose BTC UP or DOWN before a historical market is drawn. Win two fights, then reveal its verified outcome.</small>
-              <div className="judge-lock-context" aria-live="polite">
-                <span>{shannonJudge ? 'HISTORICAL BTC REPLAY' : 'LIVE BTC CONTEXT'}</span>
-                <strong>{shannonJudge ? 'NO LIVE PRICE FEED' : liveBtcContext ? liveBtcContextPrice(liveBtcContext) : liveBtcContextLoaded ? 'REFERENCE UNAVAILABLE' : 'LOADING REFERENCE…'}</strong>
-                <small>{shannonJudge ? 'Predict the hidden historical outcome. The result is verified onchain; the opening price is not supplied.' : liveBtcContext ? `dreamDEX ${eventContractIntervalName(liveBtcContext.intervalSec)} opening line · context only` : 'The sealed replay remains available.'}</small>
-              </div>
-            </div>
-            <div className="judge-quick-choice" aria-label="Choose BTC direction">
-              <button disabled={judgeLoading} aria-pressed={direction === 'UP'} className={direction === 'UP' ? 'up selected' : 'up'} onClick={() => setDirection('UP')}><b><GoldIcon /> GOLD AWAKENS</b><small>BTC UP</small></button>
-              <button disabled={judgeLoading} aria-pressed={direction === 'DOWN'} className={direction === 'DOWN' ? 'down selected' : 'down'} onClick={() => setDirection('DOWN')}><b>🌑 SHADOWS RISE</b><small>BTC DOWN</small></button>
-            </div>
-            <OmenGuide mode="replay" />
-            <div className="judge-lock-commit">
-              <span>YOUR SELECTED OMEN · NOT LOCKED YET</span>
-              <strong>{omenIcon} {omenName} · BTC {direction}</strong>
-              <button className="judge-action" onClick={() => void startJudgeReplay()} disabled={judgeLoading || judgeStartRetryRemaining > 0}>{judgeLoading ? 'LOCKING + SEALING REPLAY…' : judgeStartRetryRemaining > 0 ? `RETRY LOCK IN ${judgeStartRetryRemaining}S` : 'LOCK OMEN & SEAL REPLAY'}</button>
-              {(judgeLoading || judgeStartIssue) && <div className="judge-connection-status" role="status" aria-label="Replay connection status" data-state={judgeLoading ? 'loading' : judgeStartRetryRemaining > 0 ? 'waiting' : 'ready'}>
-                <b>{judgeLoading ? 'Preparing your sealed replay…' : startIssueTitle}</b>
-                <p>{judgeLoading ? `Your BTC ${direction} choice stays fixed while the market is sealed and its receipt is checked. This can take a few seconds.`
-                  : judgeStartIssue === 'config_unavailable' ? 'Your omen is not locked. The replay service is not configured. Try again after the service is ready.'
-                  : judgeStartIssue === 'no_candidates' ? 'Your omen is not locked. There are no eligible recent markets for this replay. Please try again shortly.'
-                  : `Your omen is not locked. ${judgeStartRetryRemaining > 0 ? `You can retry in ${judgeStartRetryRemaining}s.` : 'Ready to retry — lock your omen when you are ready.'}`}</p>
-              </div>}
-              <small>No wallet, approval or order will be requested.</small>
-            </div>
-            <HumanProofSummary />
-          </section>
-        )}
-
         <section className="market-ribbon" aria-label="Live dreamDEX Event Contract">
-          <div><span>BTC · {marketIntervalLabel.toUpperCase()}</span><strong>{market.status}</strong><small>{judgeMode ? 'FINALIZED ONCHAIN REPLAY' : marketEntryRemaining !== null ? `LOCKED WITH ${formatTime(marketEntryRemaining)} LEFT` : 'STARTS IMMEDIATELY · LIVE MARKET'}</small></div>
-          <div><span>{judgeMode && phase === 'JUDGE_SETUP' ? 'LIVE CONTEXT LINE' : 'LINE'}</span><strong>{replaySealed ? 'HIDDEN' : marketPriceLabel(market.strikeUsd)}</strong></div>
+          <div><span>BTC · {marketIntervalLabel.toUpperCase()}</span><strong>{market.status}</strong><small>{marketEntryRemaining !== null ? `LOCKED WITH ${formatTime(marketEntryRemaining)} LEFT` : 'STARTS IMMEDIATELY · LIVE MARKET'}</small></div>
+          <div><span>{'LINE'}</span><strong>{replaySealed ? 'HIDDEN' : marketPriceLabel(market.strikeUsd)}</strong></div>
           <div><span>EXPIRY</span><strong>{replaySealed ? 'FINALIZED' : formatTime(remaining)}</strong><small>{replaySealed ? expiryLabel : `${expiryLabel} UTC`}</small></div>
           <div><span>DUNGEON OMEN</span><strong className={direction === 'UP' ? 'text-up' : 'text-down'}>{omenIcon} {omenName}</strong><small>BTC {direction}</small></div>
         </section>
 
-        {judgeMode && !['SETUP', 'JUDGE_SETUP'].includes(phase) && (
-          <section className="judge-replay-banner" aria-label="Judge Demo progress">
-            <div className="judge-replay-heading">
-              <span>⚡ 2-MIN JUDGE DEMO</span>
-              <strong>{phase === 'DEAD' && deathCause === 'COMBAT' ? 'REPLAY ENDED IN COMBAT' : market.replayProof ? `VERIFIED MARKET REPLAY · #${marketCode}` : market.replayCommitment ? `SEALED REPLAY · COMMIT ${marketCode}` : 'CRYPTOGRAPHIC REPLAY SETUP'}</strong>
-              <small>{phase === 'DEAD' && deathCause === 'COMBAT' ? 'No market result was revealed. Start a new Judge Demo to try again.' : market.replayProof ? 'Combat, commitment and direct Somnia RPC settlement all verified.' : market.replayCommitment ? 'Your direction is locked. The exact market identity and outcome remain encrypted while you defeat the guard and boss.' : 'Choose UP or DOWN before the server randomly selects and seals a finalized market.'}</small>
-              {market.replayCommitment && !market.replayProof && <code className="judge-replay-commitment">{market.replayCommitment}</code>}
-            </div>
-            <div className="judge-replay-steps">
-              <span className={judgeStep === 1 ? 'active' : 'done'}><b>1</b> LOCK OMEN</span>
-              <span className={judgeStep === 2 ? 'active' : judgeStep > 2 ? 'done' : ''}><b>2</b> DEFEAT GUARD</span>
-              <span className={judgeStep === 3 ? 'active' : judgeStep > 3 ? 'done' : ''}><b>3</b> DEFEAT BOSS</span>
-              <span className={judgeStep === 4 ? 'active' : judgeStep > 4 ? 'done' : ''}><b>4</b> REST OPTIONAL</span>
-              <span className={market.replayProof ? 'done' : judgeStep === 5 ? 'active' : ''}><b>5</b> REVEAL FATE</span>
-            </div>
-          </section>
-        )}
-
-        {judgeMode && !market.replayProof && (
-          <JudgeLockReceiptEvidence
-            attestation={market.replayLockAttestation}
-            publicKey={market.replayLockPublicKey}
-          />
-        )}
-
-        {!judgeMode && <TierTrack activeTier={phase === 'TIER_SETUP' ? tier + 1 : tier} complete={phase === 'VICTORY'} failed={phase === 'DEAD'} />}
+        {<TierTrack activeTier={phase === 'TIER_SETUP' ? tier + 1 : tier} complete={phase === 'VICTORY'} failed={phase === 'DEAD'} />}
 
         {!['SETUP', 'JUDGE_SETUP'].includes(phase) && (
           <section className="sticky-hud" aria-label="Expedition status">
@@ -1817,29 +1861,6 @@ function LegacyMarketDungeon({
                 </div>
               </div>
             </div>
-          ) : phase === 'JUDGE_SETUP' ? (
-            <div className="judge-setup-view">
-              <p className="section-kicker">STEP 1 · CHOOSE BEFORE MARKET SELECTION</p>
-              <h2>Lock your omen before the replay is drawn.</h2>
-              <p className="muted">After you lock UP or DOWN, the server randomly selects a finalized, traded BTC 5-minute market. A balanced 15m pool remains the automatic fallback. The browser receives an encrypted seal, a salted commitment, an unrelated combat seed, and a signed server lock receipt—but no identifying market data.</p>
-              <div className="prediction-card judge-prediction-card">
-                <span>SEALED BTC 5-MIN REPLAY · 15M FALLBACK · {shannonJudge ? 'SHANNON TESTNET' : 'SOMNIA MAINNET'}</span>
-                <strong>UP OR DOWN</strong>
-                <p>The selected replay market ID, addresses, strike, expiry and outcome are not chosen or sent before your choice locks.</p>
-                <div className="judge-live-context" aria-live="polite">
-                  <span>{shannonJudge ? 'HISTORICAL BTC REPLAY' : 'BTC LIVE CONTEXT'}</span>
-                  <strong>{shannonJudge ? 'NO LIVE PRICE FEED' : liveBtcContext ? liveBtcContextPrice(liveBtcContext) : liveBtcContextLoaded ? 'REFERENCE UNAVAILABLE' : 'LOADING REFERENCE…'}</strong>
-                  <small>{shannonJudge
-                    ? 'This testnet replay verifies a historical onchain outcome. No live feed or historical opening price is supplied.'
-                    : liveBtcContext
-                    ? `Separate live dreamDEX ${eventContractIntervalName(liveBtcContext.intervalSec)} opening line · ${liveBtcContextTime(liveBtcContext)} · context only · not the replay market`
-                    : 'The live reference does not affect replay availability. The historical opening price is not supplied.'}</small>
-                </div>
-                {!shannonJudge && <LiveMarketOdds odds={marketOdds} direction={direction} />}
-              </div>
-              <div className="judge-seal-note"><span>CRYPTOGRAPHIC SEAL + SIGNED RECEIPT</span><strong>Your direction locks before a random historical settlement is selected.</strong><small>The official environment authenticates the commitment and lock window. This is a server receipt, not an external timestamp. Full market proof appears only at Reveal Boss Fate.</small></div>
-              <MarketProof market={market} mode="sealed" profile={judgeProfile} />
-            </div>
           ) : phase === 'TIER_SETUP' ? (
             <div className="tier-setup-view">
               <div className="result-icon">⚔️</div>
@@ -1863,69 +1884,54 @@ function LegacyMarketDungeon({
                 <p className="section-kicker">🧰 {phase === 'FINAL_MERCHANT' ? 'POST-BOSS' : 'ROOM 5'} · TRAVELLING MERCHANT</p>
                 <h2>Quartermaster Kevin</h2>
                 <p className="merchant-role">Questionable procurement · impeccable timing</p>
-                <p className="flavor">“{phase === 'FINAL_MERCHANT' ? judgeMode ? 'The fighting is over. Take a seat. This one is free. I cannot negotiate with Bitcoin.' : 'The boss is down. Permanently? Ask Bitcoin. Shall we improve your odds of surviving the answer?' : 'You look terrible. Fortunately, I accept gold.'}”</p>
+                <p className="flavor">“{phase === 'FINAL_MERCHANT' ? 'The boss is down. Permanently? Ask Bitcoin. Shall we improve your odds of surviving the answer?' : 'You look terrible. Fortunately, I accept gold.'}”</p>
                 <div className="merchant-stats"><div><span>HEALTH</span><strong>❤️ {hp}/100</strong></div><div><span>GOLD</span><strong><GoldIcon /> {gold}</strong></div><div><span>POTIONS</span><strong>🧪 {potions}/{MAX_POTIONS}</strong></div></div>
               </div>
             </div>
           ) : phase === 'CLEARED' ? (
             <div className="result-view cleared-view">
               <div className="result-icon">🏆</div><p className="section-kicker">ROOM {room + 1} CLEARED</p>
-              <h2>{judgeMode ? 'The final boss gate is open.' : 'Against all evidence, you remain alive.'}</h2>
-              <p className="muted">{judgeMode ? 'The boss hits harder. Heal safely here, or save a potion for combat; drinking during a fight allows retaliation.' : 'Heal safely with a potion before opening the next gate.'}</p>
+              <h2>{'Against all evidence, you remain alive.'}</h2>
+              <p className="muted">{'Heal safely with a potion before opening the next gate.'}</p>
               <div className="reward-box"><span>RECOVERED</span><strong><GoldIcon /> {lastReward}</strong></div>
             </div>
           ) : phase === 'VICTORY' ? (
-            <div className={`result-view ${judgeMode ? 'judge-result-view' : ''}`}>
+            <div className="result-view">
               <div className="result-hero-grid">
                 <div className="result-hero">
-                  {judgeMode && (oracleResult === 'BLESSED' || oracleResult === 'VOID')
-                    ? <BossOutcomeScene name={monster.name} image={monster.image} maxHp={monster.hp} outcome={oracleResult === 'VOID' ? 'void' : 'blessed'} compact />
-                    : <div className="result-icon">{oracleResult === 'BLESSED' ? '✨' : oracleResult === 'CURSED' ? '📉' : '👑'}</div>}
-                  <p className="section-kicker">{judgeMode ? 'JUDGE DEMO COMPLETE · ONCHAIN RESULT VERIFIED' : `TIER ${tier}/${TOTAL_TIERS} · FULL RUN COMPLETE`} · {oracleResult ?? 'SETTLED'}</p>
+                  {<div className="result-icon">{oracleResult === 'BLESSED' ? '✨' : oracleResult === 'CURSED' ? '📉' : '👑'}</div>}
+                  <p className="section-kicker">{`TIER ${tier}/${TOTAL_TIERS} · FULL RUN COMPLETE`} · {oracleResult ?? 'SETTLED'}</p>
                   <h2>{resultHeading}</h2><p className="muted">{resultCopy}</p>
-                  {judgeMode ? judgeResultSummary : <div className="victory-conditions resolved"><div><span>✓ CONDITION 1</span><strong>Boss defeated in combat</strong></div><div><span>{oracleResult === 'VOID' ? '○ VOID EXCEPTION' : '✓ CONDITION 2'}</span><strong>{oracleResult === 'VOID' ? 'Prediction voided · no loss' : 'BTC prediction correct'}</strong></div></div>}
-                  {judgeMode && <div className="judge-verification"><span>✓ COMBAT + CHOICE LOCK + SOMNIA RESULT VERIFIED</span><strong>Verified end to end</strong><small>Verified means this run matches the recorded market result. Both winning and losing runs can be verified.</small></div>}
+                  {<div className="victory-conditions resolved"><div><span>✓ CONDITION 1</span><strong>Boss defeated in combat</strong></div><div><span>{oracleResult === 'VOID' ? '○ VOID EXCEPTION' : '✓ CONDITION 2'}</span><strong>{oracleResult === 'VOID' ? 'Prediction voided · no loss' : 'BTC prediction correct'}</strong></div></div>}
+
                 </div>
-                {judgeMode && runSharePanel}
+
               </div>
-              {judgeMode ? <div className="judge-result-evidence">
-                <HumanProofSummary verified />
-                {portableProofPanel}
-                {dreamDexContinuePanel}
-                <MarketProof market={market} mode="revealed" profile={judgeProfile} />
-              </div> : <>
+              {<>
                 {portableProofPanel}
                 {dreamDexContinuePanel}
                 {runSharePanel}
               </>}
-              <div className="final-stats"><div><span>{judgeMode ? 'REPLAY ENCOUNTERS' : 'TIERS CLEARED'}</span><strong>{judgeMode ? `${runShareInput?.enemiesDefeated ?? 0}/2` : `${tier}/${TOTAL_TIERS}`}</strong></div><div><span>FINAL GOLD</span><strong><GoldIcon /> {gold}</strong></div></div>
+              <div className="final-stats"><div><span>{'TIERS CLEARED'}</span><strong>{`${tier}/${TOTAL_TIERS}`}</strong></div><div><span>FINAL GOLD</span><strong><GoldIcon /> {gold}</strong></div></div>
             </div>
           ) : phase === 'DEAD' ? (
-            <div className={`result-view ${judgeMode ? 'judge-result-view' : ''}`}>
+            <div className="result-view">
               <div className="result-hero-grid">
                 <div className="result-hero">
-                  {judgeMode && deathCause === 'PREDICTION'
-                    ? <BossOutcomeScene name={monster.name} image={monster.image} maxHp={monster.hp} outcome="last-strike" compact />
-                    : <div className="result-icon">☠️</div>}
-                  <p className="section-kicker">{judgeMode ? deathCause === 'PREDICTION' ? 'JUDGE DEMO COMPLETE · ONCHAIN LOSS VERIFIED' : 'JUDGE RUN ENDED · COMBAT DEFEAT' : `TIER ${tier} · EXPEDITION ENDED`}</p>
-                  <h2>{deathCause === 'PREDICTION' ? 'The boss strikes back.' : 'You fell in combat.'}</h2><p className="muted">{deathCause === 'PREDICTION' ? resultCopy : judgeMode ? 'The prediction cannot save a lost fight. Start a fresh Judge replay with the same balanced health, potions and equipment.' : 'The prediction cannot save a lost fight. Gold persists, potions return to at least the starting amount, and attack and defense reset for the next run.'}</p>
-                  {judgeResultSummary}
-                  {judgeMode && deathCause === 'COMBAT' && <p className="muted">The sealed market was not revealed. No onchain outcome was verified for this run.</p>}
-                  {!judgeMode && deathCause === 'PREDICTION' && <div className="victory-conditions failed"><div><span>✓ CONDITION 1</span><strong>Boss defeated in combat</strong></div><div><span>✕ CONDITION 2</span><strong>BTC prediction incorrect</strong></div></div>}
-                  {judgeMode && deathCause === 'PREDICTION' && <div className="judge-verification"><span>✓ COMBAT + CHOICE LOCK + SOMNIA RESULT VERIFIED</span><strong>Verified end to end</strong><small>Verified means this run matches the recorded market result. Both winning and losing runs can be verified.</small></div>}
+                  {<div className="result-icon">☠️</div>}
+                  <p className="section-kicker">{`TIER ${tier} · EXPEDITION ENDED`}</p>
+                  <h2>{deathCause === 'PREDICTION' ? 'The boss strikes back.' : 'You fell in combat.'}</h2><p className="muted">{deathCause === 'PREDICTION' ? resultCopy : 'The prediction cannot save a lost fight. Gold persists, potions return to at least the starting amount, and attack and defense reset for the next run.'}</p>
+
+                  {deathCause === 'PREDICTION' && <div className="victory-conditions failed"><div><span>✓ CONDITION 1</span><strong>Boss defeated in combat</strong></div><div><span>✕ CONDITION 2</span><strong>BTC prediction incorrect</strong></div></div>}
+
                 </div>
-                {judgeMode && runSharePanel}
+
               </div>
-              {judgeMode && deathCause === 'PREDICTION' ? <div className="judge-result-evidence">
-                <HumanProofSummary verified />
-                {portableProofPanel}
-                {dreamDexContinuePanel}
-                <MarketProof market={market} mode="revealed" profile={judgeProfile} />
-              </div> : <>
+              {<>
                 {deathCause === 'PREDICTION' && dreamDexContinuePanel}
-                {!judgeMode && runSharePanel}
+                {runSharePanel}
               </>}
-              <div className="final-stats"><div><span>{judgeMode ? 'REPLAY ENCOUNTERS' : 'TIER / ROOMS'}</span><strong>{judgeMode ? `${runShareInput?.enemiesDefeated ?? 0}/2` : `${tier} · ${roomsCleared}/${TOTAL_ROOMS}`}</strong></div><div><span>{judgeMode ? 'FINAL GOLD' : 'GOLD KEPT'}</span><strong><GoldIcon /> {gold}</strong></div></div>
+              <div className="final-stats"><div><span>{'TIER / ROOMS'}</span><strong>{`${tier} · ${roomsCleared}/${TOTAL_ROOMS}`}</strong></div><div><span>{'GOLD KEPT'}</span><strong><GoldIcon /> {gold}</strong></div></div>
             </div>
           ) : (
             <div className="combat-view">
@@ -1937,9 +1943,9 @@ function LegacyMarketDungeon({
                   })}
                 </div>
               </div>
-              {!(judgeMode && phase === 'ORACLE') && <div className="monster-stage">
+              {<div className="monster-stage">
                 <Image src={monster.image} alt={monster.name} fill sizes={STAGE_IMAGE_SIZES} />
-                {judgeMode && <div className="judge-stage-label">{room === TOTAL_ROOMS - 2 ? '⚡ FINAL TIER REPLAY · ONE GUARD REMAINS BEFORE THE BOSS' : '⚡ FINAL BOSS · SHORT TACTICAL ENCOUNTER'}</div>}
+
                 <div className="stage-fade" />
               </div>}
               <div className="monster-info">
@@ -1951,19 +1957,17 @@ function LegacyMarketDungeon({
                 <div className="enemy-stats"><div><span>ENEMY DAMAGE</span><strong>💥 {monster.minDamage}–{monster.maxDamage}</strong></div><div><span>BASE REWARD</span><strong><GoldIcon /> {monster.reward}</strong></div></div>
                 {isBoss && <div className={`victory-conditions ${phase === 'ORACLE' ? 'pending' : ''}`}><div><span>{phase === 'ORACLE' ? '✓ CONDITION 1' : 'CONDITION 1'}</span><strong>{phase === 'ORACLE' ? 'Boss defeated in combat' : 'Reduce boss HP to zero'}</strong></div><div><span>CONDITION 2</span><strong>{phase === 'ORACLE' ? 'BTC prediction awaiting result' : `${omenName} must be correct`}</strong></div></div>}
                 {phase === 'ORACLE' && <div className="oracle-lock">
-                  <div className="oracle-status"><span>🔮 {judgeMode ? 'FINALIZED ONCHAIN REPLAY' : 'LIVE DREAMDEX SETTLEMENT'}</span><strong aria-live="polite">{judgeMode ? replayRevealRemaining > 0 ? `SEALED · REVEAL IN ${replayRevealRemaining}S` : replayRetryRemaining > 0 ? `PROTECTED RETRY · ${replayRetryRemaining}S` : 'READY TO REVEAL' : remaining > 0 ? formatTime(remaining) : oracleBusy ? 'READING…' : `${oracleChecks} CHECK${oracleChecks === 1 ? '' : 'S'}`}</strong><small>{judgeMode ? replayRevealRemaining > 0 ? 'The server is holding the encrypted identity and outcome until the anti-peek timer reaches zero.' : replayRetryRemaining > 0 ? 'Your completed combat and sealed replay remain intact while upstream requests cool down.' : 'This fast demo uses a real finalized dreamDEX market and its recorded Somnia outcome.' : 'The boss is down, but not permanently defeated. A wrong BTC prediction triggers its fatal last strike.'}</small></div>
-                  <div className="integration-proof"><span>SOMNIA CHAIN {judgeMode ? judgeProfile.chainId : SOMNIA_MAINNET_PROFILE.chainId}</span><span>{judgeMode ? `COMMIT ${marketCode}` : `MARKET #${marketCode}`}</span><span>READ-ONLY CHAIN CALL</span><span>{judgeMode ? 'IDENTITY + OUTCOME SEALED' : 'SETTLEMENT PENDING'}</span></div>
-                  {judgeMode && <MarketProof market={market} mode="sealed" profile={judgeProfile} />}
+                  <div className="oracle-status"><span>🔮 {'LIVE DREAMDEX SETTLEMENT'}</span><strong aria-live="polite">{remaining > 0 ? formatTime(remaining) : oracleBusy ? 'READING…' : `${oracleChecks} CHECK${oracleChecks === 1 ? '' : 'S'}`}</strong><small>{'The boss is down, but not permanently defeated. A wrong BTC prediction triggers its fatal last strike.'}</small></div>
+                  <div className="integration-proof"><span>SOMNIA CHAIN {SOMNIA_MAINNET_PROFILE.chainId}</span><span>{`MARKET #${marketCode}`}</span><span>READ-ONLY CHAIN CALL</span><span>{'SETTLEMENT PENDING'}</span></div>
+
                 </div>}
               </div>
             </div>
           )}
         </section>
 
-        {phase !== 'JUDGE_SETUP' && <section className={`action-dock action-dock-${phase.toLowerCase()} ${['VICTORY', 'DEAD'].includes(phase) ? 'action-dock-terminal' : ''}`}>
-          {judgeMode && ['CLEARED', 'MERCHANT', 'FINAL_MERCHANT', 'ORACLE'].includes(phase) && <RecoverySupplies hp={hp} maxHp={100} potions={potions} maxPotions={MAX_POTIONS}>
-            {phase === 'MERCHANT' && <><div><span>GOLD</span><strong><GoldIcon /> {gold}</strong></div><div><span>GEAR</span><strong>⚔️ {weapon} · 🛡️ {armor}</strong></div></>}
-          </RecoverySupplies>}
+        {<section className={`action-dock action-dock-${phase.toLowerCase()} ${['VICTORY', 'DEAD'].includes(phase) ? 'action-dock-terminal' : ''}`}>
+
           {phase === 'SETUP' ? (
             <div className="judge-entry">
               <div className="desktop-omen-picker" aria-label="Choose BTC direction">
@@ -1980,7 +1984,7 @@ function LegacyMarketDungeon({
             </div>
           ) : phase === 'COMBAT' ? (
             <>
-              {judgeMode && <div className="judge-next-action"><span>JUDGE STEP {judgeStep} OF 5</span><b>{room === TOTAL_ROOMS - 2 ? 'Defeat the guard, then consider healing before the boss.' : 'Defeat the boss, then reveal its prediction fate.'}</b></div>}
+
               <div className="combat-actions">
                 <button data-game-audio="attack" className="attack" onClick={() => act('attack')}><b>⚔️ ATTACK</b><strong>DAMAGE {attackMin}–{attackMax}</strong><small>Reliable · 15% critical</small></button>
                 <button data-game-audio="storm" className="storm" onClick={() => act('storm')}><b>⚡ STORM</b><strong>DAMAGE 0–{stormMax}</strong><small>High variance · no critical</small></button>
@@ -1990,7 +1994,7 @@ function LegacyMarketDungeon({
           ) : phase === 'CLEARED' ? (
             <div className="between-actions">
               <button className="heal-action" onClick={useBetweenRoomPotion} disabled={potions === 0 || hp >= 100}>🧪 HEAL +25 HP · {potions}/{MAX_POTIONS}</button>
-              <button className="primary-action" onClick={nextRoom}>{judgeMode ? '👑 ENTER FINAL BOSS' : '🎲 NEXT ROOM'}</button>
+              <button className="primary-action" onClick={nextRoom}>{'🎲 NEXT ROOM'}</button>
             </div>
           ) : phase === 'MERCHANT' ? (
             <div className="merchant-shop">
@@ -2007,10 +2011,7 @@ function LegacyMarketDungeon({
           ) : phase === 'FINAL_MERCHANT' ? (
             <div className="merchant-shop">
               <div className="shop-heading"><div><span>KEVIN&apos;S AFTERCARE</span><b>Patch up before the prediction verdict</b></div><strong><GoldIcon /> {gold}</strong></div>
-              {judgeMode ? <>
-                <p className="judge-rest-note">Rest is optional and costs nothing. It cannot change your locked omen: a wrong prediction still ends this replay.</p>
-                <button data-game-audio="potion" className="heal-action" onClick={() => finalMerchantHeal(true)} disabled={hp >= 100}>{hp >= 100 ? 'FULLY RESTED · 100/100 HP' : 'TAKE A FREE REST · RESTORE HP'}</button>
-              </> : <><div className="shop-grid">
+              {<><div className="shop-grid">
                 <button onClick={() => finalMerchantHeal(false)} disabled={hp >= 100 || gold < 8}><b>❤️ FIELD DRESSING</b><small>Heal up to 25 HP</small><strong><GoldIcon /> 8</strong></button>
                 <button onClick={() => finalMerchantHeal(true)} disabled={hp >= 100 || gold < finalHealCost}><b>✨ FULL TREATMENT</b><small>{hp >= 100 ? 'Already at full health' : `Restore ${100 - hp} HP`}</small><strong><GoldIcon /> {finalHealCost}</strong></button>
               </div>
@@ -2019,20 +2020,17 @@ function LegacyMarketDungeon({
               <button className="oracle-action" onClick={returnToBossFate}>🔮 RETURN TO BOSS FATE</button>
             </div>
           ) : phase === 'ORACLE' ? (
-            <div className="oracle-dock" data-keyboard-action-scope={judgeMode ? '' : undefined}>
-              {judgeMode && <p className="judge-reveal-summary">Boss defeated. Reveal your locked BTC result.</p>}
+            <div className="oracle-dock" data-keyboard-action-scope={undefined}>
+
               <div className="between-actions">
                 <button className="heal-action" onClick={visitFinalMerchant} disabled={oracleBusy}>🧰 VISIT TRAVELLING MERCHANT</button>
-                <button data-keyboard-default={judgeMode ? 'true' : undefined} className={`oracle-action ${judgeMode && (replayRevealRemaining > 0 || replayRetryRemaining > 0) ? 'reveal-hold' : ''}`} onClick={() => void checkSettlement(false)} disabled={oracleBusy || (judgeMode && (replayRevealRemaining > 0 || replayRetryRemaining > 0))}>🔮 {oracleBusy ? 'VERIFYING COMBAT + SETTLEMENT…' : judgeMode && replayRevealRemaining > 0 ? `REVEAL AVAILABLE IN ${replayRevealRemaining}S` : judgeMode && replayRetryRemaining > 0 ? `RETRY REVEAL IN ${replayRetryRemaining}S` : 'REVEAL BOSS FATE'}</button>
+                <button data-keyboard-default={undefined} className={`oracle-action`} onClick={() => void checkSettlement(false)} disabled={oracleBusy || (false)}>🔮 {oracleBusy ? 'VERIFYING COMBAT + SETTLEMENT…' : 'REVEAL BOSS FATE'}</button>
               </div>
-              {judgeMode && replayIssue && !oracleBusy && <div className="judge-connection-status" role="status" aria-label="Replay verification status">
-                <b>{replayIssue === 'config_unavailable' ? 'The replay service needs attention.' : replayIssue === 'rate_limited' ? 'Please wait before checking again.' : 'Verification was interrupted.'}</b>
-                <p>Your completed combat and locked omen are kept in this run. No outcome has been applied. {replayIssue === 'config_unavailable' ? 'Retry once the replay service is configured.' : replayRetryRemaining > 0 ? `You can retry in ${replayRetryRemaining}s.` : 'You can reveal the same replay again now.'}</p>
-              </div>}
-              <small>{judgeMode ? replayRevealRemaining > 0 ? `Anti-peek seal holding · ${judgeActionLog.length} logged actions ready for verification` : replayRetryRemaining > 0 ? `Protected retry window · ${judgeActionLog.length} logged actions remain ready` : `Finalized replay · ${judgeActionLog.length} logged actions will be server-verified before reveal` : remaining > 0 ? `Automatic checks begin in ${formatTime(remaining)}` : 'Automatic settlement checks run every 5 seconds'}</small>
+
+              <small>{remaining > 0 ? `Automatic checks begin in ${formatTime(remaining)}` : 'Automatic settlement checks run every 5 seconds'}</small>
             </div>
           ) : (
-            <div className="new-run-action"><button className="primary-action" onClick={reset}>{judgeMode ? '↻ START NEW JUDGE DEMO' : '↻ BEGIN NEW EXPEDITION'}</button><small>{judgeMode ? 'Fresh sealed replay · same starting health, potions and equipment' : 'Keep gold and up to 5 potions · reset attack and defense'}</small></div>
+            <div className="new-run-action"><button className="primary-action" onClick={reset}>{'↻ BEGIN NEW EXPEDITION'}</button><small>{'Keep gold and up to 5 potions · reset attack and defense'}</small></div>
           )}
         </section>}
 
@@ -2048,6 +2046,7 @@ function LegacyMarketDungeon({
         <footer>
           <p>DELVEWORN × DREAMDEX EVENT CONTRACTS · {shannonJudge ? 'SOMNIA SHANNON TESTNET' : 'SOMNIA'}</p>
           <span>Competition prototype · no wallet · no approval · no order submission · {replaySealed ? `sealed commitment ${marketCode}` : `market #${marketCode || '—'}`}</span>
+
           <span>Anonymous v2 funnel labels measure entry, verified completion and product actions; no wallet, market ID, proof, transcript, exact timing or free-form text is sent.</span>
           <nav aria-label="Project transparency"><Link href={judgeProfile.verifierPath}>VERIFY A PROOF</Link><Link href="/credits">PRIVACY · CREDITS · AI DISCLOSURE</Link></nav>
         </footer>

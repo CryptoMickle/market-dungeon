@@ -1,0 +1,105 @@
+.panel {
+  min-width: 0;
+  border: 1px solid #826448;
+  border-radius: 18px;
+  color: #faf5ed;
+  background: radial-gradient(ellipse at 0 0, #66402235, transparent 65%), linear-gradient(145deg, #20192b, #100e16);
+  overflow: hidden;
+}
+.body { padding: 20px; display: grid; gap: 16px; }
+.introduction { display: grid; grid-template-columns: 88px minmax(0, 1fr); gap: 16px; align-items: center; }
+.portrait { position: relative; width: 88px; height: 100px; border: 1px solid #92704a; border-radius: 12px; overflow: hidden; background: #16110b; }
+.portrait img { object-fit: cover; object-position: 38% center; }
+.eyebrow { color: #e8be86; font-size: 9px; font-weight: 800; letter-spacing: .12em; line-height: 1.5; }
+.introduction h2 { margin: 6px 0; font-size: clamp(18px, 3vw, 23px); letter-spacing: -.035em; line-height: 1.12; }
+.introduction p { margin: 0; color: #c5b9d1; font-size: 12px; line-height: 1.5; }
+.modeNotice { display: grid; gap: 5px; padding: 11px 13px; border: 1px solid; border-radius: 10px; }
+.modeNotice strong { font-size: 10px; letter-spacing: .1em; }
+.modeNotice span { font-size: 12px; line-height: 1.5; }
+.simulationNotice { color: #ecd6b7; background: #66451c25; border-color: #87683f; }
+.somniaNotice { color: #bddffc; background: #0b375b40; border-color: #336b91; }
+.modePicker { min-width: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin: 0; padding: 0; border: 0; }
+.modePicker legend { margin: 0 0 9px; color: #c7b7d9; font-size: 11px; }
+.modePicker button, .choiceButtons button, .previewButtons button, .resetButton { cursor: pointer; min-height: 48px; padding: 12px; border: 1px solid #5c496d; border-radius: 10px; background: #1e1825; color: #f6eefc; text-align: left; }
+.modePicker button strong, .modePicker button span { display: block; }
+.modePicker button strong { font-size: 11px; }
+.modePicker button span { margin-top: 6px; color: #c1b0ce; font-size: 10px; line-height: 1.4; }
+.modePicker button[aria-pressed="true"], .choiceButtons button[aria-pressed="true"] { border-color: #b782e6; background: #5e27884a; box-shadow: inset 0 0 0 1px #b782e6; }
+.panel :is(button, a, summary):focus-visible, .playground :is(button, a, select):focus-visible { outline: 3px solid #ead5ff; outline-offset: 4px; }
+.round { display: grid; gap: 11px; }
+.status { display: flex; align-items: center; gap: 9px; font-size: 15px; line-height: 1.4; }
+.pendingDot { flex-shrink: 0; width: 8px; height: 8px; border-radius: 50%; background: #e3bd78; box-shadow: 0 0 11px #e3bd7877; animation: thinking 1.6s ease-in-out infinite; }
+.supporting { margin: 0; color: #c4b8ce; font-size: 12px; line-height: 1.6; }
+.predictions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); border: 1px solid #50425b; border-radius: 11px; background: #09090c66; }
+.predictions > div { min-width: 0; padding: 13px; }
+.predictions > div + div { border-left: 1px solid #50425b; }
+.predictions span { display: block; color: #c6b6d3; font-size: 9px; font-weight: 700; letter-spacing: .04em; line-height: 1.5; }
+.predictions strong { display: block; margin-top: 7px; font-size: 18px; }
+.up { color: #6de3b6; }
+.down { color: #ff9bac; }
+.verdict { padding: 14px; border: 1px solid #87673d; border-radius: 11px; background: #a36b1820; }
+.playerWins { border-color: #3d9d7b; background: #13513d4d; }
+.verdict > span { display: block; color: #e4c894; font-size: 9px; font-weight: 800; letter-spacing: .09em; }
+.verdict > strong { display: block; margin-top: 7px; font-size: 14px; }
+.verdict p { margin: 9px 0 0; color: #dbc8b5; font-size: 13px; line-height: 1.6; font-style: italic; }
+.receipt, .rules { color: #c7bbcf; font-size: 11px; line-height: 1.7; }
+.receipt summary, .rules summary { padding: 7px 0; cursor: pointer; font-weight: 700; }
+.receipt p, .rules p { margin: 7px 0; }
+.receipt a { display: inline-block; padding: 5px 0; color: #9ed5ff; }
+.receipt code { display: block; margin-top: 5px; overflow-wrap: anywhere; font-size: 10px; color: #e4cbf9; }
+.rules { padding-top: 7px; border-top: 1px solid #50425b; }
+.compact { border-radius: 11px; }
+.compactSummary { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 11px 13px; cursor: pointer; list-style: none; }
+.compactSummary::-webkit-details-marker { display: none; }
+.compactSummary > span:first-child { min-width: 0; }
+.compactSummary strong { display: block; font-size: 12px; line-height: 1.35; }
+.compactSummary small { display: block; margin-top: 4px; color: #e3bc87; font-size: 8px; font-weight: 800; letter-spacing: .07em; }
+.expand { display: flex; gap: 7px; align-items: center; flex-shrink: 0; color: #cdb9dc; font-size: 9px; }
+.expand b { font-size: 14px; }
+.compact[open] .compactSummary { border-bottom: 1px solid #50425b; }
+.compact[open] .expand b { transform: rotate(180deg); }
+
+.playground { min-height: 100dvh; padding: 36px 20px 64px; background: radial-gradient(ellipse at 20% 0, #51237755, transparent 60%), #0b0910; }
+.previewShell { width: min(100%, 1140px); margin: 0 auto; }
+.previewNav { display: flex; flex-wrap: wrap; gap: 12px 24px; margin-bottom: 32px; }
+.previewNav a { color: #ddc2f6; text-underline-offset: 4px; font-size: 12px; line-height: 1.5; }
+.previewHeader { max-width: 710px; margin-bottom: 28px; }
+.previewHeader h1 { margin: 12px 0 16px; font-size: clamp(34px, 6vw, 62px); line-height: 1.02; letter-spacing: -.055em; }
+.previewHeader > p { color: #c6bbcf; font-size: 15px; line-height: 1.7; }
+.previewHeader .eyebrow { font-size: 10px; }
+.previewGrid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 24px; align-items: start; }
+.previewControls { display: grid; gap: 21px; padding: 24px; border: 1px solid #634a7b; border-radius: 18px; background: #1a1320dd; }
+.previewControls h2 { margin: 0; font-size: 22px; letter-spacing: -.03em; }
+.previewControls p { margin: 0; color: #c5b5d1; font-size: 13px; line-height: 1.65; }
+.choiceButtons { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.choiceButtons button { font-size: 16px; font-weight: 800; padding: 18px 14px; }
+.choiceButtons span { display: block; margin-top: 6px; color: #c8b4d5; font-size: 10px; font-weight: 600; }
+.scenario { display: grid; gap: 9px; color: #d9cae4; font-size: 12px; }
+.scenario select { padding: 13px; min-height: 46px; width: 100%; border: 1px solid #655374; border-radius: 9px; background: #100c15; color: #faf5ff; font: inherit; }
+.lockButton { width: 100%; min-height: 54px; padding: 16px; cursor: pointer; border: 1px solid #bc75f5; border-radius: 12px; background: linear-gradient(115deg, #7727bf, #a527c9); color: #fff; font-size: 12px; font-weight: 800; letter-spacing: .05em; }
+.lockButton:disabled { opacity: .5; cursor: wait; }
+.previewControls button:disabled, .previewControls select:disabled { opacity: .5; cursor: not-allowed; }
+.previewControls button:not(:disabled):hover, .modePicker button:hover { filter: brightness(1.14); }
+.settlement { display: grid; gap: 12px; padding-top: 20px; border-top: 1px solid #51405f; }
+.settlement h3 { margin: 0; color: #eadbf7; font-size: 15px; }
+.previewButtons { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 7px; }
+.previewButtons button { padding: 14px 8px; text-align: center; font-size: 12px; font-weight: 800; }
+.previewButtons button[aria-pressed="true"] { border-color: #b187cc; background: #75488b55; }
+.resetButton { width: 100%; text-align: center; color: #dfc7ef; font-size: 12px; }
+.previewFooter { margin: 24px 0 0; max-width: 760px; color: #9e8baa; font-size: 12px; line-height: 1.7; }
+@keyframes thinking { 50% { opacity: .35; } }
+@media (prefers-reduced-motion: reduce) { .pendingDot { animation: none; } }
+@media (max-width: 800px) {
+  .previewGrid { grid-template-columns: minmax(0, 1fr); }
+  .playground { padding: 24px 14px 40px; }
+}
+@media (max-width: 420px) {
+  .body { padding: 15px; gap: 14px; }
+  .introduction { grid-template-columns: 66px minmax(0, 1fr); gap: 12px; }
+  .portrait { width: 66px; height: 88px; }
+  .eyebrow { font-size: 8px; }
+  .predictions > div { padding: 11px; }
+  .predictions strong { font-size: 16px; }
+  .previewControls { padding: 18px; }
+}
+.lockButton:is(a) { display: flex; align-items: center; justify-content: center; min-height: 48px; text-decoration: none; }

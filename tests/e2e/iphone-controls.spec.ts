@@ -45,7 +45,7 @@ async function restoreExpedition(page: Page, session: FullRunSession) {
   await page.addInitScript(({ key, value }) => {
     if (!localStorage.getItem(key)) localStorage.setItem(key, value);
   }, { key: FULL_RUN_STORAGE_KEY, value: serializeFullRunSession(session) });
-  await page.goto('/');
+  await page.goto('/expedition');
 }
 
 async function expectTouchTarget(control: Locator) {
@@ -125,7 +125,7 @@ async function openHistorical(page: Page) {
   await page.route('**/api/shannon/judge-replay/start', route => route.fulfill({ json: shannonStartPayload }));
   await page.route('**/api/shannon/judge-replay/public-key', route => route.fulfill({ json: SHANNON_LOCK_PUBLIC_KEY }));
   await page.goto('/shannon/judge');
-  await page.getByRole('button', { name: 'LOCK OMEN & SEAL REPLAY', exact: true }).click();
+  await page.getByRole('button', { name: 'LOCK BTC UP & ENTER DUNGEON', exact: true }).click();
 }
 
 async function openLive(page: Page) {
@@ -149,6 +149,15 @@ async function openLive(page: Page) {
 for (const phone of phones) test.describe(`${phone.width}×${phone.height} iPhone browser space`, () => {
   test.use({ viewport: phone, hasTouch: true });
   test.beforeEach(async ({ page, browserName, baseURL }) => {
+    if (baseURL && ['localhost', '127.0.0.1'].includes(new URL(baseURL).hostname)) {
+      // Next's development badge is not a game control and can cover a 375px
+      // layout. Keep the actual application hit tests intact on local dev runs.
+      await page.addInitScript(() => document.addEventListener('DOMContentLoaded', () => {
+        const style = document.createElement('style');
+        style.textContent = 'nextjs-portal { display: none !important; }';
+        document.head.appendChild(style);
+      }, { once: true }));
+    }
     // WebKit upgrades even loopback asset URLs under the production CSP. The
     // local next-start server only speaks HTTP; keep every other CSP directive
     // intact while testing its optimized UI. This never applies to a hosted
@@ -214,27 +223,24 @@ for (const phone of phones) test.describe(`${phone.width}×${phone.height} iPhon
         const finalCombat = replayJudgeCombat('g'.repeat(43), actions);
         expect(finalCombat.verified).toBe(true);
         if (mode === 'Historical Replay') {
-          const merchant = page.getByRole('button', { name: /VISIT TRAVELLING MERCHANT/ });
-          await showRecoveryControl(page, merchant);
-          await expectRecoverySupplies(page, merchant, finalCombat.finalHp, finalCombat.remainingPotions);
-          await page.screenshot({ path: info.outputPath('historical-boss-waiting-supplies.png') });
-          await merchant.click();
-          const rest = page.getByRole('button', { name: /TAKE A FREE REST/ });
+          const rest = page.getByRole('button', { name: 'REST WITH KEVIN · FREE', exact: true });
           await showRecoveryControl(page, rest);
           await expectRecoverySupplies(page, rest, finalCombat.finalHp, finalCombat.remainingPotions);
+          await page.screenshot({ path: info.outputPath('historical-boss-waiting-supplies.png') });
+          await expect(page.getByRole('button', { name: /VISIT TRAVELLING MERCHANT|RETURN TO BOSS FATE/ })).toHaveCount(0);
           await rest.click();
           const rested = page.getByRole('button', { name: /FULLY RESTED/ });
           await expectRecoverySupplies(page, rested, 100, finalCombat.remainingPotions);
           await expect(rested).toBeDisabled();
-          await page.getByRole('button', { name: /RETURN TO BOSS FATE/ }).click();
-          await showRecoveryControl(page, merchant);
-          await expectRecoverySupplies(page, merchant, 100, finalCombat.remainingPotions);
+          const reveal = page.getByRole('button', { name: 'REVEAL BOSS FATE', exact: true });
+          await showRecoveryControl(page, reveal);
+          await expectRecoverySupplies(page, reveal, 100, finalCombat.remainingPotions);
         } else {
           const rest = page.getByRole('button', { name: /REST WITH KEVIN/ });
           await showRecoveryControl(page, rest);
           await expectRecoverySupplies(page, rest, finalCombat.finalHp, finalCombat.remainingPotions);
           await rest.click();
-          const rested = page.getByRole('button', { name: /KEVIN’S BANDAGE APPLIED/ });
+          const rested = page.getByRole('button', { name: /FULLY RESTED/ });
           await expectRecoverySupplies(page, rested, 100, finalCombat.remainingPotions);
           await expect(rested).toBeDisabled();
           await page.screenshot({ path: info.outputPath('live-boss-waiting-supplies.png') });

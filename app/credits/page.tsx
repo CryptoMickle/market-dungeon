@@ -21,13 +21,22 @@ export default function CreditsPage() {
           <h2>Analytics and local data</h2>
           <p>Market Dungeon uses Vercel Web Analytics for aggregate page views and a versioned, anonymous Historical Replay funnel. Version 2 separates entry, accepted replay lock, first reveal attempt, verified completion, definitive verification failure, sharing, challenge activity, and Continue-on-dreamDEX intent. The Live Judge currently contributes page views, without a separate gameplay funnel.</p>
           <p>The v2 labels use only closed categories such as interval, duration bucket, mode, direction, result, and failure or share-action type. Market Dungeon does not send wallet addresses, market IDs, commitments, proof contents, combat transcripts, names, or email addresses to analytics; exact timings and arbitrary query text are also excluded. WebDriver sessions and tests carrying the fixed <code>automation=1</code> marker are excluded. Remaining counts are non-WebDriver event volumes, not proof of unique people.</p>
-          <p>The app has no account system and does not connect a wallet or submit a transaction. Expedition progress, persistent gold, the next-run potion count, and the all-sound preference are stored only in this browser. Proof verification reads public contract state directly from the fixed Somnia mainnet RPC for Full Expedition and the mainnet replay, or the Shannon testnet RPC for both Shannon Judge modes. The independent verifiers read proof JSON locally and never upload the complete file. They fetch this deployment&apos;s public verification key and send only public block references and read-only contract calls needed to reproduce the recorded state. Proof data and results are not added to analytics. Continuing to dreamDEX opens that separate service in a new tab.</p>
+          <p>The app has no account system. Full Expedition and both Judge Demo variants require no wallet or transaction. Expedition progress and the all-sound preference are saved in this browser. Somnia Agent Kevin also saves the selected rival mode and round receipts locally so an interrupted round can be checked again.</p>
+          <p>Proof verification reads public contract state directly from the fixed Somnia mainnet RPC for Full Expedition and the mainnet replay, or the Shannon testnet RPC for both Shannon Judge modes. The independent verifiers read proof JSON locally and never upload the complete file. They fetch this deployment&apos;s public verification key and send only public block references and read-only contract calls needed to reproduce the recorded state. Proof data and results are not added to analytics. Continuing to dreamDEX opens that separate service in a new tab.</p>
           <div className={styles.links}>
             <Link href="/shannon/live-judge/verify">VERIFY LIVE JUDGE PROOF ↗</Link>
             <Link href="/shannon/verify">VERIFY SHANNON REPLAY PROOF ↗</Link>
             <Link href="/verify">VERIFY MAINNET REPLAY PROOF ↗</Link>
           </div>
           <a href="https://vercel.com/docs/analytics/privacy-policy" target="_blank" rel="noopener noreferrer">VERCEL WEB ANALYTICS PRIVACY ↗</a>
+        </section>
+
+        <section>
+          <h2>Somnia Agent Kevin and wallet connections</h2>
+          <p>Kevin is an optional prediction rival in a separate expedition mode. Simulated Kevin requires no wallet and is visibly labelled as a simulation. A simulated choice is not a Somnia agent response or evidence of prediction skill. Kevin&apos;s call affects local bragging rights; it does not change combat damage, loot, relics or the verified market result.</p>
+          <p>Choosing Live testnet Kevin and pressing Connect MetaMask starts an explicit wallet connection. Safari can hand the request to the MetaMask app through MetaMask Connect; wallet browsers can use their built-in connection. The connector&apos;s optional analytics are disabled. MetaMask and its connection services handle wallet permissions and the connection session under their own policies.</p>
+          <p>A real agent request needs a separate transaction approval on Somnia Shannon testnet, chain 50312, and spends testnet STT for the quoted request deposit and network fees. The app does not request a seed phrase or private key, fund requests from a server wallet, place a dreamDEX order or grant token spending approval. Declining a request does not submit it.</p>
+          <p>The agent receives a bounded public market snapshot, excluding your chosen direction and private gameplay details. Request transactions and responses are public blockchain data, including the sending address. The game server checks the supplied transaction hash and public contract state; encrypted round tickets bind the market and request to this deployment. These tickets are kept in your browser and sent back to the game service when checking Kevin&apos;s reply. They are not a public leaderboard or an independently verified player score. If a response is unavailable or misses its cutoff, Kevin sits out and the expedition continues.</p>
         </section>
 
         <section>
@@ -50,7 +59,7 @@ export default function CreditsPage() {
 
         <section>
           <h2>In-game sound</h2>
-          <p>Market Dungeon creates its original boss-battle score “The Throne Below”, interface click, Attack, Storm, Potion, settlement, sixteen monster intros, and Quartermaster Kevin intro at runtime with the browser&apos;s Web Audio system. Continuous background music plays only during boss combat and stops when the boss is knocked out. No sampled recording or third-party music file is shipped for these game sounds. One persistent control switches every game sound on or off in Full Expedition and both Judge Demo modes.</p>
+          <p>Market Dungeon creates its original boss-battle score “The Throne Below”, interface click, Attack, Storm, Potion, settlement, sixteen monster intros, and Quartermaster Kevin intro at runtime with the browser&apos;s Web Audio system. Continuous background music plays only during boss combat and stops when the boss is knocked out. No sampled recording or third-party music file is shipped for these game sounds. One persistent control switches every game sound on or off in Full Expedition, Somnia Agent Kevin and both Judge Demo variants.</p>
         </section>
 
         <section>
@@ -79,7 +88,7 @@ export default function CreditsPage() {
           <p>Somnia, dreamDEX, and DoraHacks names are used descriptively for the hackathon integration. Their respective marks and services remain the property of their owners.</p>
           <div className={styles.links}>
             <a href="https://github.com/CryptoMickle/market-dungeon" target="_blank" rel="noopener noreferrer">SOURCE CODE ↗</a>
-            <a href="https://github.com/CryptoMickle/market-dungeon/blob/a85be13380663c835e97cdb97f444c26b99d3716/docs/PROVENANCE_AND_PRIVACY.md" target="_blank" rel="noopener noreferrer">VERSIONED DISCLOSURE ↗</a>
+            <a href="https://github.com/CryptoMickle/market-dungeon/blob/hackathon-submission-2026-v17/docs/PROVENANCE_AND_PRIVACY.md" target="_blank" rel="noopener noreferrer">VERSIONED DISCLOSURE ↗</a>
           </div>
         </section>
       </article>

@@ -111,9 +111,9 @@ async function installMarkets(page: Page) {
 }
 
 for (const mode of [
-  { name: 'Full Expedition', path: '/', entry: 'ENTER THE DUNGEON' },
+  { name: 'Full Expedition', path: '/', entry: 'ENTER DUNGEON' },
   { name: 'Live Judge', path: '/shannon/live-judge', entry: 'LOCK BTC UP & ENTER DUNGEON' },
-  { name: 'Historical Replay', path: '/shannon/judge', entry: 'LOCK OMEN & SEAL REPLAY' },
+  { name: 'Historical Replay', path: '/shannon/judge', entry: 'LOCK BTC UP & ENTER DUNGEON' },
 ] as const) {
   test(`${mode.name} keeps short cues audible after unmute and is silent between non-boss actions`, async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
@@ -129,7 +129,10 @@ for (const mode of [
     await expectVisibleSoundLabel(enabled, 'ON');
     await expect.poll(async () => (await readOutput(page)).some(output => output.state === 'running')).toBe(true);
 
-    if (mode.path === '/') await page.getByRole('button', { name: mode.entry, exact: true }).click();
+    if (mode.path === '/') {
+      await page.getByRole('radio', { name: 'Full Expedition', exact: true }).check();
+      await page.getByRole('button', { name: mode.entry, exact: true }).click();
+    }
     await page.waitForTimeout(150);
     await resetPeak(page);
     await page.getByRole('button', { name: /SHADOWS RISE/ }).press('Enter');

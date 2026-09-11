@@ -1,6 +1,8 @@
 import type { Metadata } from 'next';
 import { Analytics } from '@vercel/analytics/next';
 import { GameAudioProvider } from './game-audio';
+import { LocalAgentsProvider } from './local-agents-context';
+import { somniaAgentsEnvironment } from '../lib/somnia-agents/environment';
 import './globals.css';
 
 const productionHost = process.env.VERCEL_PROJECT_PRODUCTION_URL;
@@ -41,7 +43,9 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
-        <GameAudioProvider>{children}</GameAudioProvider>
+        <LocalAgentsProvider environment={somniaAgentsEnvironment(process.env)}>
+          <GameAudioProvider>{children}</GameAudioProvider>
+        </LocalAgentsProvider>
         <Analytics />
       </body>
     </html>

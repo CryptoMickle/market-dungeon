@@ -38,10 +38,9 @@ test('live Full Expedition displays and refreshes its actual five-minute CLOB od
   };
   try {
     const initialResponse = page.waitForResponse('**/api/market?interval=300');
-    await page.goto('/?automation=1');
+    await page.goto('/expedition?automation=1');
     await check(await initialResponse);
     const refreshed = await check(await page.waitForResponse('**/api/market?interval=300', { timeout: 30_000 }));
-    await page.getByRole('button', { name: 'ENTER THE DUNGEON', exact: true }).click();
     await page.setViewportSize({ width: 1280, height: 900 });
     await expect(page.getByRole('img', { name: 'Closed dungeon gate' })).toBeVisible();
     await expect.poll(async () => page.getByRole('img', { name: 'Closed dungeon gate' }).evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth > 0)).toBe(true);
@@ -64,7 +63,6 @@ test('live Full Expedition displays and refreshes its actual five-minute CLOB od
     const footer = page.locator('footer');
     await expect(footer).toBeVisible();
     await expect(footer.getByRole('link', { name: 'CONTINUE ON DREAMDEX ↗', exact: true })).toHaveAttribute('href', 'https://app.dreamdex.io/event-contracts/WBTC:USDso/5m');
-    await expect(footer.getByRole('link', { name: 'LIVE JUDGE DEMO', exact: true })).toHaveAttribute('href', '/shannon/live-judge');
     await expect(footer.getByRole('link', { name: 'PRIVACY · CREDITS', exact: true })).toHaveAttribute('href', '/credits');
     const footerBox = (await footer.boundingBox())!;
     const combatBox = (await page.getByRole('region', { name: 'Combat view' }).boundingBox())!;

@@ -4,7 +4,7 @@ import Image from 'next/image';
 import { GameLogo } from './game-logo';
 import { GameAudioToggle, useGameAudio } from './game-audio';
 import { KeyboardHint } from './desktop-navigation';
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import styles from './mobile-battle.module.css';
 import { GameText, GoldIcon, playerHealthTone } from './game-icons';
 
@@ -23,12 +23,14 @@ type Props = {
   desktopSummary?: ReactNode;
   loadout: CompactLoadout;
   room?: number;
+  roomsCleared?: number;
   hp: number;
   maxHp: number;
   enemy: { name: string; image: string; hp: number; maxHp: number; incoming: string; flavor: string; isBoss?: boolean };
   omen: string;
   omenHint?: string;
   omenDetails: ReactNode;
+  rivalStatus?: ReactNode;
   gear: ReactNode;
   log: string[];
   logPreview?: string;
@@ -58,11 +60,12 @@ type PlayerStatusProps = {
   hp: number; maxHp: number; location: string; potions: number;
   loadout: CompactLoadout;
   omen?: string; omenHint?: string; omenDetails?: ReactNode; gear: ReactNode;
+  rivalStatus?: ReactNode;
 };
 
 /** One status instance: stacked on mobile, three balanced columns on desktop. */
-export function PlayerHeader({ mode, summary, onHome, ...status }: PlayerStatusProps & { mode: string; summary?: ReactNode; onHome?: () => void }) {
-  return <div className={styles.topBar}>
+export function PlayerHeader({ mode, summary, onHome, stableFrame = false, ...status }: PlayerStatusProps & { mode: string; summary?: ReactNode; onHome?: () => void; stableFrame?: boolean }) {
+  return <div className={styles.topBar} data-stable-frame={stableFrame || undefined}>
     <BattleHeader mode={mode} summary={summary} onHome={onHome} />
     <PlayerStatus {...status} mode={mode} />
   </div>;
@@ -90,11 +93,11 @@ export function PlayerHealth({ hp, maxHp, location, accessories }: { hp: number;
 }
 
 /** The same read-only player dashboard is used in combat and between rooms. */
-export function PlayerStatus({ hp, maxHp, location, potions, loadout, omen, omenHint, omenDetails, gear, mode }: PlayerStatusProps & { mode: string }) {
+export function PlayerStatus({ hp, maxHp, location, potions, loadout, omen, omenHint, omenDetails, gear, mode, rivalStatus }: PlayerStatusProps & { mode: string }) {
   const dialog = useRef<HTMLDialogElement>(null);
   const [detail, setDetail] = useState<'Omen' | 'Gear'>('Omen');
   function show(next: typeof detail) { setDetail(next); openDetails(dialog.current); }
-  return <section className={styles.playerStatus} aria-label="Player status">
+  return <section className={styles.playerStatus} aria-label="Player status" data-combat-entry={rivalStatus ? 'kevin' : undefined}>
     <PlayerHealth hp={hp} maxHp={maxHp} location={location} accessories={<div className={styles.inventory}>
         <span aria-label={`Potions ${potions} of 5`}><small className={styles.mobileLabel}>POTIONS</small>🧪 {potions}/5</span>
         <span className={styles.mobileStat} aria-label={`Gold ${loadout.gold}`}><small>GOLD</small><span><GoldIcon /> {loadout.gold}</span></span>
@@ -102,8 +105,9 @@ export function PlayerStatus({ hp, maxHp, location, potions, loadout, omen, omen
         <span className={styles.mobileStat} aria-label={location}><small>{mode.startsWith('JUDGE') ? 'JUDGE' : 'EXPEDITION'}</small><span>{loadout.progress}</span></span>
       </div>} />
     {omen && <button className={styles.omenButton} onClick={() => show('Omen')} aria-label={`Omen details: ${omen}`}><b>{omen}</b><span>DETAILS ›</span></button>}
-    {omen && omenHint && <p className={styles.omenHint}>{omenHint}</p>}
     {!omen && <div className={styles.mobileMode}>{mode}</div>}
+    {omen && omenHint && !rivalStatus && <p className={styles.omenHint}>{omenHint}</p>}
+    {rivalStatus && <div className={styles.rivalStatus}>{rivalStatus}</div>}
     <dialog ref={dialog} className={styles.dialog} aria-label={detail}>
       <div className={styles.dialogHead}><h2>{detail === 'Gear' ? '⚔️ Gear' : 'Omen'}</h2><GameAudioToggle inline /><button autoFocus onClick={() => dialog.current?.close()} aria-label="Close details">✕</button></div>
       {detail === 'Omen' ? omenDetails : gear}
@@ -112,13 +116,14 @@ export function PlayerStatus({ hp, maxHp, location, potions, loadout, omen, omen
 }
 
 /** Full Expedition's ten rooms in the current tier; indicators are not controls. */
-function RoomProgress({ room }: { room: number }) {
+export function RoomProgress({ room, roomsCleared = room - 1 }: { room: number; roomsCleared?: number }) {
   const tier = Math.ceil(room / 10);
   const current = (room - 1) % 10 + 1;
-  return <ol className={styles.roomProgress} aria-label={`Room progress: tier ${tier}, room ${current} of 10`}>
+  return <ol className={styles.roomProgress} aria-label={`Room progress: tier ${tier}, room ${current} of 10${room <= roomsCleared ? ', cleared' : ''}`}>
     {Array.from({ length: 10 }, (_, index) => {
       const step = index + 1;
-      return <li key={step} aria-current={step === current ? 'step' : undefined} data-complete={step < current} aria-label={`${step === 10 ? 'Boss' : 'Room'} ${step}${step < current ? ', cleared' : ''}`}><span aria-hidden="true">{step === 10 ? '◆' : step}</span></li>;
+      const complete = (tier - 1) * 10 + step <= roomsCleared;
+      return <li key={step} aria-current={step === current && !complete ? 'step' : undefined} data-complete={complete} aria-label={`${step === 10 ? 'Boss' : 'Room'} ${step}${complete ? ', cleared' : ''}`}><span aria-hidden="true">{step === 10 ? '◆' : step}</span></li>;
     })}
   </ol>;
 }
@@ -128,23 +133,28 @@ export function MobileBattle(props: Props) {
   const { playCharacterIntro, setBossBattle } = useGameAudio();
   const bossBattleActive = Boolean(props.enemy.isBoss && props.enemy.hp > 0 && props.hp > 0);
   const screen = useRef<HTMLElement>(null);
+  const hasRivalStatus = Boolean(props.rivalStatus);
   const dialog = useRef<HTMLDialogElement>(null);
   const potionReason = props.potions === 0 ? 'Empty' : props.hp >= props.maxHp ? 'Full HP' : props.potionUses >= props.potionLimit ? 'Limit' : null;
   const percent = (hp: number, max: number) => `${Math.max(0, Math.min(100, max > 0 ? hp / max * 100 : 0))}%`;
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!window.matchMedia('(max-width: 800px)').matches) return;
-    // Locking from the longer setup page can leave its scroll offset behind.
-    // Include the mode navigation and clock above combat; reset only on entry.
-    const frame = window.requestAnimationFrame(() => window.scrollTo({ top: 0, behavior: 'instant' }));
-    return () => window.cancelAnimationFrame(frame);
-  }, []);
+    // Kevin's extra status row needs the space otherwise occupied by the logo.
+    // Position before paint, once per encounter; hits and rival polling must not
+    // take over a player's manual scrolling. Other modes keep their usual entry.
+    const anchor = hasRivalStatus ? screen.current?.querySelector<HTMLElement>('[data-combat-entry="kevin"]') : null;
+    if (anchor) anchor.scrollIntoView({ block: 'start', behavior: 'instant' });
+    else window.scrollTo({ top: 0, behavior: 'instant' });
+  }, [hasRivalStatus, props.room]);
   useEffect(() => {
     // Keep desktop encounter focus and scrolling independent of mobile entry.
     // Neither effect runs again after an individual hit.
     if (!window.matchMedia('(min-width: 801px)').matches) return;
-    screen.current?.scrollIntoView({ block: 'start', behavior: 'instant' });
+    // Full Expedition keeps its mode navigation and status in one fixed frame.
+    if (props.room !== undefined) window.scrollTo({ top: 0, behavior: 'instant' });
+    else screen.current?.scrollIntoView({ block: 'start', behavior: 'instant' });
     screen.current?.focus({ preventScroll: true });
-  }, [props.enemy.name]);
+  }, [props.enemy.name, props.room]);
   useEffect(() => {
     setBossBattle(bossBattleActive);
     return () => setBossBattle(false);
@@ -154,9 +164,9 @@ export function MobileBattle(props: Props) {
   }, [playCharacterIntro, props.enemy.name]);
   return (
     <section ref={screen} tabIndex={-1} className={`mobile-battle-root ${styles.screen}`} aria-label="Combat view">
-      <PlayerHeader mode={props.mode} summary={props.desktopSummary} onHome={props.onHome} hp={props.hp} maxHp={props.maxHp} location={props.location} potions={props.potions} loadout={props.loadout} omen={props.omen} omenHint={props.omenHint} omenDetails={props.omenDetails} gear={props.gear} />
+      <PlayerHeader mode={props.mode} summary={props.desktopSummary} onHome={props.onHome} hp={props.hp} maxHp={props.maxHp} location={props.location} potions={props.potions} loadout={props.loadout} omen={props.omen} omenHint={props.omenHint} omenDetails={props.omenDetails} gear={props.gear} rivalStatus={props.rivalStatus} stableFrame={props.room !== undefined} />
       <div className={styles.encounter}>
-        {props.room !== undefined && <RoomProgress room={props.room} />}
+        {props.room !== undefined && <RoomProgress room={props.room} roomsCleared={props.roomsCleared} />}
         <div className={styles.enemy} data-boss={Boolean(props.enemy.isBoss)} aria-label={`Enemy health ${props.enemy.hp} of ${props.enemy.maxHp}`}>
           <div><h2>{props.enemy.name}</h2><b>{props.enemy.hp}/{props.enemy.maxHp}</b></div>
           <i><em style={{ width: percent(props.enemy.hp, props.enemy.maxHp) }} /></i>

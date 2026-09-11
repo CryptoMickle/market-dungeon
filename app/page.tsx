@@ -1,5 +1,5 @@
-import MarketDungeon from './market-dungeon';
+import DungeonHome from './dungeon-home';
 
 export default function Home() {
-  return <MarketDungeon />;
+  return <DungeonHome />;
 }

@@ -30,8 +30,7 @@ test('Full Expedition actual five-minute lock, settlement and wrong-omen rematch
   await record('candidate', { baseURL, independentRuns: 2, direction: ['UP', 'DOWN'] });
   try {
     await Promise.all(pages.map(async (page, index) => {
-      await page.goto('/?automation=1');
-      await page.getByRole('button', { name: 'ENTER THE DUNGEON', exact: true }).click();
+      await page.goto('/expedition?automation=1');
       await expect(page.getByRole('region', { name: 'Combat view' })).toHaveCount(0);
       const before = await saved(page);
       expect(before.run.phase).toBe('boss-lock-required');

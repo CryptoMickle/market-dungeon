@@ -1,7 +1,7 @@
 import { readFile } from 'node:fs/promises';
 
 import { expect, test, type BrowserContext, type Page } from '@playwright/test';
-import { playJudgeGuard, playJudgeBoss } from './judge-play';
+import { playJudgeGuard, playJudgeBoss, openJudgeProof } from './judge-play';
 
 import type { JudgeCombatAction } from '../../app/judge-combat';
 import { SOMNIA_MAINNET_RPC } from '../../app/onchain-settlement-proof';
@@ -95,14 +95,14 @@ async function emulateIOSImageMenu(page: Page, ipad = false) {
 
 async function completeJudgeDemo(page: Page) {
   await page.goto('/judge?automation=1');
-  await page.getByRole('button', { name: 'LOCK OMEN & SEAL REPLAY' }).click();
+  await page.getByRole('button', { name: 'LOCK BTC UP & ENTER DUNGEON' }).click();
   await playJudgeGuard(page);
-  await page.getByRole('button', { name: '👑 ENTER FINAL BOSS' }).click();
+  await page.getByRole('button', { name: 'ENTER FINAL BOSS' }).click();
   await playJudgeBoss(page);
-  const reveal = page.getByRole('button', { name: '🔮 REVEAL BOSS FATE' });
+  const reveal = page.getByRole('button', { name: 'REVEAL BOSS FATE' });
   await expect(reveal).toBeEnabled();
   await reveal.click();
-  await expect(page.getByText('JUDGE DEMO COMPLETE · ONCHAIN RESULT VERIFIED · BLESSED')).toBeVisible();
+  await expect(page.getByRole('region', { name: 'Choice, market result and boss fate', exact: true })).toHaveAttribute('data-outcome', 'BLESSED');
 }
 
 async function expectNoHorizontalOverflow(page: Page) {
@@ -444,17 +444,20 @@ test('completed mobile Judge result is truthful, ordered, and portable into the 
   await completeJudgeDemo(page);
 
   await expect.poll(async () => {
-    const box = await page.getByText('JUDGE DEMO COMPLETE · ONCHAIN RESULT VERIFIED · BLESSED').boundingBox();
+    const box = await page.getByRole('heading', { name: 'Your omen holds.', exact: true }).boundingBox();
     return Boolean(box && box.y >= 0 && box.y + box.height <= 844);
   }).toBe(true);
 
   const portableProof = page.getByRole('region', { name: 'Portable run verification' });
-  const dreamDex = page.locator('.dreamdex-continue');
+  const dreamDex = page.getByRole('region', { name: 'Continue on dreamDEX', exact: true });
   const share = page.getByRole('region', { name: 'Share your Market Dungeon result' });
   const rawProof = page.locator('.proof-revealed');
 
-  await expect(portableProof).toBeVisible();
+  // Technical evidence starts collapsed below sharing and continuation.
+  await expect(portableProof).not.toBeVisible();
   await expect(dreamDex).toBeVisible();
+  await openJudgeProof(page);
+  await expect(portableProof).toBeVisible();
   await expect(share).toContainText('FINAL-TIER JUDGE REPLAY · 2/2 REPLAY ENCOUNTERS');
   await expect(share).not.toContainText(/ROOM 40\/40|DUNGEON CONQUERED/);
   await expect(page.getByAltText('Market Dungeon Judge Replay share card: 2 of 2 replay encounters')).toBeVisible();
@@ -463,8 +466,8 @@ test('completed mobile Judge result is truthful, ordered, and portable into the 
   expect(await page.evaluate(() => {
     const selectors = [
       '.run-share-panel',
+      '[aria-label="Continue on dreamDEX"]',
       '.portable-proof-panel',
-      '.dreamdex-continue',
       '.proof-revealed',
     ];
     const nodes = selectors.map((selector) => document.querySelector(selector));
