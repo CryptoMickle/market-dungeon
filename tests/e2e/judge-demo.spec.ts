@@ -795,7 +795,6 @@ test('desktop arrows and Enter navigate combat and dialogs without repeated acti
 test('mobile and desktop room progress follows the current tier through room, boss and next-tier combat', async ({ page }, info) => {
   await installDeterministicUpstreams(page);
   await page.setViewportSize({ width: 390, height: 664 });
-  await page.goto('/expedition');
   for (const room of [1, 5, 10, 11, 20, 40]) {
     const state = uiParitySession({ roomsCleared: room - 1, monsterType: room % 10 === 0 ? 3 : 0 });
     state.run.phase = room % 10 === 0 ? 'boss-combat' : 'exploring';
@@ -806,8 +805,7 @@ test('mobile and desktop room progress follows the current tier through room, bo
     state.run.attemptNumber = state.run.settlements.length + 1;
     state.run.usedMarketIds = state.run.settlements.map(item => item.marketId);
     state.run.resolvedAttemptIds = state.run.settlements.map(item => item.attemptId);
-    await page.evaluate(({ key, value }) => localStorage.setItem(key, value), { key: FULL_RUN_STORAGE_KEY, value: serializeFullRunSession(state) });
-    await page.reload();
+    await restoreFullRunFixture(page, serializeFullRunSession(state));
     const current = (room - 1) % 10 + 1;
     const progress = page.getByRole('list', { name: `Room progress: tier ${Math.ceil(room / 10)}, room ${current} of 10`, exact: true });
     await expect(progress.getByRole('listitem')).toHaveCount(10);
@@ -836,12 +834,10 @@ test('mobile and desktop room progress follows the current tier through room, bo
 
 test('shared player dashboard stays compact and separates omen and Gear from the encounter', async ({ page }, info) => {
   await installDeterministicUpstreams(page);
-  await page.goto('/expedition');
   for (const width of [320, 390, 820, 1280, 1920]) {
     await page.setViewportSize({ width, height: width <= 390 ? 568 : width === 1920 ? 1080 : 720 });
     const active = uiParitySession({ hp: 81, potions: 2, gold: 83, weaponLevel: 2, armorLevel: 1 });
-    await page.evaluate(({ key, value }) => localStorage.setItem(key, value), { key: FULL_RUN_STORAGE_KEY, value: serializeFullRunSession(active) });
-    await page.reload();
+    await restoreFullRunFixture(page, serializeFullRunSession(active));
     const status = page.getByRole('region', { name: 'Player status', exact: true });
     await expect(status).toHaveCount(1);
     if (width < 800) await expect(status.getByRole('button', { name: /GEAR/ })).toBeInViewport({ ratio: 1 });
@@ -919,11 +915,9 @@ test('shared player dashboard stays compact and separates omen and Gear from the
 for (const width of [390, 1280]) test(`Full Expedition logo returns home without losing the run at ${width}px`, async ({ page }) => {
   await installDeterministicUpstreams(page);
   await page.setViewportSize({ width, height: 844 });
-  await page.goto('/expedition');
   for (const monsterHp of [30, 0]) {
     const value = serializeFullRunSession(uiParitySession({ hp: 63, potions: 2, monsterHp }));
-    await page.evaluate(({ key, value }) => localStorage.setItem(key, value), { key: FULL_RUN_STORAGE_KEY, value });
-    await page.reload();
+    await restoreFullRunFixture(page, value);
     const home = page.getByRole('button', { name: 'Market Dungeon — back to home', exact: true });
     await expect(home).toBeVisible();
     const before = await page.evaluate(key => localStorage.getItem(key), FULL_RUN_STORAGE_KEY);
@@ -997,7 +991,6 @@ test('relic loadout follows the market disclosure and supports arrow navigation'
   const now = Math.floor(Date.now() / 1000);
   await page.route('**/api/market?interval=300', route => route.fulfill({ json: { market: { ...market, marketId: `0x${'56'.repeat(32)}`, finalized: false, status: 'Trading', tradingStart: String(now), expiry: String(now + 300) } } }));
   await page.setViewportSize({ width: 1280, height: 900 });
-  await page.goto('/expedition');
   const session = uiParitySession({ monsterHp: 0, roomsCleared: 10, ownedRelics: [3], equippedRelic: 3 });
   session.run.phase = 'boss-lock-required';
   session.run.currentAttempt = null;
@@ -1005,8 +998,7 @@ test('relic loadout follows the market disclosure and supports arrow navigation'
   session.run.resolvedAttemptIds = ['ui_parity_1'];
   session.run.settlements = [{ attemptId: 'ui_parity_1', marketId: market.marketId, direction: 'UP', proofVersion: FULL_RUN_MARKET_PROOF_VERSION, commitment: null, outcome: 'BLESSED' }];
   session.market = null;
-  await page.evaluate(({ key, value }) => localStorage.setItem(key, value), { key: FULL_RUN_STORAGE_KEY, value: serializeFullRunSession(session) });
-  await page.reload();
+  await restoreFullRunFixture(page, serializeFullRunSession(session));
   const summary = page.locator('summary').filter({ hasText: 'CHANGE / UNEQUIP RELIC' });
   await expect(summary).toBeVisible();
   const disclosure = page.getByText('Active dreamDEX BTC 5m market · local direction lock · direct Somnia settlement proof · no wallet, order or transaction', { exact: true });
