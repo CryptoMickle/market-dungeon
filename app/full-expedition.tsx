@@ -264,8 +264,12 @@ export default function FullExpedition({ localAgents = false, autoEnter = false 
   const rivalOutcome: RivalOutcome | undefined = rivalSettlement
     ? rivalSettlement.outcome === 'VOID' ? 'VOID' : rivalSettlement.outcome === 'BLESSED' ? rivalSettlement.direction : rivalSettlement.direction === 'UP' ? 'DOWN' : 'UP'
     : undefined;
+  const wantsRivalWallet = localAgents && rival.mode === 'somnia';
+  const needsRivalWallet = wantsRivalWallet && !rival.walletReady;
+  const connectingRivalWallet = wantsRivalWallet && rival.wallet.status === 'connecting';
   const rivalProps = { mode: rival.mode, onModeChange: rival.setMode, round: rivalRound,
-    playerDirection: selectedRivalAttempt?.direction, marketOutcome: rivalOutcome, canConfigure: !run?.currentAttempt };
+    playerDirection: selectedRivalAttempt?.direction, marketOutcome: rivalOutcome, canConfigure: !run?.currentAttempt,
+    wallet: rival.wallet, walletOpenLink: rival.walletOpenLink, onConnectWallet: rival.connectWallet };
   const rivalPanel = localAgents && <KevinRivalPanel {...rivalProps} />;
   const rivalStatus = localAgents && <KevinRivalStatus {...rivalProps}>
     {rivalPanel}
@@ -407,6 +411,10 @@ export default function FullExpedition({ localAgents = false, autoEnter = false 
 
   function lockActiveOmen() {
     if (!session || session.run.phase !== 'boss-lock-required' || busy) return;
+    if (needsRivalWallet) {
+      setNotice('Connect MetaMask before locking an omen with the real Somnia agent. Your omen is still unlocked.');
+      return;
+    }
     const lockedAt = Math.floor(Date.now() / 1_000);
     const active = activeFiveMinuteMarket(marketCandidate, lockedAt);
     if (!active) {
@@ -628,9 +636,21 @@ export default function FullExpedition({ localAgents = false, autoEnter = false 
                   <button aria-pressed={direction === 'DOWN'} className={direction === 'DOWN' ? styles.downSelected : ''} onClick={() => setDirection('DOWN')}><b>🌑 SHADOWS RISE</b><small>BTC DOWN</small></button>
                 </div>
                 {!run.rematchRequired && <OmenGuide mode="expedition" />}
-                <button className={styles.primary} onClick={lockActiveOmen} disabled={busy || !marketCandidate || candidateRemaining <= 0}>{run.rematchRequired ? `LOCK BTC ${direction} · REMATCH BOSS` : `LOCK BTC ${direction} · ENTER TIER ${tier}`}</button>
-                <small className={styles.disclosure}>{localAgents && rival.mode === 'somnia'
-                  ? 'The dungeon is free to play. Kevin’s optional Somnia Agent request asks for a testnet STT deposit and a wallet signature. Declining does not stop your expedition.'
+                <button className={styles.primary} onClick={needsRivalWallet ? () => { void rival.connectWallet(); } : lockActiveOmen}
+                  disabled={busy || connectingRivalWallet || (!needsRivalWallet && (!marketCandidate || candidateRemaining <= 0))}>
+                  {needsRivalWallet ? connectingRivalWallet ? 'CONNECTING TO METAMASK…' : 'CONNECT METAMASK FIRST'
+                    : run.rematchRequired ? `LOCK BTC ${direction} · REMATCH BOSS` : `LOCK BTC ${direction} · ENTER TIER ${tier}`}
+                </button>
+                {connectingRivalWallet && rival.walletOpenLink && <a className={styles.secondary} href={rival.walletOpenLink}>OPEN METAMASK</a>}
+                {wantsRivalWallet && <small className={styles.disclosure} role="status">
+                  {rival.walletReady
+                    ? 'MetaMask connected. Your omen is still unlocked. Lock when ready, then approve Kevin’s testnet request.'
+                    : connectingRivalWallet ? 'Open MetaMask, approve the connection and Shannon testnet if asked, then return to Safari. Connecting does not lock your omen or send STT.'
+                      : 'Connect MetaMask before you lock. On iPhone, approve in the MetaMask app and return to this game in Safari.'}
+                </small>}
+                {wantsRivalWallet && rival.wallet.error && <small className={styles.disclosure} role="alert">{rival.wallet.error} Your omen is still unlocked.</small>}
+                <small className={styles.disclosure}>{wantsRivalWallet
+                  ? 'The dungeon is free to play. After you lock, Kevin’s optional agent request asks for a testnet STT deposit plus gas. You approve it in MetaMask; declining leaves the expedition playable.'
                   : 'Active dreamDEX BTC 5m market · local direction lock · direct Somnia settlement proof · no wallet, order or transaction'}</small>
                 {run.rematchRequired && <>
                   <RecoverySupplies hp={game.hp} maxHp={game.maxHp} potions={game.potions} />

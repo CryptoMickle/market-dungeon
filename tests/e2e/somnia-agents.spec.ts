@@ -278,23 +278,37 @@ test('existing settled boss fixtures show the correct rival verdict and keep sim
   expect((await savedRun(page))!.run.settlements).toEqual(fixture.session.run.settlements);
 });
 
-test('Somnia mode without a wallet reports the missing wallet and keeps combat running', async ({ page }) => {
-  await page.addInitScript(() => { delete (window as unknown as { ethereum?: unknown }).ethereum; });
+test('declining MetaMask connection leaves the omen unlocked and allows simulated play', async ({ page }) => {
+  await page.addInitScript(() => {
+    // An injected rejection exercises the connection boundary without loading the SDK or contacting its relay.
+    (window as unknown as { ethereum: { request: (input: { method: string }) => Promise<unknown> } }).ethereum = {
+      request: async ({ method }) => {
+        if (method !== 'eth_requestAccounts') throw new Error(`Unexpected wallet request: ${method}`);
+        throw Object.assign(new Error('User declined connection'), { code: 4001 });
+      },
+    };
+  });
   const fixture = await installFixtures(page, 'wallet');
-  await enterAndLock(page, 'somnia');
-  await expect(page.getByRole('button', { name: /^Somnia Agent Kevin:/ })).toContainText(/sits|sitting/i);
-  expect(fixture.requests.find(request => request.action === 'prepare')?.mode).toBe('somnia');
+  await page.goto('/somnia-agents');
   const panel = await openRivalDetails(page);
+  await panel.getByRole('button', { name: 'SOMNIA AGENTS Testnet wallet + STT fee', exact: true }).click();
+  await panel.getByRole('button', { name: 'CONNECT METAMASK', exact: true }).click();
   await expect(panel).toContainText('SOMNIA AGENTS · TESTNET');
-  await panel.getByText('Request details', { exact: true }).click();
-  await expect(panel).toContainText('A browser wallet is needed for a real Somnia request.');
+  await expect(panel).toContainText('Connection declined. Your omen is still unlocked.');
   await expect(panel).not.toContainText('RIVAL RESULT');
+  expect((await savedRun(page))!.run.phase).toBe('boss-lock-required');
+  expect((await savedRun(page))!.run.currentAttempt).toBeNull();
+  expect(fixture.requests).toHaveLength(0);
+  await expect(page.getByRole('region', { name: 'Combat actions', exact: true })).toHaveCount(0);
+  await panel.getByRole('button', { name: 'TRY LOCALLY Random test rival · no wallet', exact: true }).click();
   await page.getByRole('dialog', { name: 'Somnia Agent Kevin', exact: true }).getByRole('button', { name: 'Close details', exact: true }).click();
+  await page.getByRole('button', { name: 'LOCK BTC UP · ENTER TIER 1', exact: true }).click();
   const attack = page.getByRole('region', { name: 'Combat actions', exact: true }).getByRole('button', { name: /ATTACK/ });
   await expect(attack).toBeEnabled();
   await attack.click();
   await expect.poll(async () => (await savedRun(page))!.run.game.lastPlayerDamage).toBeGreaterThan(0);
   expect(fixture.requests.filter(request => request.action === 'prepare')).toHaveLength(1);
+  expect(fixture.requests.find(request => request.action === 'prepare')?.mode).toBe('simulation');
 });
 
 test('the permanent rival status preserves visible combat controls and a large monster without horizontal scrolling', async ({ page }, info) => {
@@ -572,8 +586,15 @@ test('narrow desktop status keeps Kevin text inside its button before lock and d
   await page.setViewportSize({ width: 820, height: 1000 });
   await installFixtures(page, 'wallet');
   await page.addInitScript(() => {
-    // Hold a fake wallet prompt open; no real wallet or transaction is contacted.
-    (window as unknown as { ethereum: { request: () => Promise<never> } }).ethereum = { request: () => new Promise<never>(() => {}) };
+    // Connect successfully, then hold only the paid request open. No real wallet or transaction is contacted.
+    (window as unknown as { ethereum: { request: (input: { method: string }) => Promise<unknown> } }).ethereum = {
+      request: async ({ method }) => {
+        if (method === 'eth_requestAccounts' || method === 'eth_accounts') return [`0x${'ab'.repeat(20)}`];
+        if (method === 'eth_chainId') return '0xc488';
+        if (method === 'eth_sendTransaction') return new Promise<never>(() => {});
+        throw new Error(`Unexpected wallet request: ${method}`);
+      },
+    };
   });
   async function measure(label: string) {
     const status = rivalStatus(page);
@@ -608,6 +629,9 @@ test('narrow desktop status keeps Kevin text inside its button before lock and d
   await page.getByRole('dialog', { name: 'Somnia Agent Kevin', exact: true }).getByRole('button', { name: 'Close details', exact: true }).click();
   await expect(rivalStatus(page)).toHaveAttribute('aria-label', 'Somnia Agent Kevin: Not locked yet');
   await measure('before-lock');
+  await page.getByRole('button', { name: 'CONNECT METAMASK FIRST', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'LOCK BTC UP · ENTER TIER 1', exact: true })).toBeEnabled();
+  expect((await savedRun(page))!.run.currentAttempt).toBeNull();
   await page.getByRole('button', { name: 'LOCK BTC UP · ENTER TIER 1', exact: true }).click();
   await expect(rivalStatus(page)).toHaveAttribute('aria-label', 'Somnia Agent Kevin: Wallet approval');
   await measure('wallet-approval');

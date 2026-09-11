@@ -1,6 +1,6 @@
 import type { RivalTransaction } from './types.ts';
+import { getConnectedKevinWallet, type KevinWalletProvider } from './metamask-connect.ts';
 
-type InjectedWallet = { request: (input: { method: string; params?: unknown[] }) => Promise<unknown> };
 const CHAIN_ID = '0xc488'; // Shannon testnet, 50312. Never mainnet.
 const PLATFORM = '0x037bb9c718f3f7fe5ecbdb0b600d607b52706776';
 
@@ -12,18 +12,8 @@ export function validateKevinTransaction(transaction: RivalTransaction): void {
   }
 }
 
-// Called exclusively from an explicit Somnia-mode omen lock. Polling, restores and
-// simulation never invoke this function. The wallet always asks the user to sign.
-export async function sendKevinRequest(transaction: RivalTransaction, cutoff: number, provider?: InjectedWallet): Promise<string> {
-  validateKevinTransaction(transaction);
-  const wallet = provider ?? (typeof window !== 'undefined' ? (window as unknown as { ethereum?: InjectedWallet }).ethereum : undefined);
-  if (!wallet) throw new Error('A browser wallet is needed for a real Somnia request. On iPhone, open this preview in your wallet’s built-in browser, or choose simulated Kevin in Safari for your next omen. Kevin sits out this round; your expedition continues.');
-  const checkDeadline = () => {
-    if (Math.floor(Date.now() / 1_000) >= cutoff) throw new Error('The rival cutoff passed. Kevin sits out; your expedition continues.');
-  };
-  checkDeadline();
-  const accounts = await wallet.request({ method: 'eth_requestAccounts' });
-  if (!Array.isArray(accounts) || typeof accounts[0] !== 'string' || !/^0x[0-9a-f]{40}$/i.test(accounts[0])) throw new Error('No wallet account selected. Kevin sits out this round.');
+// Connection preflight and submission both verify the exact testnet.
+export async function ensureKevinWalletNetwork(wallet: KevinWalletProvider): Promise<void> {
   if (String(await wallet.request({ method: 'eth_chainId' })).toLowerCase() !== CHAIN_ID) {
     try {
       await wallet.request({ method: 'wallet_switchEthereumChain', params: [{ chainId: CHAIN_ID }] });
@@ -37,6 +27,24 @@ export async function sendKevinRequest(transaction: RivalTransaction, cutoff: nu
     }
   }
   if (String(await wallet.request({ method: 'eth_chainId' })).toLowerCase() !== CHAIN_ID) throw new Error('Wallet is not on Shannon testnet. No agent transaction was requested.');
+}
+
+// Only an explicit Somnia-mode omen lock invokes a transaction. Restores never do.
+export async function sendKevinRequest(transaction: RivalTransaction, cutoff: number, provider?: KevinWalletProvider, expectedAccount?: string): Promise<string> {
+  validateKevinTransaction(transaction);
+  const wallet = provider ?? getConnectedKevinWallet();
+  if (!wallet) throw new Error('Connect MetaMask before locking your next omen. Kevin sits out this round; your expedition continues.');
+  const checkDeadline = () => {
+    if (Math.floor(Date.now() / 1_000) >= cutoff) throw new Error('The rival cutoff passed. Kevin sits out; your expedition continues.');
+  };
+  checkDeadline();
+  await ensureKevinWalletNetwork(wallet);
+  // A preconnected account is read without opening another connection prompt.
+  // The optional permission path is retained for independently supplied providers.
+  const accounts = await wallet.request({ method: expectedAccount ? 'eth_accounts' : 'eth_requestAccounts' });
+  if (!Array.isArray(accounts) || typeof accounts[0] !== 'string' || !/^0x[0-9a-f]{40}$/i.test(accounts[0])) throw new Error('No wallet account selected. Kevin sits out this round.');
+  if (expectedAccount && accounts[0].toLowerCase() !== expectedAccount.toLowerCase()) throw new Error('The connected wallet account changed. No agent transaction was requested. Connect again before your next omen.');
+  if (String(await wallet.request({ method: 'eth_chainId' })).toLowerCase() !== CHAIN_ID) throw new Error('Wallet left Shannon testnet. No agent transaction was requested.');
   checkDeadline();
   const txHash = await wallet.request({ method: 'eth_sendTransaction', params: [{
     from: accounts[0], to: transaction.to, data: transaction.data, value: transaction.value, chainId: CHAIN_ID,

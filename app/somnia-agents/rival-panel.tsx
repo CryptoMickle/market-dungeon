@@ -7,6 +7,11 @@ import styles from './rival-panel.module.css';
 
 type Direction = 'UP' | 'DOWN';
 type Outcome = Direction | 'VOID';
+type WalletConnection = {
+  status: 'disconnected' | 'connecting' | 'connected' | 'error';
+  account?: string;
+  error?: string;
+};
 
 export type KevinRivalPanelProps = {
   mode: RivalMode;
@@ -16,6 +21,9 @@ export type KevinRivalPanelProps = {
   marketOutcome?: Outcome;
   canConfigure?: boolean;
   compact?: boolean;
+  wallet?: WalletConnection;
+  onConnectWallet?: () => Promise<void>;
+  walletOpenLink?: string;
 };
 
 function roundStatus(round: RivalRound | null) {
@@ -38,7 +46,7 @@ function outcomeText(result: ReturnType<typeof compareRival>) {
   }
 }
 
-export function KevinRivalPanel({ mode, onModeChange, round, playerDirection, marketOutcome, canConfigure = false, compact = false }: KevinRivalPanelProps) {
+export function KevinRivalPanel({ mode, onModeChange, round, playerDirection, marketOutcome, canConfigure = false, compact = false, wallet, onConnectWallet, walletOpenLink }: KevinRivalPanelProps) {
   const hosted = useAgentsEnvironment() === 'preview';
   const executionMode = round?.mode ?? mode;
   const simulated = executionMode === 'simulation';
@@ -76,9 +84,25 @@ export function KevinRivalPanel({ mode, onModeChange, round, playerDirection, ma
       </button>
     </fieldset>}
 
-    {!simulated && <p className={styles.supporting}>
-      On iPhone, open this preview in your wallet’s built-in browser to approve a testnet request. In Safari, choose Simulated Kevin to play without a wallet.
-    </p>}
+    {mode === 'somnia' && canConfigure && wallet && onConnectWallet && <section className={`${styles.modeNotice} ${styles.somniaNotice}`} aria-label="MetaMask connection">
+      <strong>{wallet.status === 'connected' ? 'METAMASK CONNECTED' : 'CONNECT BEFORE YOU LOCK YOUR OMEN'}</strong>
+      {wallet.status === 'connected' ? <>
+        {wallet.account && <span title={wallet.account}>{wallet.account.slice(0, 6)}…{wallet.account.slice(-4)}</span>}
+        <span>Your omen is still unlocked. Close Details and lock when ready; then approve Kevin’s testnet STT request in MetaMask.</span>
+      </> : <>
+        <span>Connecting shares your wallet address. It does not send STT or lock your omen.</span>
+        <button type="button" className={styles.lockButton} disabled={wallet.status === 'connecting'} onClick={() => { void onConnectWallet(); }}>
+          {wallet.status === 'connecting' ? 'CONNECTING TO METAMASK…' : wallet.status === 'error' ? 'RETRY METAMASK CONNECTION' : 'CONNECT METAMASK'}
+        </button>
+        <span role="status">{wallet.status === 'connecting'
+          ? 'Approve the connection and Shannon testnet if asked in MetaMask, then return to Safari. Your omen will remain unlocked.'
+          : 'On iPhone: keep this game in Safari, connect to the MetaMask app, approve there, then return here.'}</span>
+        {wallet.error && <span role="alert">{wallet.error}</span>}
+      </>}
+      <span>MetaMask may also list Ethereum in connection permissions. Kevin’s paid request is restricted to Somnia Shannon testnet.</span>
+    </section>}
+
+    {!simulated && walletOpenLink && (wallet?.status === 'connecting' || round?.status === 'awaiting-wallet') && <a className={styles.lockButton} href={walletOpenLink}>OPEN METAMASK</a>}
 
     {round && <div className={styles.round}>
       <div className={styles.status} role="status" aria-live="polite">
@@ -87,7 +111,7 @@ export function KevinRivalPanel({ mode, onModeChange, round, playerDirection, ma
       </div>
       {(pending || round.status === 'awaiting-wallet') && <p className={styles.supporting}>
         {round.status === 'awaiting-wallet'
-          ? 'Approve the testnet request in your wallet to invite Kevin. Your expedition can continue without him.'
+          ? 'Approve the testnet request in MetaMask, then return to Safari. Your expedition can continue without Kevin.'
           : 'Keep fighting. Kevin’s answer must arrive before the rival cutoff, 10 seconds before the market closes.'}
       </p>}
       {round.status === 'unavailable' && <p className={styles.supporting}>{round.reason ?? 'No valid answer was locked in time.'} Your expedition, boss fight and rewards continue as usual.</p>}

@@ -68,7 +68,7 @@ async function installTransport(page: Page, wallet: boolean) {
   return { requests, answer: () => { answerAvailable = true; } };
 }
 
-async function lock(page: Page, wallet: boolean) {
+async function chooseOmen(page: Page, wallet: boolean) {
   await page.goto('/somnia-agents');
   if (wallet) {
     const dialog = await openDetails(page);
@@ -76,8 +76,51 @@ async function lock(page: Page, wallet: boolean) {
     await dialog.getByRole('button', { name: 'Close details', exact: true }).click();
   }
   await page.getByRole('button', { name: /SHADOWS RISE/ }).click();
+}
+
+async function lock(page: Page, wallet: boolean) {
+  await chooseOmen(page, wallet);
+  if (wallet) await page.getByRole('button', { name: 'CONNECT METAMASK FIRST', exact: true }).click();
   await page.getByRole('button', { name: 'LOCK BTC DOWN · ENTER TIER 1', exact: true }).click();
   await expect(combat(page)).toBeVisible();
+}
+
+async function installWallet(page: Page, rejectFirstConnection = false) {
+  await page.addInitScript(({ key, hash, rejectFirstConnection }) => {
+    // This injected provider exercises the connection/lock boundary without a real
+    // wallet, account or RPC. It does not claim to test MetaMask mobile app handoff.
+    (window as unknown as { ethereum: { request: (input: { method: string; params?: unknown[] }) => Promise<unknown> } }).ethereum = {
+      request: async input => {
+        const calls = JSON.parse(sessionStorage.getItem(key) ?? '[]') as Array<{ method: string }>;
+        calls.push(input);
+        sessionStorage.setItem(key, JSON.stringify(calls));
+        const account = `0x${'19'.repeat(20)}`;
+        if (input.method === 'eth_requestAccounts') {
+          if (rejectFirstConnection && calls.filter(call => call.method === 'eth_requestAccounts').length === 1) {
+            throw Object.assign(new Error('User rejected the controlled connection request.'), { code: 4001 });
+          }
+          sessionStorage.setItem(`${key}/connected`, 'yes');
+          return [account];
+        }
+        if (input.method === 'eth_accounts') return sessionStorage.getItem(`${key}/connected`) === 'yes' ? [account] : [];
+        if (input.method === 'eth_chainId') return '0xc488';
+        if (input.method === 'eth_sendTransaction') return hash;
+        throw new Error(`Unexpected synthetic wallet method: ${input.method}`);
+      },
+    };
+  }, { key: WALLET_CALLS, hash: TX_HASH, rejectFirstConnection });
+}
+
+async function walletCalls(page: Page) {
+  return page.evaluate(key => JSON.parse(sessionStorage.getItem(key) ?? '[]') as Array<{ method: string; params?: Array<Record<string, unknown>> }>, WALLET_CALLS);
+}
+
+async function expectOmenUnlocked(page: Page) {
+  await expect(combat(page)).toHaveCount(0);
+  await expect(status(page)).toHaveAccessibleName('Somnia Agent Kevin: Not locked yet');
+  const saved = await page.evaluate(key => JSON.parse(localStorage.getItem(key) ?? 'null'), RUN_KEY);
+  expect(saved?.run.phase).toBe('boss-lock-required');
+  expect(saved?.run.currentAttempt).toBeNull();
 }
 
 test.beforeEach(async ({ page }) => {
@@ -140,28 +183,29 @@ test('opaque rival ticket survives status rotation and reload without preparing 
   await expect.poll(async () => (await savedRound(page))?.ticket).toBe(TICKET_B);
 });
 
-test('a submitted wallet request retains its exact hash and opaque ticket after reload without another wallet send', async ({ page }) => {
+test('connecting MetaMask leaves the omen unlocked; a separate lock sends once and reload retains its exact hash and ticket', async ({ page }) => {
   const fixture = await installTransport(page, true);
-  await page.addInitScript(({ key, hash }) => {
-    // Entirely synthetic provider. No wallet extension, account or RPC is used.
-    (window as unknown as { ethereum: { request: (input: { method: string; params?: unknown[] }) => Promise<unknown> } }).ethereum = {
-      request: async input => {
-        const calls = JSON.parse(sessionStorage.getItem(key) ?? '[]') as unknown[];
-        calls.push(input);
-        sessionStorage.setItem(key, JSON.stringify(calls));
-        if (input.method === 'eth_requestAccounts') return [`0x${'19'.repeat(20)}`];
-        if (input.method === 'eth_chainId') return '0xc488';
-        if (input.method === 'eth_sendTransaction') return hash;
-        throw new Error(`Unexpected synthetic wallet method: ${input.method}`);
-      },
-    };
-  }, { key: WALLET_CALLS, hash: TX_HASH });
-  await lock(page, true);
+  await installWallet(page);
+  await chooseOmen(page, true);
+  const connect = page.getByRole('button', { name: 'CONNECT METAMASK FIRST', exact: true });
+  await expect(connect).toBeEnabled();
+  expect(fixture.requests).toHaveLength(0);
+  expect((await walletCalls(page)).filter(call => ['eth_requestAccounts', 'eth_sendTransaction'].includes(call.method))).toHaveLength(0);
+  await connect.click();
+  const lockOmen = page.getByRole('button', { name: 'LOCK BTC DOWN · ENTER TIER 1', exact: true });
+  await expect(lockOmen).toBeEnabled();
+  await expectOmenUnlocked(page);
+  expect(fixture.requests).toHaveLength(0);
+  expect((await walletCalls(page)).filter(call => call.method === 'eth_requestAccounts')).toHaveLength(1);
+  expect((await walletCalls(page)).filter(call => call.method === 'eth_sendTransaction')).toHaveLength(0);
+  await page.clock.runFor(1100);
+  expect(fixture.requests).toHaveLength(0);
+  await lockOmen.click();
+  await expect(combat(page)).toBeVisible();
   await expect.poll(async () => (await savedRound(page))?.txHash).toBe(TX_HASH);
   await expect.poll(async () => (await savedRound(page))?.ticket).toBe(TICKET_A);
   await expect.poll(() => fixture.requests.filter(request => request.action === 'status').length).toBeGreaterThan(0);
-  const walletCalls = () => page.evaluate(key => JSON.parse(sessionStorage.getItem(key) ?? '[]') as Array<{ method: string; params?: Array<Record<string, unknown>> }>, WALLET_CALLS);
-  expect((await walletCalls()).filter(call => call.method === 'eth_sendTransaction')).toHaveLength(1);
+  expect((await walletCalls(page)).filter(call => call.method === 'eth_sendTransaction')).toHaveLength(1);
   const originalAttempt = await page.evaluate(key => JSON.parse(localStorage.getItem(key)!).run.currentAttempt, RUN_KEY);
 
   await page.reload();
@@ -172,7 +216,7 @@ test('a submitted wallet request retains its exact hash and opaque ticket after 
   await expect(status(page)).toHaveAccessibleDescription('SOMNIA TESTNET');
   await expect.poll(async () => (await savedRound(page))?.ticket).toBe(TICKET_B);
   expect((await savedRound(page))?.txHash).toBe(TX_HASH);
-  expect((await walletCalls()).filter(call => call.method === 'eth_sendTransaction')).toHaveLength(1);
+  expect((await walletCalls(page)).filter(call => call.method === 'eth_sendTransaction')).toHaveLength(1);
   expect(fixture.requests.filter(request => request.action === 'prepare')).toHaveLength(1);
   const reads = fixture.requests.filter(request => request.action === 'status');
   expect(reads.length).toBeGreaterThanOrEqual(2);
@@ -180,4 +224,24 @@ test('a submitted wallet request retains its exact hash and opaque ticket after 
   expect(await page.evaluate(key => JSON.parse(localStorage.getItem(key)!).run.currentAttempt, RUN_KEY)).toEqual(originalAttempt);
   await combat(page).getByRole('region', { name: 'Combat actions', exact: true }).getByRole('button', { name: /ATTACK/ }).click();
   await expect.poll(async () => page.evaluate(key => JSON.parse(localStorage.getItem(key)!).run.game.lastPlayerDamage, RUN_KEY)).toBeGreaterThan(0);
+});
+
+test('a rejected MetaMask connection keeps the omen unlocked and can retry without preparing or sending an agent request', async ({ page }) => {
+  const fixture = await installTransport(page, true);
+  await installWallet(page, true);
+  await chooseOmen(page, true);
+  const connect = page.getByRole('button', { name: 'CONNECT METAMASK FIRST', exact: true });
+  await connect.click();
+  await expect(page.getByLabel('Expedition stage', { exact: true }).getByRole('alert')).toContainText(/rejected|declined|cancel|not connect/i);
+  await expect(connect).toBeEnabled();
+  await expectOmenUnlocked(page);
+  expect(fixture.requests).toHaveLength(0);
+  expect((await walletCalls(page)).filter(call => call.method === 'eth_sendTransaction')).toHaveLength(0);
+
+  await connect.click();
+  await expect(page.getByRole('button', { name: 'LOCK BTC DOWN · ENTER TIER 1', exact: true })).toBeEnabled();
+  await expectOmenUnlocked(page);
+  expect(fixture.requests).toHaveLength(0);
+  expect((await walletCalls(page)).filter(call => call.method === 'eth_requestAccounts')).toHaveLength(2);
+  expect((await walletCalls(page)).filter(call => call.method === 'eth_sendTransaction')).toHaveLength(0);
 });

@@ -137,6 +137,7 @@
 .commitment b, .commitment code { display: block; margin-top: 5px; }
 .commitment code { overflow-wrap: anywhere; color: #c4b5fd; font-size: 8px; }
 .secondary { min-height: 42px; margin-top: 13px; border-color: #3f3f46; background: #18181b; box-shadow: none; }
+a.secondary { display: flex; align-items: center; justify-content: center; min-height: 48px; text-decoration: none; }
 .recoveryPotion { min-height: 48px; background: #d1fae5; border-color: #a7f3d0; color: #064e3b; }
 .shell .recoveryPotion:disabled { background: #25352f; border-color: #486154; color: #b8c9c0; opacity: 1; }
 .merchant { margin-top: 17px; padding: 12px; border: 1px solid #44403c; border-radius: 13px; background: rgba(0,0,0,.28); text-align: left; }

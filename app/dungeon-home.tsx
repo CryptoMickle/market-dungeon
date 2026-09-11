@@ -53,7 +53,7 @@ const descriptions = {
     intro: 'Play the full adventure with Kevin as your prediction rival. His call stays beside yours in the status bar while you fight.',
     points: ['You both face the same market. Kevin’s choice does not change your combat or boss result.', 'Compare your calls after settlement. Bragging rights are the prize.'],
     facts: ['40 rooms', 'Kevin as rival', 'Live · 5 min'],
-    note: 'Local simulation needs no wallet. For a real Somnia testnet agent, open Kevin’s Details before locking; a testnet wallet and STT are required.',
+    note: 'Local simulation needs no wallet. For a real Somnia testnet agent, open Kevin’s Details and connect MetaMask before locking. The agent request uses testnet STT.',
   },
 } as const;
 
@@ -69,7 +69,7 @@ export default function DungeonHome() {
   const content = mode === 'agents' && agentsEnvironment === 'preview' ? {
     ...baseContent,
     eyebrow: 'SOMNIA AGENTS · PREVIEW',
-    note: 'Starts with Simulated Kevin: random, no AI or wallet. For a real Somnia testnet agent, open Kevin’s Details before locking. A wallet browser and testnet STT are required.',
+    note: 'Starts with Simulated Kevin: random, no AI or wallet. For the real testnet agent, open Kevin’s Details and connect MetaMask before locking. Works from Safari; the agent request uses testnet STT.',
   } : baseContent;
   const key = mode === 'judge' ? demo : mode ?? 'neutral';
   const resume = saved[key];

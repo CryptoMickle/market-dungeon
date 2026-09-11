@@ -1,13 +1,15 @@
 import type { NextConfig } from 'next';
 
 const development = process.env.NODE_ENV === 'development';
+const agentWalletEnabled = (!process.env.VERCEL && process.env.MARKET_DUNGEON_LOCAL_AGENTS === '1')
+  || (process.env.VERCEL_ENV === 'preview' && process.env.MARKET_DUNGEON_PREVIEW_AGENTS === '1');
 const contentSecurityPolicy = [
   "default-src 'self'",
   `script-src 'self' 'unsafe-inline'${development ? " 'unsafe-eval' https://va.vercel-scripts.com" : ''}`,
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob:",
   "font-src 'self' data:",
-  `connect-src 'self' https://api.infra.mainnet.somnia.network https://api.infra.testnet.somnia.network${development ? ' ws: wss:' : ''}`,
+  `connect-src 'self' https://api.infra.mainnet.somnia.network https://api.infra.testnet.somnia.network${agentWalletEnabled ? ' wss://mm-sdk-relay.api.cx.metamask.io' : ''}${development ? ' ws: wss:' : ''}`,
   "frame-src 'none'",
   "frame-ancestors 'none'",
   "object-src 'none'",
