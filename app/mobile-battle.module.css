@@ -230,8 +230,8 @@
   .topBar .header { display: contents; }
   .topBar .header > strong { grid-column: 2; grid-row: 1/3; justify-self: center; line-height: 0; }
   .topBar .header > span { grid-column: 1; grid-row: 1; align-self: end; text-align: left; padding-bottom: 8px; }
-  /* Sound now sits beside the mode navigation, so the loadout can use its full column. */
-  .topBar .desktopSummary { grid-column: 3; grid-row: 1; align-self: end; min-width: 0; line-height: 1.65; padding: 0 0 8px; }
+  /* Reserve the floating Sound control’s width even when no mode navigation is shown. */
+  .topBar .desktopSummary { grid-column: 3; grid-row: 1; align-self: end; min-width: 0; margin-inline-end: 72px; line-height: 1.65; padding: 0 0 8px; }
   .topBar .playerStatus { grid-column: 1/-1; grid-row: 2; display: grid; grid-template-columns: subgrid; width: 100%; max-width: none; border: 0; border-radius: 0; background: none; }
   .topBar .playerStatus .player { grid-column: 3; grid-row: 1/3; width: 100%; max-width: 480px; justify-self: end; padding: 6px 12px 8px; border: 1px solid #45334c; border-radius: 12px; background: #17131e; }
   .topBar .gearButton { display: none; }
@@ -286,13 +286,16 @@
   .topBar[data-stable-frame] .omenButton { height: 100%; min-height: 0; line-height: 18px; }
 }
 @media (min-width: 801px) and (max-width: 1050px) {
+  /* Changing equipment must not shift the dashboard when its summary wraps. */
+  .topBar .desktopSummary { min-height: calc(4.95em + 8px); box-sizing: border-box; }
   .topBar[data-stable-frame] .playerStatus { grid-template-rows: 54px minmax(24px,auto); }
   .topBar[data-stable-frame]:has(.rivalStatus) .playerStatus { grid-template-rows: 54px minmax(49px,auto); }
 }
-/* Mobile: the home logo and omen above the compact resource row. */
+/* Give Home and the floating Sound control a dedicated row. The omen and
+   resource row keep their full width and position in every game phase. */
 @media (max-width: 800px) {
   .topBar { display: block; position: relative; }
-  .topBar > .header, .screen .topBar > .header { position: absolute; left: 9px; top: 1px; width: 72px; height: 44px; margin: 0; }
+  .topBar > .header, .screen .topBar > .header { position: relative; width: calc(100% - 72px); height: 44px; margin: 0 0 4px; padding-left: 9px; box-sizing: border-box; }
   .topBar .header > span, .topBar .header > small { display: none; }
   .topBar .header > strong > * { display: flex; align-items: center; width: 72px; min-height: 44px; }
   .playerStatus { display: flex; flex-direction: column; padding-top: 0; }
@@ -310,7 +313,7 @@
   .playerStatus .gearButton > span { color: #fafafa; font-size: 11px; white-space: nowrap; }
   .playerStatus .player i { margin-top: 2px; }
   .playerStatus .player { order: 1; padding-bottom: 6px; border-top: 1px solid #463252; border-radius: 0; }
-  .omenButton, .mobileMode { margin-left: 82px; width: calc(100% - 130px); min-height: 44px; border-top: 0; }
+  .omenButton, .mobileMode { margin-left: 0; width: 100%; min-height: 44px; border-top: 0; }
   .omenButton { gap: 5px; }
   .omenButton b { font-size: 10px; }
   .omenButton > span { font-size: 8px; }

@@ -68,9 +68,11 @@ async function installFixtures(page: Page, scenario: 'pending' | 'failed' | 'wal
 
 async function enterAndLock(page: Page, mode: 'simulation' | 'somnia' = 'simulation') {
   await page.goto('/somnia-agents');
-  await expect(page.getByText('LOCAL AGENTS EDITION · SOMNIA AGENT KEVIN', { exact: true })).toBeVisible();
-  if (mode === 'somnia') await page.getByRole('button', { name: 'SOMNIA AGENTS Testnet wallet + STT fee', exact: true }).click();
-  await page.getByRole('button', { name: 'ENTER THE DUNGEON', exact: true }).click();
+  if (mode === 'somnia') {
+    const panel = await openRivalDetails(page);
+    await panel.getByRole('button', { name: 'SOMNIA AGENTS Testnet wallet + STT fee', exact: true }).click();
+    await page.getByRole('dialog', { name: 'Somnia Agent Kevin', exact: true }).getByRole('button', { name: 'Close details', exact: true }).click();
+  }
   await expect(rivalStatus(page)).toHaveAttribute('aria-label', 'Somnia Agent Kevin: Not locked yet');
   await expect(rivalStatus(page)).toHaveAccessibleDescription(mode === 'somnia' ? 'SOMNIA TESTNET' : 'SIMULATED');
   await expect(page.getByTestId('kevin-rival-panel').filter({ visible: true })).toHaveCount(0);
@@ -386,7 +388,7 @@ for (const agents of [false, true]) {
     test.skip(info.project.name.includes('iphone'), 'This regression specifically covers the former missing desktop room strip.');
     const fixture = roomFixture(7);
     const requests = await installSavedFixture(page, fixture, agents);
-    await page.goto(agents ? '/somnia-agents' : '/');
+    await page.goto(agents ? '/somnia-agents' : '/expedition');
     const strip = () => page.getByRole('list', { name: /^Room progress:/ }).filter({ visible: true });
     await expect(strip()).toHaveCount(1);
     await expect(strip()).toBeVisible();
@@ -423,7 +425,7 @@ for (const agents of [false, true]) {
   test(`${agents ? 'Somnia Agent Kevin' : 'Quartermaster Kevin'} camp keeps health beside purchases and preserves the status line`, async ({ page }, info) => {
     const fixture = roomFixture(9, true);
     const requests = await installSavedFixture(page, fixture, agents);
-    await page.goto(agents ? '/somnia-agents' : '/');
+    await page.goto(agents ? '/somnia-agents' : '/expedition');
     await expect(page.getByText('CAMP BEFORE THE BOSS', { exact: true })).toBeVisible();
     const mobile = page.viewportSize()!.width <= 800;
     const supplies = page.getByRole('region', { name: mobile ? 'Supplies at Kevin' : 'Player status', exact: true });
@@ -496,44 +498,48 @@ for (const ending of ['settlement-pending', 'boss-reward', 'dead'] as const) {
 }
 
 
-test('three-mode navigation keeps ordinary and Agent expeditions separate and preserves Judge variants', async ({ page }) => {
+test('Home keeps ordinary and Agent expeditions separate and preserves Judge variants', async ({ page }) => {
   const fixture = await installFixtures(page);
   await page.route('**/api/live-judge/**', route => route.fulfill({ status: 503, json: { error: 'Navigation fixture only.' } }));
   await page.route('**/api/shannon/judge-replay/**', route => route.fulfill({ status: 503, json: { error: 'Navigation fixture only.' } }));
-  const nav = () => page.getByRole('navigation', { name: 'Choose game mode', exact: true });
-  async function check(selected: 'FULL EXPEDITION' | 'JUDGE DEMO' | 'SOMNIA AGENTS New!') {
-    await expect(nav().getByRole('link')).toHaveText(['FULL EXPEDITION', 'JUDGE DEMO', /SOMNIA AGENTS\s*New!/]);
-    await expect(nav().locator('[aria-current="page"]')).toHaveCount(1);
-    await expect(nav().getByRole('link', { name: selected, exact: true })).toHaveAttribute('aria-current', 'page');
-    for (const link of await nav().getByRole('link').all()) {
-      const box = (await link.boundingBox())!;
+  const choices = () => page.getByRole('group', { name: 'Choose your dungeon', exact: true });
+  async function home() {
+    const name = 'Market Dungeon — back to home';
+    await page.getByRole('button', { name, exact: true }).or(page.getByRole('link', { name, exact: true })).filter({ visible: true }).click();
+    await expect(choices()).toBeVisible();
+    await expect(choices().locator('input:checked')).toHaveCount(0);
+  }
+  async function choose(mode: 'Full Expedition' | 'Judge Demo' | 'Somnia Agents') {
+    await expect(choices().getByRole('radio')).toHaveCount(3);
+    for (const radio of await choices().getByRole('radio').all()) {
+      const box = (await radio.locator('..').boundingBox())!;
       expect(box.width).toBeGreaterThanOrEqual(44);
       expect(box.height).toBeGreaterThanOrEqual(44);
     }
+    await choices().getByRole('radio', { name: mode, exact: true }).check();
+    await page.getByRole('button', { name: /^(ENTER DUNGEON|CONTINUE RUN)$/ }).click();
+    await expect(page.getByRole('navigation', { name: 'Choose game mode', exact: true })).toHaveCount(0);
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(page.viewportSize()!.width);
   }
   await page.goto('/');
-  await check('FULL EXPEDITION');
+  await choose('Full Expedition');
+  await expect(page).toHaveURL(/\/expedition$/);
   await expect(page.getByRole('navigation', { name: 'Choose Judge demo', exact: true })).toHaveCount(0);
   await expect(rivalStatus(page)).toHaveCount(0);
   await expect(page.getByTestId('kevin-rival-panel')).toHaveCount(0);
-  await page.getByRole('button', { name: 'ENTER THE DUNGEON', exact: true }).click();
   await page.getByRole('button', { name: 'LOCK BTC UP · ENTER TIER 1', exact: true }).click();
   await expect(page.getByRole('region', { name: 'Combat view', exact: true })).toBeVisible();
   const ordinaryBefore = await page.evaluate(key => localStorage.getItem(key), FULL_RUN_STORAGE_KEY);
   expect(ordinaryBefore).not.toBeNull();
   expect(fixture.requests).toHaveLength(0);
-  await expect(rivalStatus(page)).toHaveCount(0);
   await enterAndLock(page);
-  await check('SOMNIA AGENTS New!');
-  await expect(page.getByRole('navigation', { name: 'Choose Judge demo', exact: true })).toHaveCount(0);
   const agentBefore = await page.evaluate(key => localStorage.getItem(key), LOCAL_RUN_KEY);
   expect(agentBefore).not.toBeNull();
   expect(agentBefore).not.toBe(ordinaryBefore);
   expect(await page.evaluate(key => localStorage.getItem(key), FULL_RUN_STORAGE_KEY)).toBe(ordinaryBefore);
-  await nav().getByRole('link', { name: 'FULL EXPEDITION', exact: true }).click();
-  await expect(page).toHaveURL(/\/$/);
-  await check('FULL EXPEDITION');
+  await home();
+  await choose('Full Expedition');
+  await expect(page).toHaveURL(/\/expedition$/);
   await expect(page.getByRole('region', { name: 'Combat view', exact: true })).toBeVisible();
   await expect(rivalStatus(page)).toHaveCount(0);
   const ordinaryReads = fixture.requests.length;
@@ -541,21 +547,20 @@ test('three-mode navigation keeps ordinary and Agent expeditions separate and pr
   expect(fixture.requests).toHaveLength(ordinaryReads);
   expect(await page.evaluate(key => localStorage.getItem(key), FULL_RUN_STORAGE_KEY)).toBe(ordinaryBefore);
   expect(await page.evaluate(key => localStorage.getItem(key), LOCAL_RUN_KEY)).toBe(agentBefore);
-  await nav().getByRole('link', { name: 'JUDGE DEMO', exact: true }).click();
+  await home();
+  await choose('Judge Demo');
   await expect(page).toHaveURL(/\/shannon\/live-judge$/);
-  await check('JUDGE DEMO');
   const variants = page.getByRole('navigation', { name: 'Choose Judge demo', exact: true });
   await expect(variants.getByRole('link')).toHaveText(['LIVE · 1 MIN', 'HISTORICAL REPLAY']);
   await expect(variants.getByRole('link', { name: 'LIVE · 1 MIN', exact: true })).toHaveAttribute('aria-current', 'page');
   await variants.getByRole('link', { name: 'HISTORICAL REPLAY', exact: true }).click();
   await expect(page).toHaveURL(/\/shannon\/judge$/);
-  await check('JUDGE DEMO');
   await expect(variants.getByRole('link', { name: 'HISTORICAL REPLAY', exact: true })).toHaveAttribute('aria-current', 'page');
   await expect(rivalStatus(page)).toHaveCount(0);
   expect(fixture.requests).toHaveLength(ordinaryReads);
-  await nav().getByRole('link', { name: 'SOMNIA AGENTS New!', exact: true }).click();
+  await home();
+  await choose('Somnia Agents');
   await expect(page).toHaveURL(/\/somnia-agents$/);
-  await check('SOMNIA AGENTS New!');
   await expect(page.getByRole('region', { name: 'Combat view', exact: true })).toBeVisible();
   await expect(rivalStatus(page)).toBeVisible();
   expect(await page.evaluate(key => localStorage.getItem(key), LOCAL_RUN_KEY)).toBe(agentBefore);
@@ -591,16 +596,16 @@ test('narrow desktop status keeps Kevin text inside its button before lock and d
     expect(buttonBox.x < logoBox.x + logoBox.width && buttonBox.x + buttonBox.width > logoBox.x
       && buttonBox.y < logoBox.y + logoBox.height && buttonBox.y + buttonBox.height > logoBox.y,
     `${label}: Kevin status must not cover the center logo`).toBe(false);
-    const agentsLink = page.getByRole('navigation', { name: 'Choose game mode', exact: true }).getByRole('link', { name: 'SOMNIA AGENTS New!', exact: true });
-    const linkBox = (await agentsLink.boundingBox())!;
+    const linkBox = buttonBox;
     const soundBox = (await page.getByRole('button', { name: /^(Turn all game sounds (on|off)|Resume game sounds)$/ }).boundingBox())!;
     expect(linkBox.x < soundBox.x + soundBox.width && linkBox.x + linkBox.width > soundBox.x
       && linkBox.y < soundBox.y + soundBox.height && linkBox.y + linkBox.height > soundBox.y,
-    `${label}: the sound control must not cover the Somnia Agents mode link`).toBe(false);
+    `${label}: the sound control must not cover Kevin’s status`).toBe(false);
   }
   await page.goto('/somnia-agents');
-  await page.getByRole('button', { name: 'SOMNIA AGENTS Testnet wallet + STT fee', exact: true }).click();
-  await page.getByRole('button', { name: 'ENTER THE DUNGEON', exact: true }).click();
+  const panel = await openRivalDetails(page);
+  await panel.getByRole('button', { name: 'SOMNIA AGENTS Testnet wallet + STT fee', exact: true }).click();
+  await page.getByRole('dialog', { name: 'Somnia Agent Kevin', exact: true }).getByRole('button', { name: 'Close details', exact: true }).click();
   await expect(rivalStatus(page)).toHaveAttribute('aria-label', 'Somnia Agent Kevin: Not locked yet');
   await measure('before-lock');
   await page.getByRole('button', { name: 'LOCK BTC UP · ENTER TIER 1', exact: true }).click();
@@ -615,7 +620,7 @@ async function headerGeometry(page: Page, agents: boolean, allowMissingOmen = fa
   const logo = page.getByRole('button', { name: 'Market Dungeon — back to home', exact: true });
   const header = logo.locator('xpath=ancestor::header[1]');
   const elements = {
-    navigation: page.getByRole('navigation', { name: 'Choose game mode', exact: true }),
+    sound: page.getByRole('button', { name: /^(Turn all game sounds (on|off)|Resume game sounds)$/ }),
     logo,
     mode: header.getByText(agents ? 'SOMNIA AGENTS' : 'FULL EXPEDITION', { exact: true }),
     ...(!allowMissingOmen || await page.getByRole('button', { name: /^Omen details:/ }).count()
@@ -646,7 +651,7 @@ for (const viewport of [{ width: 1440, height: 1000 }, { width: 1280, height: 72
     test.skip(info.project.name.includes('iphone'), 'Desktop header geometry regression.');
     await page.setViewportSize(viewport);
     await installSavedFixture(page, roomFixture(7), agents);
-    await page.goto(agents ? '/somnia-agents' : '/');
+    await page.goto(agents ? '/somnia-agents' : '/expedition');
     await expect(page.getByRole('region', { name: 'Combat view', exact: true })).toBeVisible();
     await page.clock.runFor(3_100);
     if (agents) await expectRivalOnlyInStatus(page);
@@ -708,7 +713,7 @@ for (const viewport of [{ width: 1440, height: 1000 }, { width: 820, height: 900
       expect(parseFullRunSession(serializeFullRunSession(session))).toEqual(session);
     }
     await installSavedFixture(page, pending, agents, true);
-    await page.goto(agents ? '/somnia-agents' : '/');
+    await page.goto(agents ? '/somnia-agents' : '/expedition');
     await page.clock.runFor(3_100);
     if (agents) await expectRivalOnlyInStatus(page);
     const states: Record<string, HeaderGeometry> = { pending: await headerGeometry(page, agents) };

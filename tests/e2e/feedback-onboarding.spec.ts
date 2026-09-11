@@ -26,24 +26,21 @@ async function expectChoiceGuideBeforeLock(page: Page, lock: Locator) {
   expect(explanation.y + explanation.height).toBeLessThanOrEqual(action.y);
 }
 
-async function expectDemoNavigation(page: Page, current: 'live' | 'replay') {
+async function expectDemoNavigation(page: Page, current: 'live' | 'replay', setup = true) {
   await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
-  const nav = page.getByRole('navigation', { name: 'Choose game mode', exact: true });
+  await expect(page.getByRole('navigation', { name: 'Choose game mode', exact: true })).toHaveCount(0);
+  const home = page.getByRole('link', { name: 'Market Dungeon — back to home', exact: true })
+    .or(page.getByRole('button', { name: 'Market Dungeon — back to home', exact: true })).filter({ visible: true });
+  await expect(home).toBeInViewport({ ratio: 1 });
+  if (setup) await expect(home).toHaveAttribute('href', '/');
   const variants = page.getByRole('navigation', { name: 'Choose Judge demo', exact: true });
-  await expect(nav).toBeVisible();
-  await expect(nav.getByRole('link')).toHaveText(['FULL EXPEDITION', 'JUDGE DEMO']);
-  await expect(nav.getByRole('link', { name: 'FULL EXPEDITION', exact: true })).toHaveAttribute('href', '/');
-  await expect(nav.getByRole('link', { name: 'JUDGE DEMO', exact: true })).toHaveAttribute('href', current === 'live' ? '/shannon/live-judge' : '/shannon/judge');
-  await expect(nav.getByRole('link', { name: 'JUDGE DEMO', exact: true })).toHaveAttribute('aria-current', 'page');
-  await expect(nav.locator('[aria-current="page"]')).toHaveCount(1);
+  if (!setup) { await expect(variants).toHaveCount(0); return; }
   await expect(variants.getByRole('link')).toHaveText(['LIVE · 1 MIN', 'HISTORICAL REPLAY']);
   await expect(variants.getByRole('link', { name: 'LIVE · 1 MIN', exact: true })).toHaveAttribute('href', '/shannon/live-judge');
   await expect(variants.getByRole('link', { name: 'HISTORICAL REPLAY', exact: true })).toHaveAttribute('href', '/shannon/judge');
   await expect(variants.getByRole('link', { name: current === 'live' ? 'LIVE · 1 MIN' : 'HISTORICAL REPLAY', exact: true })).toHaveAttribute('aria-current', 'page');
   await expect(variants.locator('[aria-current="page"]')).toHaveCount(1);
-  for (const navigation of [nav, variants]) {
-    for (const link of await navigation.getByRole('link').all()) await expect(link).toBeInViewport({ ratio: 1 });
-  }
+  for (const link of await variants.getByRole('link').all()) await expect(link).toBeInViewport({ ratio: 1 });
 }
 
 async function expectPermanentCombatHelp(page: Page) {
@@ -117,15 +114,12 @@ test('Full Expedition keeps substantial phone artwork, clock meaning and reachab
     localStorage.setItem(key, value);
     Object.defineProperty(crypto, 'getRandomValues', { configurable: true, value: (array: Uint32Array) => { array.fill(0); return array; } });
   }, { key: FULL_RUN_STORAGE_KEY, value: serializeFullRunSession(session) });
-  await page.goto('/');
+  await page.goto('/expedition');
   const combat = await expectPermanentCombatHelp(page);
   await expectSafariSizedArtwork(page, info, 'full-expedition');
-  const modes = page.getByRole('navigation', { name: 'Choose game mode', exact: true });
-  await expect(modes.getByRole('link')).toHaveText(['FULL EXPEDITION', 'JUDGE DEMO']);
-  await expect(modes.getByRole('link', { name: 'FULL EXPEDITION', exact: true })).toHaveAttribute('aria-current', 'page');
-  await expect(modes.getByRole('link', { name: 'JUDGE DEMO', exact: true })).toHaveAttribute('href', '/shannon/live-judge');
+  await expect(page.getByRole('navigation', { name: 'Choose game mode', exact: true })).toHaveCount(0);
   await expect(page.getByRole('navigation', { name: 'Choose Judge demo', exact: true })).toHaveCount(0);
-  for (const link of await modes.getByRole('link').all()) await expect(link).toBeInViewport({ ratio: 1 });
+  await expect(page.getByRole('button', { name: 'Market Dungeon — back to home', exact: true })).toBeInViewport({ ratio: 1 });
   const omen = combat.getByRole('button', { name: /^Omen details:/ });
   await expect(omen).toContainText(/MARKET CLOSES IN.*\d{2}:\d{2}/);
   const clockText = (await omen.innerText()).match(/(\d{2}):(\d{2})/)!;
@@ -210,7 +204,7 @@ test('Live Judge explains choice before lock and permits the same combat after t
   await expect(combat.getByRole('status', { name: 'Last combat exchange' })).toHaveText('TOOK 10 HPDEALT 16 HP');
   await expectPermanentCombatHelp(page);
   await expectReadableCombatLog(page);
-  await expectDemoNavigation(page, 'live');
+  await expectDemoNavigation(page, 'live', false);
   expect(calls.reveals).toBe(0);
   expect(calls.rpc).toBe(0);
   await page.screenshot({ path: info.outputPath('live-judge-feedback-help-390.png'), fullPage: true });
@@ -241,7 +235,7 @@ test('Historical Judge introduces Bitcoin consequences before lock and retains c
   await combat.getByRole('button', { name: /ATTACK/ }).click();
   await expectPermanentCombatHelp(page);
   await expectReadableCombatLog(page);
-  await expectDemoNavigation(page, 'replay');
+  await expectDemoNavigation(page, 'replay', false);
   expect(starts).toBe(1);
   await page.screenshot({ path: info.outputPath('historical-judge-feedback-help-390.png'), fullPage: true });
 });

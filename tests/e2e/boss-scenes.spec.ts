@@ -49,7 +49,7 @@ async function openSession(page: Page, session: FullRunSession) {
   });
   await page.route('**/_vercel/insights/**', route => route.fulfill({ contentType: 'application/javascript', body: '' }));
   await page.route('**/api/market?interval=300', route => route.fulfill({ status: 503, json: { error: 'Controlled visual fixture: market unavailable' } }));
-  await page.goto('/');
+  await page.goto('/expedition');
 }
 
 async function expectSettledArtwork(page: Page, scene: Locator, viewportWidth: number) {

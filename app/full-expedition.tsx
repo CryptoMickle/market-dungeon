@@ -5,7 +5,7 @@ import { GameLogo } from './game-logo';
 import { useGameAudio } from './game-audio';
 import { BossOutcomeScene, type BossSceneOutcome } from './boss-outcome-scene';
 import { DesktopNavigation, KeyboardHint } from './desktop-navigation';
-import { GameModeNav } from './game-mode-nav';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { CriticalHitResult, MobileBattle, PlayerHeader, RelicInfo, RoomProgress } from './mobile-battle';
 import { GameText, GoldIcon as Gold, LoadoutSummary } from './game-icons';
@@ -126,7 +126,8 @@ function resultMessage(transition: MarketDungeonTransition): string {
   return transition.reason;
 }
 
-export default function FullExpedition({ localAgents = false }: { localAgents?: boolean }) {
+export default function FullExpedition({ localAgents = false, autoEnter = false }: { localAgents?: boolean; autoEnter?: boolean }) {
+  const router = useRouter();
   const { playCharacterIntro, playOutcome } = useGameAudio();
   const rival = useKevinRival(localAgents);
   const storageKey = localAgents ? 'market-dungeon/local-agents/full-run/v1' : FULL_RUN_STORAGE_KEY;
@@ -150,18 +151,22 @@ export default function FullExpedition({ localAgents = false }: { localAgents?: 
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
-      const raw = window.localStorage.getItem(storageKey);
+      let raw: string | null = null;
+      try { raw = window.localStorage.getItem(storageKey); } catch { /* Entry still works when storage is unavailable. */ }
       const restored = parseFullRunSession(raw);
-      setSession(restored);
+      setSession(restored ?? (autoEnter ? {
+        schema: 'market-dungeon/full-run-session/v2',
+        run: createMarketDungeonRun(cryptoRandom), market: null,
+      } : null));
       setNotice(restored ? 'Saved expedition restored on this device.' : raw ? 'Saved data was invalid and was not loaded.' : 'Ready for a fresh expedition.');
       setReady(true);
     }, 0);
     return () => window.clearTimeout(timer);
-  }, [storageKey]);
+  }, [storageKey, autoEnter]);
 
   useEffect(() => {
     if (!ready || !session) return;
-    window.localStorage.setItem(storageKey, serializeFullRunSession(session));
+    try { window.localStorage.setItem(storageKey, serializeFullRunSession(session)); } catch { /* Keep the current in-memory run playable. */ }
   }, [ready, session, storageKey]);
 
   useEffect(() => {
@@ -374,6 +379,13 @@ export default function FullExpedition({ localAgents = false }: { localAgents?: 
     setShowHome(false);
   }
 
+  function goHome() {
+    if (session) {
+      try { window.localStorage.setItem(storageKey, serializeFullRunSession(session)); } catch { /* Storage may be unavailable. */ }
+    }
+    router.push('/');
+  }
+
   function apply(action: MarketDungeonAction, market: ActiveLiveMarket | null | undefined = undefined): boolean {
     if (!session) return false;
     const transition = transitionMarketDungeon(session.run, action, cryptoRandom);
@@ -488,7 +500,6 @@ export default function FullExpedition({ localAgents = false }: { localAgents?: 
     <main className={`${styles.shell} ${mobileCombat ? styles.mobileCombatActive : ''} ${run && game ? styles.activeExpedition : styles.homeScreen}`}>
       <DesktopNavigation />
       <div className={styles.column}>
-        <div className={styles.modeNavigation}><GameModeNav current={localAgents ? 'agents' : 'expedition'} /></div>
         {localAgents && !run && <aside className={styles.localAgentsBanner}>
           <b>LOCAL AGENTS EDITION · SOMNIA AGENT KEVIN</b>
           <Link href="/somnia-agents/playground">TRY THE QUICK RIVAL PLAYGROUND →</Link>
@@ -496,7 +507,7 @@ export default function FullExpedition({ localAgents = false }: { localAgents?: 
         {mobileCombat && game && run && <MobileBattle
           room={room}
           roomsCleared={game.roomsCleared}
-          onHome={() => setShowHome(true)}
+          onHome={goHome}
           location={`T${tier} · ROOM ${room}/40`} loadout={{ gold: game.gold, weapon: game.weaponLevel, armor: game.armorLevel, progress: `T${tier} · R${room}` }}
           mode={localAgents ? 'SOMNIA AGENTS' : 'FULL EXPEDITION'}
           desktopSummary={<LoadoutSummary gold={game.gold} weapon={game.weaponLevel} armor={game.armorLevel} relic={relicSummary} potions={`${game.potions}/5`} />}
@@ -517,7 +528,7 @@ export default function FullExpedition({ localAgents = false }: { localAgents?: 
           onAttack={() => gameplay({ type: 'attack' })} onStorm={() => gameplay({ type: 'storm' })} onPotion={() => gameplay({ type: 'use-potion' })}
         />}
         {run && game && !mobileCombat && <div className={styles.stageHeader}>
-          <PlayerHeader stableFrame mode={localAgents ? 'SOMNIA AGENTS' : 'FULL EXPEDITION'} onHome={() => setShowHome(true)} summary={<LoadoutSummary gold={game.gold} weapon={game.weaponLevel} armor={game.armorLevel} relic={relicSummary} potions={`${game.potions}/5`} />} hp={game.hp} maxHp={game.maxHp} location={`T${tier} · ROOM ${room}/40`} loadout={{ gold: game.gold, weapon: game.weaponLevel, armor: game.armorLevel, progress: `T${tier} · R${room}` }} potions={game.potions} omen={omenSummary} omenHint={run.currentAttempt ? omenHint : undefined} omenDetails={omenDetails} gear={gearDetails} rivalStatus={rivalStatus} />
+          <PlayerHeader stableFrame mode={localAgents ? 'SOMNIA AGENTS' : 'FULL EXPEDITION'} onHome={goHome} summary={<LoadoutSummary gold={game.gold} weapon={game.weaponLevel} armor={game.armorLevel} relic={relicSummary} potions={`${game.potions}/5`} />} hp={game.hp} maxHp={game.maxHp} location={`T${tier} · ROOM ${room}/40`} loadout={{ gold: game.gold, weapon: game.weaponLevel, armor: game.armorLevel, progress: `T${tier} · R${room}` }} potions={game.potions} omen={omenSummary} omenHint={run.currentAttempt ? omenHint : undefined} omenDetails={omenDetails} gear={gearDetails} rivalStatus={rivalStatus} />
           <RoomProgress room={room} roomsCleared={game.roomsCleared} />
         </div>}
         <header className={styles.header}>
@@ -716,7 +727,7 @@ export default function FullExpedition({ localAgents = false }: { localAgents?: 
         <footer className={styles.footer}>
           <span>FULL GAME · DELVEWORN RULES · ACTIVE 5M DREAMDEX SETTLEMENT</span>
           <p>{localAgents ? 'Local prototype · simulator is free · real agent requests use a Shannon testnet wallet and STT' : 'No wallet · no approval · no order · no transaction'}</p>
-          <nav><a href={dreamDexBtcEventContractUrl(300)} target="_blank" rel="noopener noreferrer">CONTINUE ON DREAMDEX ↗</a><Link href="/shannon/live-judge">LIVE JUDGE DEMO</Link><Link href="/credits">PRIVACY · CREDITS</Link></nav>
+          <nav><a href={dreamDexBtcEventContractUrl(300)} target="_blank" rel="noopener noreferrer">CONTINUE ON DREAMDEX ↗</a><Link href="/credits">PRIVACY · CREDITS</Link></nav>
         </footer>
       </div>
     </main>

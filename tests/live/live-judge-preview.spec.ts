@@ -13,12 +13,12 @@ import { marketDungeonDeploymentOrigin, validateLiveTarget } from '../../scripts
 
 const PATH = '/shannon/live-judge';
 
-async function expectModeNavigation(page: Page) {
+async function expectModeNavigation(page: Page, setup = false) {
   const modes = page.getByRole('navigation', { name: 'Choose game mode', exact: true });
   const variants = page.getByRole('navigation', { name: 'Choose Judge demo', exact: true });
-  await expect(modes.getByRole('link')).toHaveText(['FULL EXPEDITION', 'JUDGE DEMO']);
-  await expect(modes.getByRole('link', { name: 'JUDGE DEMO', exact: true })).toHaveAttribute('aria-current', 'page');
-  await expect(modes.getByRole('link', { name: 'FULL EXPEDITION', exact: true })).toHaveAttribute('href', '/');
+  await expect(modes).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Market Dungeon — back to home', exact: true }).or(page.getByRole('link', { name: 'Market Dungeon — back to home', exact: true }))).toBeVisible();
+  if (!setup) { await expect(variants).toHaveCount(0); return; }
   await expect(variants.getByRole('link')).toHaveText(['LIVE · 1 MIN', 'HISTORICAL REPLAY']);
   await expect(variants.getByRole('link', { name: 'LIVE · 1 MIN', exact: true })).toHaveAttribute('aria-current', 'page');
   await expect(variants.getByRole('link', { name: 'HISTORICAL REPLAY', exact: true })).toHaveAttribute('href', '/shannon/judge');
@@ -58,7 +58,7 @@ test('one real live release round verifies its signed lock, fights, exported pro
   expect(key.chainId).toBe(50312);
 
   await page.goto(`${PATH}?automation=1`);
-  await expectModeNavigation(page);
+  await expectModeNavigation(page, true);
   await expect(page.getByRole('button', { name: /GOLD AWAKENS.*BTC UP/ })).toHaveAttribute('aria-pressed', 'true');
   await expect(page.getByLabel('Live dreamDEX order book odds', { exact: true })).toBeVisible();
   const lockButton = page.getByRole('button', { name: 'LOCK BTC UP & ENTER DUNGEON', exact: true });

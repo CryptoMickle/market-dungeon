@@ -69,25 +69,22 @@ test('Shannon Judge flow remains profile-bound through replay, sharing, reset, c
   await page.goto('/shannon/judge');
   await expect(page).toHaveURL(/\/shannon\/judge$/);
   await expect(page.getByText('HISTORICAL JUDGE REPLAY · SHANNON TESTNET', { exact: true })).toBeVisible();
-  const expectReplayNavigation = async () => {
-    const modes = page.getByRole('navigation', { name: 'Choose game mode', exact: true });
+  const expectReplayNavigation = async (setup = false) => {
+    await expect(page.getByRole('navigation', { name: 'Choose game mode', exact: true })).toHaveCount(0);
+    const home = page.getByRole('link', { name: 'Market Dungeon — back to home', exact: true })
+      .or(page.getByRole('button', { name: 'Market Dungeon — back to home', exact: true })).filter({ visible: true });
+    await expect(home).toBeVisible();
     const variants = page.getByRole('navigation', { name: 'Choose Judge demo', exact: true });
-    await expect(modes).toBeVisible();
-    await expect(modes.getByRole('link')).toHaveText(['FULL EXPEDITION', 'JUDGE DEMO']);
-    await expect(modes.getByRole('link', { name: 'JUDGE DEMO', exact: true })).toHaveAttribute('aria-current', 'page');
-    await expect(modes.getByRole('link', { name: 'JUDGE DEMO', exact: true })).toHaveAttribute('href', '/shannon/judge');
-    await expect(modes.getByRole('link', { name: 'FULL EXPEDITION', exact: true })).toHaveAttribute('href', '/');
-    await expect(modes.locator('[aria-current="page"]')).toHaveCount(1);
+    if (!setup) { await expect(variants).toHaveCount(0); return; }
+    await expect(home).toHaveAttribute('href', '/');
     await expect(variants.getByRole('link')).toHaveText(['LIVE · 1 MIN', 'HISTORICAL REPLAY']);
     await expect(variants.getByRole('link', { name: 'HISTORICAL REPLAY', exact: true })).toHaveAttribute('aria-current', 'page');
     await expect(variants.getByRole('link', { name: 'HISTORICAL REPLAY', exact: true })).toHaveAttribute('href', '/shannon/judge');
     await expect(variants.getByRole('link', { name: 'LIVE · 1 MIN', exact: true })).toHaveAttribute('href', '/shannon/live-judge');
     await expect(variants.locator('[aria-current="page"]')).toHaveCount(1);
-    for (const navigation of [modes, variants]) {
-      for (const link of await navigation.getByRole('link').all()) await expect(link).toBeInViewport({ ratio: 1 });
-    }
+    for (const link of await variants.getByRole('link').all()) await expect(link).toBeInViewport({ ratio: 1 });
   };
-  await expectReplayNavigation();
+  await expectReplayNavigation(true);
   await expect(page.locator('.judge-lock-context')).toContainText('NO LIVE PRICE FEED');
   await expect(page.locator('.judge-lock-context')).toContainText('the opening price is not supplied');
   await expect(page.getByText('REFERENCE UNAVAILABLE', { exact: true })).toHaveCount(0);

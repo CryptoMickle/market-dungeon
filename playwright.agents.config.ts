@@ -4,7 +4,7 @@ import { defineConfig, devices } from '@playwright/test';
 // local process. This suite never launches or changes a hosted deployment.
 export default defineConfig({
   testDir: './tests/e2e',
-  testMatch: 'somnia-agents.spec.ts',
+  testMatch: ['somnia-agents.spec.ts', 'dungeon-home.spec.ts'],
   fullyParallel: false,
   forbidOnly: Boolean(process.env.CI),
   retries: process.env.CI ? 1 : 0,

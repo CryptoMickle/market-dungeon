@@ -10,5 +10,5 @@ export const metadata: Metadata = {
 
 export default function SomniaAgentsPage() {
   if (process.env.MARKET_DUNGEON_LOCAL_AGENTS !== '1' || process.env.VERCEL) notFound();
-  return <FullExpedition localAgents />;
+  return <FullExpedition localAgents autoEnter />;
 }

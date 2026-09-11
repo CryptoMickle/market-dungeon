@@ -16,7 +16,8 @@ import { RunSharePanel } from './run-share-panel';
 import { GameText, GoldIcon, LoadoutSummary } from './game-icons';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from 'react';
+import { clearHistoricalCheckpoint, keepHistoricalCheckpoint, readHistoricalCheckpoint } from './historical-navigation';
 import { replayCountdownSeconds, replayRetrySeconds } from './judge-retry';
 
 import {
@@ -109,9 +110,9 @@ type Species = 'Zombie' | 'Goblin' | 'Orc' | 'Boss';
 
 type ReplayStartIssue = 'rate_limited' | 'upstream_retry' | 'config_unavailable' | 'no_candidates' | 'connection' | 'invalid_lock';
 
-function useReplayCountdown(): [number, (seconds: number) => void] {
-  const [remaining, setRemaining] = useState(0);
-  const deadline = useRef(0);
+function useReplayCountdown(initialDeadline = 0): [number, (seconds: number) => void, RefObject<number>] {
+  const [remaining, setRemaining] = useState(() => replayCountdownSeconds(initialDeadline));
+  const deadline = useRef(initialDeadline);
   const start = useCallback((seconds: number) => {
     deadline.current = Date.now() + Math.max(0, seconds) * 1_000;
     setRemaining(replayCountdownSeconds(deadline.current));
@@ -127,7 +128,7 @@ function useReplayCountdown(): [number, (seconds: number) => void] {
       document.removeEventListener('visibilitychange', tick);
     };
   }, []);
-  return [remaining, start];
+  return [remaining, start, deadline];
 }
 
 type Market = {
@@ -153,6 +154,26 @@ type Persona = {
 };
 
 type Monster = Persona & { room: number; hp: number };
+
+/** Already-verified state retained only while navigating within this tab. */
+type HistoricalCheckpoint = {
+  market: Market; marketOdds: DreamDexClobOdds | null; direction: Direction; phase: Phase;
+  tier: number; roster: Monster[]; room: number; turn: number; hp: number; monsterHp: number;
+  potions: number; gold: number; weapon: number; armor: number; combatPotionUses: number;
+  lastExchange: { dealt: number; taken: number; critical?: boolean; rolledDamage?: number; quip?: string } | null;
+  remaining: number; marketEntryRemaining: number | null; notice: string; combatLog: string[];
+  lastReward: string; oracleChecks: number; oracleResult: OracleResult; bandageUsed: boolean;
+  merchantPotions: number; weaponSold: boolean; armorSold: boolean; deathCause: DeathCause;
+  judgeActionLog: JudgeCombatAction[]; liveBtcContext: LiveBtcContext | null; liveBtcContextLoaded: boolean;
+  proofStatus: string; challengeEntry: boolean; judgeStartIssue: ReplayStartIssue | null;
+  replayIssue: 'rate_limited' | 'upstream_retry' | 'config_unavailable' | 'connection' | null;
+  replayRevealDeadline: number; judgeStartRetryDeadline: number; replayRetryDeadline: number;
+  refs: {
+    startedAt: number | null; revealTracked: boolean; terminalTracked: boolean; dreamDexTracked: boolean;
+    entryTracked: boolean; challengeCreated: boolean; challengeOpened: boolean; challengeVerified: boolean;
+    shareEngaged: boolean; shareActions: ShareAction[];
+  };
+};
 
 const TOTAL_ROOMS = 10;
 const TOTAL_TIERS = 4;
@@ -504,72 +525,111 @@ function LegacyMarketDungeon({
   judgeProfileId?: JudgeNetworkProfileId;
 }) {
   const router = useRouter();
+  const goHome = () => {
+    saveNavigationCheckpoint();
+    router.push('/');
+  };
+  const [checkpoint] = useState<HistoricalCheckpoint | undefined>(() => {
+    if (!directJudgeEntry || typeof window === 'undefined' || isChallengeEntry(window.location.search)) return undefined;
+    return readHistoricalCheckpoint<HistoricalCheckpoint>(judgeProfileId);
+  });
   const { playCharacterIntro, playOutcome } = useGameAudio();
   const judgeProfile = judgeNetworkProfile(judgeProfileId);
   const shannonJudge = judgeProfile.id === 'shannon-testnet';
   const judgeChallengeUrl = `${MARKET_DUNGEON_PLAY_URL}${judgeProfile.judgePath}?challenge=1`;
-  const [market, setMarket] = useState<Market>(() => directJudgeEntry ? sealedReplay : fallback);
-  const [marketOdds, setMarketOdds] = useState<DreamDexClobOdds | null>(null);
-  const [direction, setDirection] = useState<Direction>('UP');
-  const [phase, setPhase] = useState<Phase>(() => directJudgeEntry ? 'JUDGE_SETUP' : 'SETUP');
-  const [tier, setTier] = useState(1);
-  const [roster, setRoster] = useState<Monster[]>(() => buildRoster());
-  const [room, setRoom] = useState(0);
-  const [turn, setTurn] = useState(0);
-  const [hp, setHp] = useState(100);
-  const [monsterHp, setMonsterHp] = useState(roster[0].hp);
-  const [potions, setPotions] = useState(START_POTIONS);
-  const [gold, setGold] = useState(0);
-  const [weapon, setWeapon] = useState(1);
-  const [armor, setArmor] = useState(0);
-  const [combatPotionUses, setCombatPotionUses] = useState(0);
-  const [lastExchange, setLastExchange] = useState<{ dealt: number; taken: number; critical?: boolean; rolledDamage?: number; quip?: string } | null>(null);
-  const [remaining, setRemaining] = useState(0);
-  const [marketEntryRemaining, setMarketEntryRemaining] = useState<number | null>(null);
-  const [notice, setNotice] = useState(directJudgeEntry
+  const [market, setMarket] = useState<Market>(() => checkpoint?.market ?? (directJudgeEntry ? sealedReplay : fallback));
+  const [marketOdds, setMarketOdds] = useState<DreamDexClobOdds | null>(checkpoint?.marketOdds ?? null);
+  const [direction, setDirection] = useState<Direction>(checkpoint?.direction ?? 'UP');
+  const [phase, setPhase] = useState<Phase>(() => checkpoint?.phase ?? (directJudgeEntry ? 'JUDGE_SETUP' : 'SETUP'));
+  const [tier, setTier] = useState(checkpoint?.tier ?? 1);
+  const [roster, setRoster] = useState<Monster[]>(() => checkpoint?.roster ?? buildRoster());
+  const [room, setRoom] = useState(checkpoint?.room ?? 0);
+  const [turn, setTurn] = useState(checkpoint?.turn ?? 0);
+  const [hp, setHp] = useState(checkpoint?.hp ?? 100);
+  const [monsterHp, setMonsterHp] = useState(checkpoint?.monsterHp ?? roster[0].hp);
+  const [potions, setPotions] = useState(checkpoint?.potions ?? START_POTIONS);
+  const [gold, setGold] = useState(checkpoint?.gold ?? 0);
+  const [weapon, setWeapon] = useState(checkpoint?.weapon ?? 1);
+  const [armor, setArmor] = useState(checkpoint?.armor ?? 0);
+  const [combatPotionUses, setCombatPotionUses] = useState(checkpoint?.combatPotionUses ?? 0);
+  const [lastExchange, setLastExchange] = useState<HistoricalCheckpoint['lastExchange']>(checkpoint?.lastExchange ?? null);
+  const [remaining, setRemaining] = useState(checkpoint?.remaining ?? 0);
+  const [marketEntryRemaining, setMarketEntryRemaining] = useState<number | null>(checkpoint?.marketEntryRemaining ?? null);
+  const [notice, setNotice] = useState(checkpoint?.notice ?? (directJudgeEntry
     ? 'JUDGE DEMO · CHOOSE OMEN BEFORE MARKET SELECTION'
-    : 'LIVE DREAMDEX MARKET · READ ONLY');
-  const [combatLog, setCombatLog] = useState<string[]>(() => directJudgeEntry
+    : 'LIVE DREAMDEX MARKET · READ ONLY'));
+  const [combatLog, setCombatLog] = useState<string[]>(() => checkpoint?.combatLog ?? (directJudgeEntry
     ? ['Choose BTC UP or DOWN first. The server will then draw a random finalized market and return an encrypted seal, commitment, and signed lock receipt.']
-    : []);
-  const [lastReward, setLastReward] = useState('');
+    : []));
+  const [lastReward, setLastReward] = useState(checkpoint?.lastReward ?? '');
+  // Interrupted network work is retryable after returning; it is never resumed
+  // as a second automatic lock or a second reveal request.
   const [oracleBusy, setOracleBusy] = useState(false);
-  const [oracleChecks, setOracleChecks] = useState(0);
-  const [oracleResult, setOracleResult] = useState<OracleResult>(null);
-  const [bandageUsed, setBandageUsed] = useState(false);
-  const [merchantPotions, setMerchantPotions] = useState(2);
-  const [weaponSold, setWeaponSold] = useState(false);
-  const [armorSold, setArmorSold] = useState(false);
+  const [oracleChecks, setOracleChecks] = useState(checkpoint?.oracleChecks ?? 0);
+  const [oracleResult, setOracleResult] = useState<OracleResult>(checkpoint?.oracleResult ?? null);
+  const [bandageUsed, setBandageUsed] = useState(checkpoint?.bandageUsed ?? false);
+  const [merchantPotions, setMerchantPotions] = useState(checkpoint?.merchantPotions ?? 2);
+  const [weaponSold, setWeaponSold] = useState(checkpoint?.weaponSold ?? false);
+  const [armorSold, setArmorSold] = useState(checkpoint?.armorSold ?? false);
   const [judgeMode, setJudgeMode] = useState(directJudgeEntry);
   const [judgeLoading, setJudgeLoading] = useState(false);
-  const [deathCause, setDeathCause] = useState<DeathCause>('COMBAT');
-  const [profileReady, setProfileReady] = useState(false);
+  const [deathCause, setDeathCause] = useState<DeathCause>(checkpoint?.deathCause ?? 'COMBAT');
+  const [profileReady, setProfileReady] = useState(Boolean(checkpoint));
   const [mobileLogOpen, setMobileLogOpen] = useState(false);
-  const [judgeActionLog, setJudgeActionLog] = useState<JudgeCombatAction[]>([]);
-  const [liveBtcContext, setLiveBtcContext] = useState<LiveBtcContext | null>(null);
-  const [liveBtcContextLoaded, setLiveBtcContextLoaded] = useState(false);
-  const [proofStatus, setProofStatus] = useState('');
-  const [challengeEntry, setChallengeEntry] = useState(false);
-  const [replayRevealRemaining, setReplayRevealRemaining] = useReplayCountdown();
-  const [judgeStartRetryRemaining, setJudgeStartRetryRemaining] = useReplayCountdown();
-  const [replayRetryRemaining, setReplayRetryRemaining] = useReplayCountdown();
-  const [judgeStartIssue, setJudgeStartIssue] = useState<ReplayStartIssue | null>(null);
-  const [replayIssue, setReplayIssue] = useState<'rate_limited' | 'upstream_retry' | 'config_unavailable' | 'connection' | null>(null);
+  const [judgeActionLog, setJudgeActionLog] = useState<JudgeCombatAction[]>(checkpoint?.judgeActionLog ?? []);
+  const [liveBtcContext, setLiveBtcContext] = useState<LiveBtcContext | null>(checkpoint?.liveBtcContext ?? null);
+  const [liveBtcContextLoaded, setLiveBtcContextLoaded] = useState(checkpoint?.liveBtcContextLoaded ?? false);
+  const [proofStatus, setProofStatus] = useState(checkpoint?.proofStatus ?? '');
+  const [challengeEntry, setChallengeEntry] = useState(checkpoint?.challengeEntry ?? false);
+  const [replayRevealRemaining, setReplayRevealRemaining, replayRevealDeadline] = useReplayCountdown(checkpoint?.replayRevealDeadline);
+  const [judgeStartRetryRemaining, setJudgeStartRetryRemaining, judgeStartRetryDeadline] = useReplayCountdown(checkpoint?.judgeStartRetryDeadline);
+  const [replayRetryRemaining, setReplayRetryRemaining, replayRetryDeadline] = useReplayCountdown(checkpoint?.replayRetryDeadline);
+  const [judgeStartIssue, setJudgeStartIssue] = useState<ReplayStartIssue | null>(checkpoint?.judgeStartIssue ?? null);
+  const [replayIssue, setReplayIssue] = useState<HistoricalCheckpoint['replayIssue']>(checkpoint?.replayIssue ?? null);
   const judgeStartBusyRef = useRef(false);
   const judgeStartControllerRef = useRef<AbortController | null>(null);
   const judgeRevealControllerRef = useRef<AbortController | null>(null);
   const oracleBusyRef = useRef(false);
   const desktopJourneyRef = useRef<HTMLDivElement>(null);
-  const judgeRunStartedAtRef = useRef<number | null>(null);
-  const judgeRevealAttemptTrackedRef = useRef(false);
-  const judgeTerminalTrackedRef = useRef(false);
-  const dreamDexCtaTrackedRef = useRef(false);
-  const judgeEntryTrackedRef = useRef(false);
-  const challengeCreatedTrackedRef = useRef(false);
-  const challengeOpenedTrackedRef = useRef(false);
-  const challengeVerifiedTrackedRef = useRef(false);
-  const shareEngagedTrackedRef = useRef(false);
-  const shareActionsTrackedRef = useRef<Set<ShareAction>>(new Set());
+  const judgeRunStartedAtRef = useRef<number | null>(checkpoint?.refs.startedAt ?? null);
+  const judgeRevealAttemptTrackedRef = useRef(checkpoint?.refs.revealTracked ?? false);
+  const judgeTerminalTrackedRef = useRef(checkpoint?.refs.terminalTracked ?? false);
+  const dreamDexCtaTrackedRef = useRef(checkpoint?.refs.dreamDexTracked ?? false);
+  const judgeEntryTrackedRef = useRef(checkpoint?.refs.entryTracked ?? false);
+  const challengeCreatedTrackedRef = useRef(checkpoint?.refs.challengeCreated ?? false);
+  const challengeOpenedTrackedRef = useRef(checkpoint?.refs.challengeOpened ?? false);
+  const challengeVerifiedTrackedRef = useRef(checkpoint?.refs.challengeVerified ?? false);
+  const shareEngagedTrackedRef = useRef(checkpoint?.refs.shareEngaged ?? false);
+  const shareActionsTrackedRef = useRef<Set<ShareAction>>(new Set(checkpoint?.refs.shareActions ?? []));
+  const checkpointBelongsToRunRef = useRef(Boolean(checkpoint));
+
+  function saveNavigationCheckpoint() {
+    if (!directJudgeEntry) return;
+    if (!market.replaySeal && !market.replayProof) {
+      // Opening an unaccepted challenge must not erase an existing replay.
+      // A reset or invalidated seal for this run does clear its own checkpoint.
+      if (checkpointBelongsToRunRef.current) clearHistoricalCheckpoint(judgeProfileId);
+      checkpointBelongsToRunRef.current = false;
+      return;
+    }
+    checkpointBelongsToRunRef.current = true;
+    keepHistoricalCheckpoint<HistoricalCheckpoint>(judgeProfileId, {
+      market, marketOdds, direction, phase, tier, roster, room, turn, hp, monsterHp, potions, gold, weapon, armor,
+      combatPotionUses, lastExchange, remaining, marketEntryRemaining,
+      notice: oracleBusy ? 'Verification paused. Your replay is kept; reveal again when ready.' : notice,
+      combatLog, lastReward, oracleChecks, oracleResult, bandageUsed, merchantPotions, weaponSold, armorSold,
+      deathCause, judgeActionLog, liveBtcContext, liveBtcContextLoaded, proofStatus, challengeEntry, judgeStartIssue, replayIssue,
+      replayRevealDeadline: replayRevealDeadline.current,
+      judgeStartRetryDeadline: judgeStartRetryDeadline.current,
+      replayRetryDeadline: replayRetryDeadline.current,
+      refs: { startedAt: judgeRunStartedAtRef.current, revealTracked: judgeRevealAttemptTrackedRef.current,
+        terminalTracked: judgeTerminalTrackedRef.current, dreamDexTracked: dreamDexCtaTrackedRef.current,
+        entryTracked: judgeEntryTrackedRef.current, challengeCreated: challengeCreatedTrackedRef.current,
+        challengeOpened: challengeOpenedTrackedRef.current, challengeVerified: challengeVerifiedTrackedRef.current,
+        shareEngaged: shareEngagedTrackedRef.current, shareActions: [...shareActionsTrackedRef.current] },
+    }, { phase, hp, hasLockedReplay: Boolean(market.replaySeal || market.replayProof) });
+  }
+  useEffect(() => { saveNavigationCheckpoint(); });
 
   useEffect(() => () => {
     judgeStartControllerRef.current?.abort();
@@ -592,12 +652,13 @@ function LegacyMarketDungeon({
   }, [directJudgeEntry]);
 
   useEffect(() => {
+    if (checkpoint) return;
     const timer = window.setTimeout(() => {
       const profile = readProfile();
       setGold(profile.gold); setPotions(profile.potions); setProfileReady(true);
     }, 0);
     return () => window.clearTimeout(timer);
-  }, []);
+  }, [checkpoint]);
 
   useEffect(() => {
     if (judgeMode && phase !== 'COMBAT' && window.matchMedia('(min-width: 801px)').matches) {
@@ -1617,10 +1678,10 @@ function LegacyMarketDungeon({
   return (
     <main className={`game-shell phase-${phase.toLowerCase()} ${['SETUP', 'JUDGE_SETUP'].includes(phase) ? 'setup-shell' : 'in-expedition'} ${judgeMode ? `judge-mode ${replayStyles.shell}` : ''} ${directJudgeEntry ? 'direct-judge-entry' : ''} ${judgeMode && phase === 'COMBAT' ? 'mobile-combat-active' : ''}`}>
       <DesktopNavigation />
-      {judgeMode && <div className={replayStyles.top}>
-        <GameModeNav current="replay" replayHref={judgeProfile.judgePath} />
+      {judgeMode && phase === 'JUDGE_SETUP' && <div className={replayStyles.top}>
+        {phase === 'JUDGE_SETUP' && <GameModeNav current="replay" replayHref={judgeProfile.judgePath} />}
         {phase === 'JUDGE_SETUP' && <header className={replayStyles.header}>
-          <GameLogo compact />
+          <GameLogo compact homeHref="/" />
           <div>
             <span className={replayStyles.eyebrow}>HISTORICAL JUDGE REPLAY · {shannonJudge ? 'SHANNON TESTNET' : 'SOMNIA MAINNET'}</span>
             <span className={replayStyles.subtitle} aria-label="Judge Proof Chamber">2-MINUTE PROOF CHAMBER · Two encounters · A finalized market</span>
@@ -1636,6 +1697,7 @@ function LegacyMarketDungeon({
       </div>}
       <div className="game-column">
         {judgeMode && phase === 'COMBAT' && <MobileBattle
+          onHome={goHome}
           location={`STEP ${judgeStep}/5 · ${isBoss ? 'BOSS' : 'GUARD'}`} loadout={{ gold, weapon, armor, progress: `${judgeStep}/5 · ${isBoss ? 'BOSS' : 'GUARD'}` }}
           mode="JUDGE · COMBAT REPLAY"
           desktopSummary={<LoadoutSummary gold={gold} weapon={weapon} armor={armor} potions={`${potions}/${MAX_POTIONS}`}>Two encounters · No wallet or transactions</LoadoutSummary>}
@@ -1654,8 +1716,8 @@ function LegacyMarketDungeon({
           onAttack={() => act('attack')} onStorm={() => act('storm')} onPotion={() => act('potion')}
         />}
         {judgeMode && !['SETUP', 'JUDGE_SETUP', 'COMBAT'].includes(phase) && <div className="desktop-stage-header">
-          {['VICTORY', 'DEAD'].includes(phase) ? <BattleHeader mode="JUDGE · COMBAT REPLAY" summary={<LoadoutSummary gold={gold} weapon={weapon} armor={armor} potions={`${potions}/${MAX_POTIONS}`}>BTC {direction} · {shannonJudge ? 'Shannon Testnet' : 'Somnia Mainnet'}</LoadoutSummary>} /> :
-          <PlayerHeader mode="JUDGE · COMBAT REPLAY" summary={<LoadoutSummary gold={gold} weapon={weapon} armor={armor} potions={`${potions}/${MAX_POTIONS}`}>BTC {direction} · {shannonJudge ? 'Shannon Testnet' : 'Somnia Mainnet'}</LoadoutSummary>}
+          {['VICTORY', 'DEAD'].includes(phase) ? <BattleHeader onHome={goHome} mode="JUDGE · COMBAT REPLAY" summary={<LoadoutSummary gold={gold} weapon={weapon} armor={armor} potions={`${potions}/${MAX_POTIONS}`}>BTC {direction} · {shannonJudge ? 'Shannon Testnet' : 'Somnia Mainnet'}</LoadoutSummary>} /> :
+          <PlayerHeader onHome={goHome} mode="JUDGE · COMBAT REPLAY" summary={<LoadoutSummary gold={gold} weapon={weapon} armor={armor} potions={`${potions}/${MAX_POTIONS}`}>BTC {direction} · {shannonJudge ? 'Shannon Testnet' : 'Somnia Mainnet'}</LoadoutSummary>}
             hp={hp} maxHp={100} location={`STEP ${judgeStep}/5 · ${isBoss ? 'BOSS' : 'GUARD'}`} loadout={{ gold, weapon, armor, progress: `${judgeStep}/5 · ${isBoss ? 'BOSS' : 'GUARD'}` }} potions={potions} omen={`BTC ${direction} · SEALED REPLAY`}
             omenDetails={<><p>Historical dreamDEX replay · {shannonJudge ? 'Shannon Testnet' : 'Somnia Mainnet'}.</p><p>Your BTC {direction} choice is locked. This is a sealed historical result, not a live prediction.</p><JudgeLockReceiptEvidence attestation={market.replayLockAttestation} publicKey={market.replayLockPublicKey} /></>}
             gear={<><p><LoadoutSummary gold={gold} weapon={weapon} armor={armor} /></p><p>Judge loadout · shortened combat for the proof walkthrough. Full Expedition has its own equipment and relic progression.</p></>} />}
@@ -2048,6 +2110,7 @@ function LegacyMarketDungeon({
         <footer>
           <p>DELVEWORN × DREAMDEX EVENT CONTRACTS · {shannonJudge ? 'SOMNIA SHANNON TESTNET' : 'SOMNIA'}</p>
           <span>Competition prototype · no wallet · no approval · no order submission · {replaySealed ? `sealed commitment ${marketCode}` : `market #${marketCode || '—'}`}</span>
+          {judgeMode && <span>Your replay stays available when you return through Home in this tab. Refreshing or closing the tab starts a fresh replay.</span>}
           <span>Anonymous v2 funnel labels measure entry, verified completion and product actions; no wallet, market ID, proof, transcript, exact timing or free-form text is sent.</span>
           <nav aria-label="Project transparency"><Link href={judgeProfile.verifierPath}>VERIFY A PROOF</Link><Link href="/credits">PRIVACY · CREDITS · AI DISCLOSURE</Link></nav>
         </footer>

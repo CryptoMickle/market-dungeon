@@ -1,10 +1,9 @@
 'use client';
 
-import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
 import type { RivalRound } from '../../lib/somnia-agents/types';
 import { KevinRivalPanel } from './rival-panel';
-import { GameModeNav } from '../game-mode-nav';
+import { GameLogo } from '../game-logo';
 import styles from './rival-panel.module.css';
 
 type Direction = 'UP' | 'DOWN';
@@ -54,10 +53,7 @@ export default function KevinRivalPreview() {
 
   return <main className={styles.playground}>
     <div className={styles.previewShell}>
-      <GameModeNav current="agents" />
-      <nav className={styles.previewNav} aria-label="Local prototype navigation">
-        <Link href="/somnia-agents">← Play Somnia Agents with Kevin</Link>
-      </nav>
+      <div className={styles.previewNav}><GameLogo compact homeHref="/" /></div>
       <header className={styles.previewHeader}>
         <span className={styles.eyebrow}>MARKET DUNGEON · LOCAL RIVAL PLAYGROUND</span>
         <h1>Somnia Agent Kevin has an opinion.<br />Of course he does.</h1>

@@ -10,7 +10,7 @@ import { expectSubstantialMobileCombat } from './mobile-combat-layout';
 const PATH = '/shannon/live-judge';
 const STORAGE = 'market-dungeon-live-judge-v1';
 type Fixture = ReturnType<typeof liveJudgeFixture>;
-type LiveAudioWindow = typeof window & { readLiveAudio: () => { starts: number; stops: number; resumes: number } };
+type LiveAudioWindow = typeof window & { readLiveAudio: () => { starts: number; stops: number; resumes: number }; readLiveAudioEvents: () => string[] };
 
 async function installAudioProbe(page: Page) {
   await page.addInitScript(scoreGain => {
@@ -18,15 +18,17 @@ async function installAudioProbe(page: Page) {
     let starts = 0;
     let stops = 0;
     let resumes = 0;
+    const events: string[] = [];
     const ramp = AudioParam.prototype.linearRampToValueAtTime;
     AudioParam.prototype.linearRampToValueAtTime = function (value, time) {
-      if (value === scoreGain) { buses.add(this); starts++; }
-      if (value === 0 && buses.has(this)) stops++;
+      if (value === scoreGain) { buses.add(this); starts++; events.push('start'); }
+      if (value === 0 && buses.has(this)) { stops++; events.push('stop'); }
       return ramp.call(this, value, time);
     };
     const resume = AudioContext.prototype.resume;
     AudioContext.prototype.resume = function () { resumes++; return resume.call(this); };
     (window as LiveAudioWindow).readLiveAudio = () => ({ starts, stops, resumes });
+    (window as LiveAudioWindow).readLiveAudioEvents = () => [...events];
   }, BOSS_SCORE_GAIN);
 }
 
@@ -85,21 +87,20 @@ function liveOdds(fixture: Fixture, market = fixture.market, quotes: { bestBid?:
   };
 }
 
-async function expectLiveModeNavigation(page: Page) {
-  const navigation = page.getByRole('navigation', { name: 'Choose game mode', exact: true });
+async function expectLiveModeNavigation(page: Page, setup = true) {
+  await expect(page.getByRole('navigation', { name: 'Choose game mode', exact: true })).toHaveCount(0);
+  const home = page.getByRole('link', { name: 'Market Dungeon — back to home', exact: true })
+    .or(page.getByRole('button', { name: 'Market Dungeon — back to home', exact: true })).filter({ visible: true });
+  await expect(home).toBeVisible();
+  if (setup) await expect(home).toHaveAttribute('href', '/');
   const variants = page.getByRole('navigation', { name: 'Choose Judge demo', exact: true });
-  await expect(navigation).toBeVisible();
-  await expect(navigation.getByRole('link')).toHaveText(['FULL EXPEDITION', 'JUDGE DEMO']);
-  await expect(navigation.getByRole('link', { name: 'FULL EXPEDITION', exact: true })).toHaveAttribute('href', '/');
-  await expect(navigation.getByRole('link', { name: 'JUDGE DEMO', exact: true })).toHaveAttribute('href', PATH);
-  await expect(navigation.getByRole('link', { name: 'JUDGE DEMO', exact: true })).toHaveAttribute('aria-current', 'page');
+  if (!setup) { await expect(variants).toHaveCount(0); return; }
   await expect(variants).toBeVisible();
   await expect(variants.getByRole('link')).toHaveText(['LIVE · 1 MIN', 'HISTORICAL REPLAY']);
   await expect(variants.getByRole('link', { name: 'HISTORICAL REPLAY', exact: true })).toHaveAttribute('href', '/shannon/judge');
   const live = variants.getByRole('link', { name: 'LIVE · 1 MIN', exact: true });
   await expect(live).toHaveAttribute('href', PATH);
   await expect(live).toHaveAttribute('aria-current', 'page');
-  await expect(navigation.locator('[aria-current="page"]')).toHaveCount(1);
   await expect(variants.locator('[aria-current="page"]')).toHaveCount(1);
 }
 
@@ -470,7 +471,7 @@ for (const width of [1280, 390]) test(`live Judge keeps the same one-minute mark
   await expect(page.getByLabel('Available live market')).toContainText('$60,000.00');
   await expect(page.getByRole('link', { name: 'USE HISTORICAL REPLAY INSTEAD' })).toHaveAttribute('href', '/shannon/judge');
   await lockLive(page);
-  await expectLiveModeNavigation(page);
+  await expectLiveModeNavigation(page, false);
   const expectReachableCombat = async () => {
     if (width === 390) await expectSubstantialMobileCombat(page);
     else for (const action of [/ATTACK/, /STORM/, /POTION/]) await expect(page.getByRole('region', { name: 'Combat actions' }).getByRole('button', { name: action })).toBeInViewport({ ratio: 1 });
@@ -481,10 +482,21 @@ for (const width of [1280, 390]) test(`live Judge keeps the same one-minute mark
   await playGuard(page, fixture);
   await page.getByRole('button', { name: 'ENTER FINAL BOSS', exact: true }).click();
   await expectReachableCombat();
-  await expect.poll(() => page.evaluate(() => (window as LiveAudioWindow).readLiveAudio().starts)).toBe(1);
+  await expect.poll(() => page.evaluate(() => {
+    const { starts, stops } = (window as LiveAudioWindow).readLiveAudio();
+    return starts - stops;
+  })).toBe(1);
+  const bossAudioEvents = await page.evaluate(() => (window as LiveAudioWindow).readLiveAudioEvents());
+  // Next development replays mount effects. Accept only its balanced sequence,
+  // never two concurrent starts or an ongoing start/stop loop.
+  const allowedEvents = process.env.PLAYWRIGHT_PRODUCTION === '1'
+    ? [['start']] : [['start'], ['start', 'stop', 'start']];
+  expect(allowedEvents).toContainEqual(bossAudioEvents);
+  const bossAudioStarts = (await page.evaluate(() => (window as LiveAudioWindow).readLiveAudio())).starts;
   for (const action of fixture.actions.filter(action => action.room === 9)) await page.getByRole('button', { name: action.action === 'potion' ? /POTION/ : /ATTACK/ }).click();
   await expect(page.locator('[data-boss-scene="pending"]')).toBeVisible();
-  await expect.poll(() => page.evaluate(() => (window as LiveAudioWindow).readLiveAudio().stops)).toBeGreaterThan(0);
+  await expect.poll(() => page.evaluate(() => (window as LiveAudioWindow).readLiveAudioEvents()))
+    .toEqual([...bossAudioEvents, 'stop']);
   expect(calls.reveals).toHaveLength(0);
   await expect(page.getByLabel('Player status')).toContainText('80');
   await expect(page.getByRole('button', { name: '1 · SAVE PROOF' })).toHaveCount(0);
@@ -508,7 +520,7 @@ for (const width of [1280, 390]) test(`live Judge keeps the same one-minute mark
   expect(calls.reveals).toEqual(Array(2).fill({ seal: fixture.session.seal, actions: fixture.actions }));
   expect(calls.forbidden).toEqual([]);
   await expect(page.getByLabel('Player status')).toContainText('122');
-  expect((await page.evaluate(() => (window as LiveAudioWindow).readLiveAudio())).starts).toBe(1);
+  expect((await page.evaluate(() => (window as LiveAudioWindow).readLiveAudio())).starts).toBe(bossAudioStarts);
   await expect(page.getByRole('button', { name: 'Turn all game sounds off', exact: true })).toBeVisible();
   const share = await expectLiveShare(page, 2, 'BLESSED');
   await expectLiveResultActions(page);

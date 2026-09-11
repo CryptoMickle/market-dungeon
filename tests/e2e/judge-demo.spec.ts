@@ -144,10 +144,8 @@ async function expectBossReplayRunning(scene: Locator) {
 
 async function expectDesktopCombat(page: Page, width: number, height: number) {
   await page.setViewportSize({ width, height });
-  const modes = page.getByRole('navigation', { name: 'Choose game mode', exact: true });
-  for (const link of await modes.getByRole('link').all()) await expect(link).toBeInViewport({ ratio: 1 });
-  const variants = page.getByRole('navigation', { name: 'Choose Judge demo', exact: true });
-  for (const link of await variants.getByRole('link').all()) await expect(link).toBeInViewport({ ratio: 1 });
+  await expect(page.getByRole('navigation', { name: 'Choose game mode', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('navigation', { name: 'Choose Judge demo', exact: true })).toHaveCount(0);
   const combat = page.getByRole('region', { name: 'Combat view' });
   await expect(combat).toBeVisible();
   await expectCombatBrand(combat);
@@ -278,27 +276,28 @@ async function expectBetweenRoomArrowEdges(page: Page) {
 }
 
 test('desktop Judge keeps complete combat in view and preserves keyboard order and proof flow', async ({ page }, info) => {
-  await installDeterministicUpstreams(page);
+  let replayStarts = 0;
+  await installDeterministicUpstreams(page, { onStartCall: () => { replayStarts += 1; } });
   await page.setViewportSize({ width: 1280, height: 720 });
   await page.goto('/judge');
-  const expectReplayNavigation = async () => {
-    const modes = page.getByRole('navigation', { name: 'Choose game mode', exact: true });
+  const expectReplayNavigation = async (setup = false) => {
+    await expect(page.getByRole('navigation', { name: 'Choose game mode', exact: true })).toHaveCount(0);
     const variants = page.getByRole('navigation', { name: 'Choose Judge demo', exact: true });
-    await expect(modes.getByRole('link')).toHaveText(['FULL EXPEDITION', 'JUDGE DEMO']);
-    await expect(modes.getByRole('link', { name: 'JUDGE DEMO', exact: true })).toHaveAttribute('aria-current', 'page');
-    await expect(modes.getByRole('link', { name: 'JUDGE DEMO', exact: true })).toHaveAttribute('href', '/judge');
-    await expect(modes.getByRole('link', { name: 'FULL EXPEDITION', exact: true })).toHaveAttribute('href', '/');
-    await expect(modes.locator('[aria-current="page"]')).toHaveCount(1);
+    const home = page.getByLabel('Market Dungeon — back to home', { exact: true }).filter({ visible: true });
+    if (setup) await expect(home).toHaveAttribute('href', '/');
+    await expect(home).toBeInViewport({ ratio: 1 });
+    if (!setup) {
+      await expect(variants).toHaveCount(0);
+      return;
+    }
     await expect(variants.getByRole('link')).toHaveText(['LIVE · 1 MIN', 'HISTORICAL REPLAY']);
     await expect(variants.getByRole('link', { name: 'HISTORICAL REPLAY', exact: true })).toHaveAttribute('aria-current', 'page');
     await expect(variants.getByRole('link', { name: 'HISTORICAL REPLAY', exact: true })).toHaveAttribute('href', '/judge');
     await expect(variants.getByRole('link', { name: 'LIVE · 1 MIN', exact: true })).toHaveAttribute('href', '/shannon/live-judge');
     await expect(variants.locator('[aria-current="page"]')).toHaveCount(1);
-    for (const navigation of [modes, variants]) {
-      for (const link of await navigation.getByRole('link').all()) await expect(link).toBeInViewport({ ratio: 1 });
-    }
+    for (const link of await variants.getByRole('link').all()) await expect(link).toBeInViewport({ ratio: 1 });
   };
-  await expectReplayNavigation();
+  await expectReplayNavigation(true);
   await page.getByRole('button', { name: 'LOCK OMEN & SEAL REPLAY' }).click();
   await expect(page.getByRole('list', { name: /^Room progress:/ })).toHaveCount(0);
   const footer = page.locator('footer');
@@ -328,6 +327,17 @@ test('desktop Judge keeps complete combat in view and preserves keyboard order a
   await page.keyboard.press('Tab');
   await expect(actions.getByRole('button', { name: /POTION/ })).toBeFocused();
   await playJudgeGuard(page);
+  // A legacy mainnet replay must return to its own profile and original seal.
+  // Finishing the existing proof flow below also verifies the exact transcript.
+  await page.getByRole('button', { name: 'Market Dungeon — back to home', exact: true }).filter({ visible: true }).click();
+  await expect(page).toHaveURL('/');
+  await expect(page.getByRole('radio', { checked: true })).toHaveCount(0);
+  await page.getByRole('radio', { name: 'Judge Demo', exact: true }).check();
+  await page.getByRole('radio', { name: 'Historical replay', exact: true }).check();
+  await page.getByRole('button', { name: 'CONTINUE RUN', exact: true }).click();
+  await expect(page).toHaveURL('/judge');
+  await expect(page.getByRole('button', { name: '👑 ENTER FINAL BOSS' })).toBeVisible();
+  expect(replayStarts).toBe(1);
   await expectBetweenRoomArrowEdges(page);
   await page.screenshot({ path: info.outputPath('desktop-judge-between.png'), fullPage: true });
   expect((await page.locator('.game-column').boundingBox())!.width).toBeGreaterThan(1200);
@@ -409,7 +419,7 @@ test('desktop Judge keeps complete combat in view and preserves keyboard order a
     }), null, 2),
   });
   // The three-part outcome and save-location guidance add one short text row.
-  // Include the 52px Judge variant row while keeping the result page bounded.
+  // Keep the result page bounded after navigation moves to the common Home.
   expect(await page.evaluate(() => document.documentElement.scrollHeight)).toBeLessThan(1952);
 });
 
@@ -438,21 +448,20 @@ test('desktop Full Expedition preserves critical feedback, HP smoothing and deta
   const now = Math.floor(Date.now() / 1000);
   await page.route('**/api/market?interval=300', route => route.fulfill({ json: { market: { ...market, finalized: false, status: 'Trading', tradingStart: String(now), expiry: String(now + 300) } } }));
   await page.setViewportSize({ width: 1280, height: 720 });
-  await page.goto('/');
+  await page.goto('/expedition');
   const footer = page.locator('footer');
   const expectFooter = async () => {
     await expect(footer).toBeVisible();
     await expect(footer).toContainText('FULL GAME · DELVEWORN RULES · ACTIVE 5M DREAMDEX SETTLEMENT');
     await expect(footer.getByRole('link', { name: 'CONTINUE ON DREAMDEX ↗', exact: true })).toHaveAttribute('href', 'https://app.dreamdex.io/event-contracts/WBTC:USDso/5m');
-    await expect(footer.getByRole('link', { name: 'LIVE JUDGE DEMO', exact: true })).toHaveAttribute('href', '/shannon/live-judge');
+    await expect(footer.getByRole('link', { name: 'LIVE JUDGE DEMO', exact: true })).toHaveCount(0);
     await expect(footer.getByRole('link', { name: 'PRIVACY · CREDITS', exact: true })).toHaveAttribute('href', '/credits');
   };
   await expectFooter();
-  await page.getByRole('button', { name: 'ENTER THE DUNGEON' }).click();
   for (const [width,height] of [[1280,720],[820,720],[1920,1080]]) {
     await page.setViewportSize({width,height});
     await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
-    // Setup includes the shared navigation, market context and choice guide.
+    // Setup includes the market context and choice guide.
     // Short screens retain readable content before the reachable lock action.
     if (width < 1200 || height < 800) await page.getByRole('button', { name: 'LOCK BTC UP · ENTER TIER 1' }).scrollIntoViewIfNeeded();
     await expect(page.getByRole('button', { name: 'LOCK BTC UP · ENTER TIER 1' })).toBeInViewport({ ratio: 1 });
@@ -496,59 +505,68 @@ test('desktop Full Expedition preserves critical feedback, HP smoothing and deta
   await page.screenshot({ path: info.outputPath('desktop-full-room2-footer.png'), fullPage: true });
 });
 
-test('homepage leads with the restored full expedition and keeps the Judge walkthrough one action away', async ({ page }, info) => {
-  await installDeterministicUpstreams(page);
-  const now = Math.floor(Date.now() / 1000);
-  await page.route('**/api/market?interval=300', route => route.fulfill({ json: {
-    market: { ...market, status: 'Trading', finalized: false, tradingStart: now, expiry: now + 300 },
-    odds: { marketId: market.marketId, upProbability: 0.43, downProbability: 0.57, bestBid: 0.419, bestAsk: 0.449, spread: 0.03, source: 'ORDER_BOOK', observedAtIso: new Date().toISOString(), provider: 'dreamDEX CLOB', sdk: '@somnia-chain/markets-sdk' },
-  } }));
+test('homepage begins neutral and explains each mode before entry without fetching markets', async ({ page }, info) => {
+  let marketRequests = 0;
+  await page.route('**/api/market**', route => {
+    marketRequests += 1;
+    return route.fulfill({ json: { market, odds: null } });
+  });
   await page.goto('/');
-  await expect(page.getByLabel('Live dreamDEX order book odds', { exact: true })).toContainText('43%');
-  const hero = page.getByRole('img', { name: 'Delveworn Tier 2 monsters: zombie, goblin and orc', exact: true });
-  for (const [width,height] of [[390,844],[820,720],[1280,720],[1920,1080],[2560,1440]]) {
-    await page.setViewportSize({width,height});
-    await expect(hero).toBeVisible();
-    await expect(hero).toHaveAttribute('src', /delveworn-tier2-party-hero/);
-    const header = page.locator('header').filter({ has: page.getByRole('heading', { name: 'MARKET DUNGEON', exact: true }) });
-    for (const element of [header.locator('p'), header.locator('h1'), header.locator(':scope > strong')]) {
-      await expect(element).toHaveCSS('text-align', 'center');
-    }
+  const choices = page.getByRole('group', { name: 'Choose your dungeon', exact: true });
+  const details = page.getByRole('region', { name: 'Selected dungeon', exact: true });
+  const hero = page.getByRole('img', { name: 'Grave Belle, Gary and Meatwall waiting in the dungeon', exact: true });
+  const entry = details.getByRole('button');
+  for (const [width, height] of [[390,844], [820,720], [1280,720], [1920,1080], [2560,1440]]) {
+    await page.setViewportSize({ width, height });
+    await page.reload();
+    await expect(choices.getByRole('radio', { checked: true })).toHaveCount(0);
+    await expect(entry).toHaveText('CHOOSE A MODE→');
+    await expect(entry).toBeDisabled();
+    await expect(details).not.toContainText('Somnia Agent Kevin');
+    await expect(page.getByLabel('Live dreamDEX order book odds', { exact: true })).toHaveCount(0);
+    await expectOptimizedImageLoaded(hero);
+    const header = page.locator('header').filter({ has: page.getByRole('heading', { level: 1 }) });
+    for (const element of [header.locator('p'), header.locator('h1')]) await expect(element).toHaveCSS('text-align', 'center');
     const logo = (await header.locator('img').boundingBox())!;
-    expect(logo.width).toBe(width > 800 ? 300 : 240);
     const headerBox = (await header.boundingBox())!;
     expect(logo.x + logo.width / 2).toBeCloseTo(headerBox.x + headerBox.width / 2, 0);
+    const baseline = (await entry.boundingBox())!;
+    for (const name of ['Full Expedition', 'Judge Demo', 'Somnia Agents']) {
+      const choice = choices.getByRole('radio', { name, exact: true });
+      if (!await choice.count()) continue; // Somnia Agents is available only in the local edition.
+      await choice.check();
+      await expect(choice).toBeChecked();
+      await expect(entry).toHaveText('ENTER DUNGEON→');
+      await expect(entry).toBeEnabled();
+      if (name === 'Full Expedition') await expect(details).toContainText('Fight your way through forty rooms.');
+      if (name === 'Somnia Agents') await expect(details).toContainText('Can you outpredict Somnia Agent Kevin?');
+      if (name === 'Judge Demo') {
+        await expect(details).toContainText('One short run. A fresh market result.');
+        await details.getByRole('radio', { name: 'Historical replay', exact: true }).check();
+        await expect(details).toContainText('A short run with a sealed outcome.');
+      }
+      const selected = (await entry.boundingBox())!;
+      expect(selected.x).toBeCloseTo(baseline.x, 0);
+      expect(selected.y).toBeCloseTo(baseline.y, 0);
+      expect(selected.width).toBeCloseTo(baseline.width, 0);
+    }
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(width);
     if (width > 800) {
       const art = (await hero.locator('..').boundingBox())!;
-      const copy = (await page.getByRole('heading', {name:'Defeat the boss. Predict correctly. Survive both.'}).boundingBox())!;
+      const copy = (await details.getByRole('heading', { level: 2 }).boundingBox())!;
       expect(art.x + art.width).toBeLessThanOrEqual(copy.x);
-      expect((await page.getByRole('button', { name: 'ENTER THE DUNGEON' }).boundingBox())!.width).toBeLessThanOrEqual(480);
-      const hint = (await page.locator('.desktop-keyboard-hint').boundingBox())!;
-      const button = (await page.getByRole('button', { name: 'ENTER THE DUNGEON' }).boundingBox())!;
-      expect(hint.x + hint.width).toBeCloseTo(button.x + button.width, 0);
-      if (width >= 1440) expect(copy.width).toBeLessThanOrEqual(640);
-      expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(width);
+      expect((await page.locator('main > div').boundingBox())!.width).toBeLessThanOrEqual(1180);
     }
-    if (width > 800) expect((await page.locator('main > div').boundingBox())!.width).toBeLessThanOrEqual(1180);
-    if ([390, 820, 1280, 1920].includes(width)) {
-      await expectOptimizedImageLoaded(hero);
-      await page.screenshot({ path: info.outputPath(`homepage-market-${width}.png`), fullPage: true });
-    }
+    if ([390,820,1280,1920].includes(width)) await page.screenshot({ path: info.outputPath(`homepage-market-${width}.png`), fullPage: true });
   }
-  await expect(page.getByRole('heading', { name: 'Defeat the boss. Predict correctly. Survive both.' })).toBeVisible();
-  const fullRunButton = page.getByRole('button', { name: 'ENTER THE DUNGEON' });
-  await expect(fullRunButton).toBeVisible();
-  await expect(fullRunButton).toBeEnabled();
-  await expect(page.getByRole('link', { name: /JUDGES: PLAY THE LIVE 1-MINUTE DEMO/ })).toHaveAttribute('href', '/shannon/live-judge');
-  expect(await page.evaluate(() => window.scrollY)).toBe(0);
+  expect(marketRequests).toBe(0);
 });
 
 test('full health spans the entire dashboard with breathing room before the first omen', async ({ page }, info) => {
   await installDeterministicUpstreams(page);
   const now = Math.floor(Date.now() / 1000);
   await page.route('**/api/market?interval=300', route => route.fulfill({ json: { market: { ...market, finalized: false, status: 'Trading', tradingStart: String(now), expiry: String(now + 300) } } }));
-  await page.goto('/');
-  await page.getByRole('button', { name: 'ENTER THE DUNGEON' }).click();
+  await page.goto('/expedition');
   for (const width of [320, 390, 1280, 1920]) {
     await page.setViewportSize({ width, height: width < 800 ? 568 : 1080 });
     const status = page.getByRole('region', { name: 'Player status', exact: true });
@@ -591,8 +609,7 @@ test('mobile Full Expedition starts cleanly and restores exact combat state afte
     await route.fulfill({ json: { market: { ...market, finalized: false, status: 'Trading', tradingStart: String(now), expiry: String(now + 300) } } });
   });
 
-  await page.goto('/');
-  await page.getByRole('button', { name: 'ENTER THE DUNGEON' }).click();
+  await page.goto('/expedition');
   await expect(page.getByRole('list', { name: 'Room progress: tier 1, room 1 of 10', exact: true })).toBeVisible();
   await expect(page.getByRole('region', { name: 'Player status', exact: true })).toContainText('T1 · ROOM 1/40');
   await expect(page.getByText('$60,000.00')).toBeVisible();
@@ -668,8 +685,7 @@ test('mobile combat keeps substantial art and both HP bars with reachable contro
   const now = Math.floor(Date.now() / 1_000);
   await page.route('**/api/market?interval=300', (route) => route.fulfill({ json: { market: { ...market, finalized: false, status: 'Trading', tradingStart: String(now), expiry: String(now + 300) } } }));
   await page.setViewportSize({ width: 390, height: 664 });
-  await page.goto('/');
-  await page.getByRole('button', { name: 'ENTER THE DUNGEON' }).click();
+  await page.goto('/expedition');
   await page.getByRole('button', { name: 'LOCK BTC UP · ENTER TIER 1' }).click();
   for (const [width, height] of [[390, 664], [393, 724], [390, 844], [375, 600], [320, 568], [430, 664]]) await expectCompactCombat(page, width, height);
   await expectCompactCombat(page, 390, 664);
@@ -723,7 +739,7 @@ for (const [relicId, criticalChance] of [[0,15], [3,20], [11,30], [15,25]]) {
     await page.addInitScript(({ key, value }) => {
       if (!localStorage.getItem(key)) localStorage.setItem(key, value);
     }, { key: FULL_RUN_STORAGE_KEY, value: serializeFullRunSession(session) });
-    await page.goto('/');
+    await page.goto('/expedition');
     const attack = page.getByRole('region', { name: 'Combat actions' }).getByRole('button', { name: /ATTACK/ });
     await expect(attack).toContainText(`${criticalChance}% CRIT`);
     await expectCompactCombat(page, 320, 568);
@@ -841,7 +857,7 @@ test('desktop arrows and Enter navigate combat and dialogs without repeated acti
 test('mobile and desktop room progress follows the current tier through room, boss and next-tier combat', async ({ page }, info) => {
   await installDeterministicUpstreams(page);
   await page.setViewportSize({ width: 390, height: 664 });
-  await page.goto('/');
+  await page.goto('/expedition');
   for (const room of [1, 5, 10, 11, 20, 40]) {
     const state = uiParitySession({ roomsCleared: room - 1, monsterType: room % 10 === 0 ? 3 : 0 });
     state.run.phase = room % 10 === 0 ? 'boss-combat' : 'exploring';
@@ -882,7 +898,7 @@ test('mobile and desktop room progress follows the current tier through room, bo
 
 test('shared player dashboard stays compact and separates omen and Gear from the encounter', async ({ page }, info) => {
   await installDeterministicUpstreams(page);
-  await page.goto('/');
+  await page.goto('/expedition');
   for (const width of [320, 390, 820, 1280, 1920]) {
     await page.setViewportSize({ width, height: width <= 390 ? 568 : width === 1920 ? 1080 : 720 });
     const active = uiParitySession({ hp: 81, potions: 2, gold: 83, weaponLevel: 2, armorLevel: 1 });
@@ -918,8 +934,13 @@ test('shared player dashboard stays compact and separates omen and Gear from the
       const omenBox = (await omen.boundingBox())!;
       expect(logo.height).toBeGreaterThanOrEqual(44);
       expect(omenBox.height).toBeGreaterThanOrEqual(44);
-      expect(logo.x + logo.width).toBeLessThanOrEqual(omenBox.x);
-      expect(logo.y).toBeCloseTo(omenBox.y, 0);
+      // Home and Sound share their own row; the omen keeps the full status width.
+      expect(logo.y + logo.height).toBeLessThanOrEqual(omenBox.y);
+      expect(omenBox.width).toBeGreaterThanOrEqual(combatStatus.width - 20);
+      const sound = page.getByRole('button', { name: /Turn all game sounds/ });
+      const soundBox = (await sound.boundingBox())!;
+      expect(logo.x + logo.width).toBeLessThanOrEqual(soundBox.x);
+      await expect(sound).toBeInViewport({ ratio: 1 });
       const resources = (await status.getByLabel(/Your health/).boundingBox())!;
       expect(logo.y + logo.height).toBeLessThanOrEqual(resources.y);
       await expect(status.getByLabel(/Your health/)).toContainText('❤️');
@@ -960,7 +981,7 @@ test('shared player dashboard stays compact and separates omen and Gear from the
 for (const width of [390, 1280]) test(`Full Expedition logo returns home without losing the run at ${width}px`, async ({ page }) => {
   await installDeterministicUpstreams(page);
   await page.setViewportSize({ width, height: 844 });
-  await page.goto('/');
+  await page.goto('/expedition');
   for (const monsterHp of [30, 0]) {
     const value = serializeFullRunSession(uiParitySession({ hp: 63, potions: 2, monsterHp }));
     await page.evaluate(({ key, value }) => localStorage.setItem(key, value), { key: FULL_RUN_STORAGE_KEY, value });
@@ -972,12 +993,16 @@ for (const width of [390, 1280]) test(`Full Expedition logo returns home without
       await home.focus();
       await page.keyboard.press('Enter');
     } else await home.click();
-    await expect(page.getByRole('heading', { name: 'Defeat the boss. Predict correctly. Survive both.' })).toBeVisible();
-    await expect(home).toHaveCount(0);
-    await expect(page.getByRole('region', { name: 'Expedition market' })).toContainText('YOUR LOCKED OMEN');
+    await expect(page).toHaveURL('/');
+    await expect(page.getByRole('heading', { name: 'Choose your way into the dungeon.' })).toBeVisible();
+    await expect(page.getByRole('radio', { checked: true })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'CHOOSE A MODE' })).toBeDisabled();
+    await expect(page.getByRole('region', { name: 'Expedition market' })).toHaveCount(0);
     await expect(page.getByLabel('Live dreamDEX order book odds', { exact: true })).toHaveCount(0);
     expect(await page.evaluate(key => localStorage.getItem(key), FULL_RUN_STORAGE_KEY)).toBe(before);
-    await page.getByRole('button', { name: 'CONTINUE EXPEDITION' }).click();
+    await page.getByRole('radio', { name: 'Full Expedition', exact: true }).check();
+    await page.getByRole('button', { name: 'CONTINUE RUN', exact: true }).click();
+    await expect(page).toHaveURL('/expedition');
     await expect(home).toBeVisible();
     await expect(page.getByLabel('Your health 63 of 100', { exact: true })).toBeVisible();
     expect(await page.evaluate(key => localStorage.getItem(key), FULL_RUN_STORAGE_KEY)).toBe(before);
@@ -990,7 +1015,7 @@ for (const width of [390, 1280]) test(`Full Expedition logo returns home without
 for (const width of [1280, 1782]) test(`between-room potion remains reachable with open relics at ${width}px`, async ({ page }) => {
   await installDeterministicUpstreams(page);
   await page.setViewportSize({ width, height: 1166 });
-  await page.goto('/');
+  await page.goto('/expedition');
   const session = uiParitySession({ hp: 33, maxHp: 98, baseMaxHp: 98, potions: 1, roomsCleared: 11, monsterHp: 0, ownedRelics: [1], equippedRelic: 1 });
   const previousMarketId = `0x${'78'.repeat(32)}`;
   session.run.attemptNumber = 2;
@@ -1036,7 +1061,7 @@ test('relic loadout follows the market disclosure and supports arrow navigation'
   const now = Math.floor(Date.now() / 1000);
   await page.route('**/api/market?interval=300', route => route.fulfill({ json: { market: { ...market, marketId: `0x${'56'.repeat(32)}`, finalized: false, status: 'Trading', tradingStart: String(now), expiry: String(now + 300) } } }));
   await page.setViewportSize({ width: 1280, height: 900 });
-  await page.goto('/');
+  await page.goto('/expedition');
   const session = uiParitySession({ monsterHp: 0, roomsCleared: 10, ownedRelics: [3], equippedRelic: 3 });
   session.run.phase = 'boss-lock-required';
   session.run.currentAttempt = null;
@@ -1106,7 +1131,7 @@ test('relic loadout follows the market disclosure and supports arrow navigation'
 
 test('Delveworn health thresholds, boss palette and equipment icons remain presentation-only', async ({ page }, info) => {
   await page.setViewportSize({ width: 1280, height: 720 });
-  await page.goto('/');
+  await page.goto('/expedition');
   for (const [hp, tone, color] of [
     [100, 'healthy', 'oklch(0.765 0.177 163.223)'],
     [56, 'healthy', 'oklch(0.765 0.177 163.223)'],
@@ -1160,7 +1185,7 @@ for (const reward of [
   await page.addInitScript(({ key, value }) => {
     if (!localStorage.getItem(key)) localStorage.setItem(key, value);
   }, { key: FULL_RUN_STORAGE_KEY, value: serializeFullRunSession(session) });
-  await page.goto('/');
+  await page.goto('/expedition');
   for (const width of [1280, 390, 320]) {
     await page.setViewportSize({ width, height: width > 800 ? 720 : 844 });
     await expect(page.getByRole('heading', { name: `Loot secured: ${reward.name}`, exact: true })).toBeVisible();
@@ -1197,7 +1222,7 @@ for (const roomsCleared of [5, 9]) {
   test(`Full Expedition room ${roomsCleared} shows Kevin and the same gold artwork on mobile and desktop`, async ({ page }, info) => {
     const session = uiParitySession({ roomsCleared, monsterHp: 0, hp: 50, gold: 105, lastLootType: 1, lastLootAmount: 1, log: ['🪙 Base reward: 5 gold. The dungeon reluctantly honors payroll.'] });
     await page.addInitScript(({ key, value }) => localStorage.setItem(key, value), { key: FULL_RUN_STORAGE_KEY, value: serializeFullRunSession(session) });
-    await page.goto('/');
+    await page.goto('/expedition');
     const kevin = page.getByRole('img', { name: 'Quartermaster Kevin', exact: true });
     for (const [width, height] of [[1280,720], [1920,866], [390,844]]) {
       await page.setViewportSize({ width, height });
@@ -1219,15 +1244,14 @@ for (const roomsCleared of [5, 9]) {
   });
 }
 
-for (const path of ['/', '/judge']) {
+for (const path of ['/expedition', '/judge']) {
   test(`desktop potion status remains visible and updates during combat at ${path}`, async ({ page }) => {
     await installDeterministicUpstreams(page);
     const now = Math.floor(Date.now() / 1000);
     await page.route('**/api/market?interval=300', route => route.fulfill({ json: { market: { ...market, finalized: false, status: 'Trading', tradingStart: String(now), expiry: String(now + 300) } } }));
     await page.setViewportSize({ width: 1280, height: 720 });
     await page.goto(path);
-    if (path === '/') {
-      await page.getByRole('button', { name: 'ENTER THE DUNGEON', exact: true }).click();
+    if (path === '/expedition') {
       await page.getByRole('button', { name: 'LOCK BTC UP · ENTER TIER 1', exact: true }).click();
     } else await page.getByRole('button', { name: 'LOCK OMEN & SEAL REPLAY' }).click();
     const combat = page.getByRole('region', { name: 'Combat view' });
@@ -1252,8 +1276,7 @@ test('mobile critical feedback survives a finishing blow and respects reduced mo
   const now = Math.floor(Date.now() / 1_000);
   await page.route('**/api/market?interval=300', (route) => route.fulfill({ json: { market: { ...market, finalized: false, status: 'Trading', tradingStart: String(now), expiry: String(now + 300) } } }));
   await page.setViewportSize({ width: 320, height: 568 });
-  await page.goto('/');
-  await page.getByRole('button', { name: 'ENTER THE DUNGEON' }).click();
+  await page.goto('/expedition');
   await page.getByRole('button', { name: 'LOCK BTC UP · ENTER TIER 1' }).click();
   const combat = page.getByRole('region', { name: 'Combat view' });
   await combat.getByRole('button', { name: /ATTACK/ }).click();
@@ -1349,7 +1372,7 @@ test('completed full expedition restores with an honest responsive run card', as
     value: serialized,
   });
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto('/');
+  await page.goto('/expedition');
 
   await expect(page.getByRole('heading', { name: 'Every boss stayed down.' })).toBeVisible();
   const share = page.getByRole('region', { name: 'Share your Market Dungeon result' });
@@ -1417,7 +1440,7 @@ test('first boss relic offers an honest claim-without-equipping choice', async (
     },
   };
   const serialized = serializeFullRunSession(session);
-  await page.goto('/');
+  await page.goto('/expedition');
   await page.evaluate(({ key, value }) => localStorage.setItem(key, value), { key: FULL_RUN_STORAGE_KEY, value: serialized });
   await page.reload();
 
@@ -1657,8 +1680,7 @@ test('full-run entry fetches and exposes a five-minute reference before room one
     marketRequests += 1;
     await route.fulfill({ json: { market: { ...market, finalized: false, status: 'Trading', tradingStart: String(now), expiry: String(now + 300) }, odds: null } });
   });
-  await page.goto('/');
-  await page.getByRole('button', { name: 'ENTER THE DUNGEON' }).click();
+  await page.goto('/expedition');
   await expect(page.getByRole('heading', { name: 'Lock your omen before Room 1.' })).toBeVisible();
   const guide = page.getByRole('region', { name: 'How your Bitcoin choice works' });
   await expect(guide).toContainText('BTC means Bitcoin.');
@@ -1712,7 +1734,7 @@ test('full-run rematch locks a fresh live omen and preserves Delveworn boss iden
     await route.fulfill({ json: { market: { ...market, finalized: false, status: 'Trading', tradingStart: String(now), expiry: String(now + 300) } } });
   });
 
-  await page.goto('/');
+  await page.goto('/expedition');
   await expect(page.getByRole('heading', { name: 'The boss is back. Lock a fresh omen.' })).toBeVisible();
   await expect(page.getByLabel('Your health 100 of 100')).toBeVisible();
   await expect(page.getByText('CAMP BEFORE THE BOSS')).toHaveCount(0);
@@ -1749,7 +1771,7 @@ for (const direction of ['UP', 'DOWN'] as const) {
       },
     };
     await page.addInitScript(({ key, value }) => localStorage.setItem(key, value), { key: FULL_RUN_STORAGE_KEY, value: serializeFullRunSession(session) });
-    await page.goto('/');
+    await page.goto('/expedition');
     const defeatedBoss = page.getByLabel('The Dungeon Lord defeated, awaiting omen settlement');
     await expect(defeatedBoss).toBeVisible();
     await expect(defeatedBoss).toHaveAttribute('data-boss-scene', 'pending');
@@ -1832,7 +1854,7 @@ for (const width of [1280, 390]) test(`pending settlement potion safely heals an
   await page.addInitScript(({ key, value }) => {
     if (!localStorage.getItem(key)) localStorage.setItem(key, value);
   }, { key: FULL_RUN_STORAGE_KEY, value: serializeFullRunSession(session) });
-  await page.goto('/');
+  await page.goto('/expedition');
   const potion = page.getByRole('button', { name: /USE POTION/ });
   const supplies = page.getByRole('region', { name: 'Recovery supplies', exact: true });
   await expect(supplies).toBeVisible();
@@ -1891,7 +1913,7 @@ for (const width of [1280, 390]) test(`pre-rematch potion heals safely before lo
   await page.addInitScript(({ key, value }) => {
     if (!localStorage.getItem(key)) localStorage.setItem(key, value);
   }, { key: FULL_RUN_STORAGE_KEY, value: serializeFullRunSession(session) });
-  await page.goto('/');
+  await page.goto('/expedition');
   await expect(page.getByRole('img', { name: 'Closed dungeon gate' })).toHaveCount(0);
   const rematchScene = page.getByRole('region', { name: 'The Dungeon Lord resurrects at full health', exact: true });
   await expect(rematchScene.getByRole('img', { name: 'The Dungeon Lord resurrecting', exact: true })).toBeVisible();
@@ -1942,7 +1964,7 @@ test('Full Expedition cannot reveal or request settlement before its locked mark
   let settlementRequests = 0;
   await page.route('**/api/market?marketId=*', route => { settlementRequests += 1; return route.abort(); });
   await page.addInitScript(({ key, value }) => localStorage.setItem(key, value), { key: FULL_RUN_STORAGE_KEY, value: serializeFullRunSession(session) });
-  await page.goto('/');
+  await page.goto('/expedition');
   await expect(page.getByRole('heading', { name: 'Hold the gate until settlement.' })).toBeVisible();
   await expect(page.getByRole('button', { name: /^REVEAL IN/ })).toBeDisabled();
   expect(settlementRequests).toBe(0);
@@ -1953,7 +1975,7 @@ test('privacy, asset provenance, AI disclosure, and music credits are reachable 
     await route.fulfill({ json: { market, odds: null } });
   });
 
-  await page.goto('/');
+  await page.goto('/expedition');
   await page.getByRole('link', { name: 'PRIVACY · CREDITS' }).click();
   await expect(page).toHaveURL('/credits');
   await expect(page.getByRole('heading', { name: 'Privacy, credits & AI disclosure' })).toBeVisible();

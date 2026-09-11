@@ -8,6 +8,9 @@ import { playJudgeBoss, playJudgeGuard } from './judge-play';
 
 type BossAudioSnapshot = {
   starts: number;
+  stops: number;
+  activeScores: number;
+  events: Array<'start' | 'stop'>;
   sources: number;
   uncancelledSources: number;
   remainingReleaseSources: number;
@@ -28,9 +31,12 @@ async function installBossAudioProbe(page: Page) {
     const links = new Map<AudioNode, Set<AudioNode>>();
     const gainOwners = new WeakMap<AudioParam, GainNode>();
     const musicBuses = new Set<AudioNode>();
+    const activeBuses = new Set<AudioNode>();
+    const events: Array<'start' | 'stop'> = [];
     const contexts = new Set<AudioContext>();
     const sources: Array<{ node: AudioScheduledSourceNode; stop: number | null; ended: boolean }> = [];
     let starts = 0;
+    let stops = 0;
     let resumes = 0;
     let suspends = 0;
 
@@ -51,14 +57,26 @@ async function installBossAudioProbe(page: Page) {
       return Reflect.apply(connect, this, [destination, ...ports]);
     };
     const ramp = AudioParam.prototype.linearRampToValueAtTime;
+    function recordStop(parameter: AudioParam) {
+      const owner = gainOwners.get(parameter);
+      if (owner && activeBuses.delete(owner)) { stops++; events.push('stop'); }
+    }
+    const setValue = AudioParam.prototype.setValueAtTime;
+    AudioParam.prototype.setValueAtTime = function (value, startTime) {
+      if (value === 0) recordStop(this);
+      return setValue.call(this, value, startTime);
+    };
     AudioParam.prototype.linearRampToValueAtTime = function (value, endTime) {
       const owner = gainOwners.get(this);
       // The score has its own fade-in bus. Follow that native routing graph to
       // distinguish music from click, character intro and dungeon ambience.
       if (owner && value === scoreGain) {
         musicBuses.add(owner);
+        activeBuses.add(owner);
         starts++;
+        events.push('start');
       }
+      if (value === 0) recordStop(this);
       return ramp.call(this, value, endTime);
     };
     function observe<T extends AudioScheduledSourceNode>(source: T): T {
@@ -92,6 +110,9 @@ async function installBossAudioProbe(page: Page) {
       const scoreSources = sources.filter(source => routesToMusic(source.node));
       return {
         starts,
+        stops,
+        activeScores: activeBuses.size,
+        events: [...events],
         sources: scoreSources.length,
         // Stop may fade for up to 60 ms. Future notes must also be cancelled,
         // including sources that have been scheduled but have not started yet.
@@ -121,14 +142,27 @@ function probe(page: Page) {
 }
 
 async function expectScoreRunning(page: Page, starts = 1) {
-  await expect.poll(async () => (await probe(page)).starts).toBe(starts);
+  await expect.poll(async () => (await probe(page)).activeScores).toBe(1);
   const before = await probe(page);
+  // Dev StrictMode can replay a newly mounted effect, but it must cancel the
+  // first score before restarting. Production must start each requested score
+  // once. Neither environment may run two scores or restart without a stop.
+  let allowed: string[][] = [[]];
+  for (let index = 0; index < starts; index++) {
+    allowed = allowed.flatMap(prefix => (process.env.PLAYWRIGHT_PRODUCTION === '1' ? [1] : [1, 2]).map(copies => [
+      ...prefix, ...(prefix.length ? ['stop'] : []), 'start', ...(copies === 2 ? ['stop', 'start'] : []),
+    ]));
+  }
+  expect(allowed).toContainEqual(before.events);
+  expect(before.starts - before.stops).toBe(1);
   expect(before.sources).toBeGreaterThan(0);
   await expect.poll(async () => (await probe(page)).sources).toBeGreaterThan(before.sources);
 }
 
 async function expectScoreStopped(page: Page) {
   const stopped = await probe(page);
+  expect(stopped.activeScores).toBe(0);
+  expect(stopped.starts).toBe(stopped.stops);
   expect(stopped.uncancelledSources, 'Every score source must be cancelled within the 60 ms release window').toBe(0);
   // More than four scheduler look-ahead windows: a leaked music timer would
   // create additional score notes even after its old sources were stopped.
@@ -182,7 +216,7 @@ async function openFull(page: Page, session: FullRunSession) {
   await page.addInitScript(({ key, value }) => localStorage.setItem(key, value), {
     key: FULL_RUN_STORAGE_KEY, value: serializeFullRunSession(session),
   });
-  await page.goto('/');
+  await page.goto('/expedition');
   await expect(page.getByRole('region', { name: 'Combat view', exact: true })).toBeVisible();
   // Merely restoring a saved battle must not seize the audio output.
   expect((await probe(page)).starts).toBe(0);

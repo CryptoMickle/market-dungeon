@@ -45,7 +45,7 @@ async function restoreExpedition(page: Page, session: FullRunSession) {
   await page.addInitScript(({ key, value }) => {
     if (!localStorage.getItem(key)) localStorage.setItem(key, value);
   }, { key: FULL_RUN_STORAGE_KEY, value: serializeFullRunSession(session) });
-  await page.goto('/');
+  await page.goto('/expedition');
 }
 
 async function expectTouchTarget(control: Locator) {
@@ -149,6 +149,15 @@ async function openLive(page: Page) {
 for (const phone of phones) test.describe(`${phone.width}×${phone.height} iPhone browser space`, () => {
   test.use({ viewport: phone, hasTouch: true });
   test.beforeEach(async ({ page, browserName, baseURL }) => {
+    if (baseURL && ['localhost', '127.0.0.1'].includes(new URL(baseURL).hostname)) {
+      // Next's development badge is not a game control and can cover a 375px
+      // layout. Keep the actual application hit tests intact on local dev runs.
+      await page.addInitScript(() => document.addEventListener('DOMContentLoaded', () => {
+        const style = document.createElement('style');
+        style.textContent = 'nextjs-portal { display: none !important; }';
+        document.head.appendChild(style);
+      }, { once: true }));
+    }
     // WebKit upgrades even loopback asset URLs under the production CSP. The
     // local next-start server only speaks HTTP; keep every other CSP directive
     // intact while testing its optimized UI. This never applies to a hosted

@@ -64,7 +64,8 @@ test('Full Expedition plays only short encounter and action cues outside bosses,
   await page.goto('/');
   const soundOn = page.getByRole('button', { name: 'Turn all game sounds off', exact: true });
   await expect(soundOn).toBeVisible();
-  await page.getByRole('button', { name: 'ENTER THE DUNGEON', exact: true }).click();
+  await page.getByRole('radio', { name: 'Full Expedition', exact: true }).check();
+  await page.getByRole('button', { name: 'ENTER DUNGEON', exact: true }).click();
   await expect.poll(async () => (await readAudioProbe(page)).oscillators).toBe(2);
   const afterEntrance = await readAudioProbe(page);
   expect(afterEntrance.bufferSources, 'Entering the dungeon must not start looping air or a drone').toBe(0);
@@ -154,7 +155,8 @@ test('muting still suspends audio when browser storage is unavailable', async ({
   });
   await page.route('**/api/market?interval=300', route => route.fulfill({ json: { market } }));
   await page.goto('/');
-  await page.getByRole('button', { name: 'ENTER THE DUNGEON', exact: true }).click();
+  await page.getByRole('radio', { name: 'Full Expedition', exact: true }).check();
+  await page.getByRole('button', { name: 'ENTER DUNGEON', exact: true }).click();
   await expect.poll(async () => (await readAudioProbe(page)).oscillators).toBeGreaterThan(0);
   await page.getByRole('button', { name: 'Turn all game sounds off', exact: true }).click();
   await expect.poll(async () => (await readAudioProbe(page)).suspends).toBeGreaterThan(0);
@@ -177,7 +179,8 @@ test('dungeon audio stays paused on return until a new player interaction and re
   });
   await page.route('**/api/market?interval=300', route => route.fulfill({ json: { market } }));
   await page.goto('/');
-  await page.getByRole('button', { name: 'ENTER THE DUNGEON', exact: true }).click();
+  await page.getByRole('radio', { name: 'Full Expedition', exact: true }).check();
+  await page.getByRole('button', { name: 'ENTER DUNGEON', exact: true }).click();
   await page.evaluate(() => (window as typeof window & { setAudioTestHidden: (value: boolean) => void }).setAudioTestHidden(true));
   await expect.poll(async () => (await readAudioProbe(page)).suspends).toBeGreaterThan(0);
   const hidden = await readAudioProbe(page);
@@ -209,7 +212,8 @@ test('an enabled preference from another tab never starts playback by itself', a
   await installAudioProbe(page);
   await page.route('**/api/market?interval=300', route => route.fulfill({ json: { market } }));
   await page.goto('/');
-  await page.getByRole('button', { name: 'ENTER THE DUNGEON', exact: true }).click();
+  await page.getByRole('radio', { name: 'Full Expedition', exact: true }).check();
+  await page.getByRole('button', { name: 'ENTER DUNGEON', exact: true }).click();
   await page.getByRole('button', { name: 'Turn all game sounds off', exact: true }).click();
   await expect.poll(async () => (await readAudioProbe(page)).suspends).toBeGreaterThan(0);
   const muted = await readAudioProbe(page);
@@ -225,7 +229,7 @@ test('an enabled preference from another tab never starts playback by itself', a
 
 
 for (const mode of [
-  { name: 'Full Expedition', path: '/', entry: 'ENTER THE DUNGEON' },
+  { name: 'Full Expedition', path: '/', entry: 'ENTER DUNGEON' },
   { name: 'Live Judge', path: '/shannon/live-judge', entry: 'LOCK BTC UP & ENTER DUNGEON' },
   { name: 'Historical Replay', path: '/shannon/judge', entry: 'LOCK OMEN & SEAL REPLAY' },
 ] as const) {
@@ -244,7 +248,10 @@ for (const mode of [
     await page.route('**/api/live-judge/start', route => route.fulfill({ json: { live: live.session } }));
     await page.route('**/api/live-judge/odds?*', route => route.fulfill({ status: 503, json: { error: 'No fixture quotes' } }));
     await page.goto(mode.path);
-    if (mode.path === '/') await page.getByRole('button', { name: mode.entry, exact: true }).press('Enter');
+    if (mode.path === '/') {
+      await page.getByRole('radio', { name: 'Full Expedition', exact: true }).check();
+      await page.getByRole('button', { name: mode.entry, exact: true }).press('Enter');
+    }
 
     const down = page.getByRole('button', { name: /SHADOWS RISE/ });
     const up = page.getByRole('button', { name: /GOLD AWAKENS/ });

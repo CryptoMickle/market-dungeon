@@ -4,17 +4,18 @@ This is a separate local prototype based on the published Market Dungeon build. 
 
 ## Try it
 
-- **Full Expedition:** <http://localhost:3001/>. The original forty-room game, without the rival. Quartermaster Kevin keeps his ordinary merchant role.
+- **Home:** <http://localhost:3001/>. Opens with no mode selected. Select a name to see its explanation, then enter. No market or agent request starts on Home.
+- **Full Expedition:** <http://localhost:3001/expedition>. The original forty-room game, without the rival. Quartermaster Kevin keeps his ordinary merchant role.
 - **Judge Demo:** <http://localhost:3001/shannon/live-judge>. The original demo, with Live 1 Min and Historical Replay choices inside it. Neither demo sends agent requests.
 - **Somnia Agents · New!:** <http://localhost:3001/somnia-agents>. The separate forty-room rival mode. Enter the dungeon and lock a real five-minute BTC market. Somnia Agent Kevin gets the same market; his status stays with the player header, and **Details** opens the full rivalry. Your boss result still depends on your own prediction.
 - **Quick playground:** <http://localhost:3001/somnia-agents/playground>. Choose UP or DOWN, lock, and try simulated UP/DOWN/VOID results. The late-answer and no-answer scenarios show how Kevin sits out. This entire page is a simulation.
 - The default **Try locally** mode makes an independent random test choice. It does not run an AI or a Somnia agent. It lets you test the interaction without a wallet.
-- Choose **Somnia Agents** before locking an omen to request a real validator-executed prediction on Shannon testnet. Use a browser with a wallet extension and testnet STT. The wallet asks you to approve each paid request; declining leaves the dungeon playable. Never use mainnet funds.
-- The three main navigation buttons stay available across the local game, with the current mode marked. Only Judge Demo shows the Live 1 Min / Historical Replay sub-navigation. Agent participation belongs exclusively to **Somnia Agents**; historical replay is excluded because its result already exists before the prediction.
+- Inside the Somnia Agents game, open Kevin’s **Details** and choose the real-agent option before locking an omen to request a validator-executed prediction on Shannon testnet. Use a browser with a wallet extension and testnet STT. The wallet asks you to approve each paid request; declining leaves the dungeon playable. Never use mainnet funds.
+- The three mode choices appear only on Home. The Market Dungeon logo returns there from the game without preselecting a mode. Judge Demo offers Live 1 Min / Historical Replay on Home and during demo setup. Agent participation belongs exclusively to **Somnia Agents**; historical replay is excluded because its result already exists before the prediction.
 
 To start again, double-click `Start Local Agents.command`, or run `npm run dev:agents` from this directory. Port 3001 keeps the prototype separate from the original localhost:3000 game. The Mac must stay awake and the server must remain running.
 
-Somnia Agents uses a separate expedition save key, so switching modes does not overwrite progress in ordinary Full Expedition or Judge Demo. Its entry screen also has **Start a fresh local expedition** for repeated testing. The rival scorecard keeps simulator and real-agent results separate.
+Somnia Agents uses a separate expedition save key, so switching modes does not overwrite progress in ordinary Full Expedition or Judge Demo. Home shows **Continue Run** for active saves and **View Last Run** for finished runs; a fresh expedition can be started from the result screen. Live Judge resumes its verified save in the same tab. Historical Replay preserves its original seal and actions across same-tab Home navigation, but a page reload or browser restart starts a new replay. The rival scorecard keeps simulator and real-agent results separate.
 
 ## What the genuine integration does
 
@@ -31,7 +32,7 @@ The model sees the market question, target and timing. This first version does n
 
 ## Local operation and limits
 
-- `MARKET_DUNGEON_LOCAL_AGENTS=1` enables the additional local navigation button and the `/somnia-agents` and `/somnia-agents/playground` routes. `/` always remains the ordinary game. The feature is disabled when `VERCEL` is set. The API accepts only same-origin requests from a loopback host.
+- `MARKET_DUNGEON_LOCAL_AGENTS=1` enables the additional local navigation button and the `/somnia-agents` and `/somnia-agents/playground` routes. `/` is the neutral common homepage; `/expedition` is the ordinary game. The feature is disabled when `VERCEL` is set. The API accepts only same-origin requests from a loopback host.
 - `.local/somnia-agents/` stores immutable local rounds so reloads and preparation retries cannot reroll Kevin's choice. This directory and `.env.local` are ignored by Git. They contain local prototype state; there is no public leaderboard or anti-cheat claim.
 - A genuine request requires testnet STT and gas. The unsigned quote was read successfully from Shannon on 11 September 2026: 0.24 STT at the then-current committee settings. The wallet shows the actual request; fees and availability may change.
 - No funded agent transaction was sent while implementing this version. The wallet send flow is tested with a mock provider; request preparation and protocol reads are tested against the real testnet. A funded end-to-end run remains to be tried from your wallet.
