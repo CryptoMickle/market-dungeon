@@ -1,6 +1,6 @@
 # Market Dungeon — judge evidence pack
 
-Updated 10 September 2026. This document separates implemented behavior, project-controlled checks and human feedback. The authoritative record for this release is [release verification](RELEASE_2026-09-10.md), with its matching [v13 source release](https://github.com/CryptoMickle/market-dungeon/releases/tag/hackathon-submission-2026-v13). Publication and final deployment checks must be recorded there after execution; an older successful release does not establish them.
+Updated 11 September 2026. This document separates implemented behavior, project-controlled checks, recorded gameplay and human feedback. The [v13 release record](RELEASE_2026-09-10.md) establishes the Live Judge feature and proof baseline; later [iPhone controls](IPHONE_CONTROLS_2026-09-10.md), [recovery health](BOSS_RECOVERY_HEALTH_2026-09-10.md) and [CLOB read recovery](CLOB_READ_RECOVERY_2026-09-10.md) records cover subsequent changes. The current software release is [v16](https://github.com/CryptoMickle/market-dungeon/releases/tag/hackathon-submission-2026-v16); compare its source identity with deployment `/api/build`. An older successful release does not validate later changes.
 
 ## Product and entry points
 
@@ -39,7 +39,7 @@ The receipt authenticates the Market Dungeon environment; it is not an external 
 
 ## Technical checks and release identity
 
-The [current release record](RELEASE_2026-09-10.md) must identify the public source revision, immutable release, Production deployment and `/api/build` match. It also records the checks executed against that revision. No counts from v11 or a prior Preview are silently carried forward.
+A release record must identify the public source revision, immutable release, Production deployment and `/api/build` match, along with the checks executed against that revision. The [v13 record](RELEASE_2026-09-10.md) and subsequent patch records preserve their own evidence. No counts from v11 or a prior Preview are silently carried forward.
 
 Before this final release pass, the following targeted checks were recorded on the September 10 candidates:
 
@@ -53,7 +53,7 @@ These were project-controlled automated checks, not an independent security audi
 
 The [v11 release](https://github.com/CryptoMickle/market-dungeon/releases/tag/hackathon-submission-2026-v11), commit `f30b9a56532eb6e3147e7ae8473242545635d0ef`, retains its own historical evidence: 20 mainnet plus 20 Shannon historical round-trips in both Preview and Production, with zero retries. Those counts describe v11, not the later live one-minute implementation.
 
-The immediately preceding public release is [v12](https://github.com/CryptoMickle/market-dungeon/releases/tag/hackathon-submission-2026-v12), commit `465ec20ffedda7f3d9841e20178097721384ec1a`. It added RPC-only historical reveal and mobile sharing fixes, and retains its own 20-per-network Preview and Production historical checks. It does not contain the new Live 1-minute game. Both previous tags remain unchanged.
+The earlier [v12](https://github.com/CryptoMickle/market-dungeon/releases/tag/hackathon-submission-2026-v12), commit `465ec20ffedda7f3d9841e20178097721384ec1a`, added RPC-only historical reveal and mobile sharing fixes, and retains its own 20-per-network Preview and Production historical checks. It does not contain the new Live 1-minute game. Both previous tags remain unchanged.
 
 ## Human feedback and measurement limits
 
@@ -79,8 +79,12 @@ Additional assets, partner campaigns and a separately consented wallet-enabled m
 
 ## Submission and video
 
-[DoraHacks entry](https://dorahacks.io/buidl/48083) should lead with the Live Judge URL and link the matching source release and [integration report](DREAMDEX_INTEGRATION_REPORT.md). Full Expedition and Historical Replay should remain plainly distinguished.
+[DoraHacks BUIDL 48083](https://dorahacks.io/buidl/48083) should lead with the [Live Judge Demo](https://market-dungeon.vercel.app/shannon/live-judge), the source repository and the [integration report](DREAMDEX_INTEGRATION_REPORT.md). Full Expedition and Historical Replay remain plainly distinguished.
 
-The existing [1:52 video](https://youtu.be/6IviQrMweZ4) shows an earlier baseline. Replacement video work is deferred by the project owner. It is not a recording of the current Live Judge flow and must not be counted as an updated 2–3 minute submission video.
+The finished **2:08 competition film** shows a real Live Judge run: BTC UP was locked, both fights were won, BTC settled DOWN, and the boss returned for its final strike. The exported proof passed the separate verifier. `PASS` establishes that the evidence matches; it does not turn the recorded prediction loss into a victory.
 
-The official hackathon page displayed an extended deadline of **11 September 2026 at 20:00** when checked on September 10; the display did not establish a timezone. Its submission guidance requires a working testnet prototype, GitHub repository and 2–3 minute demo video. The existing 1:52 baseline therefore remains a presentation requirement gap until the owner addresses video. See [official event details](https://dorahacks.io/hackathon/event-contracts/detail).
+The same recorded run supplies the live outcome, verifier and exported card. Separate, labeled excerpts show Full Expedition, Historical Replay and owner-recorded iPhone play. Original character-art interludes and readable detail crops support the edit; they are not additional gameplay or human tests. The film is edited, not a continuous two-minute completion benchmark, and does not establish a complete 40-room run.
+
+The [1080p film](https://github.com/CryptoMickle/market-dungeon/releases/download/hackathon-submission-2026-v16/Market-Dungeon-Competition-V3-1080p.mp4), [English SRT captions](https://github.com/CryptoMickle/market-dungeon/releases/download/hackathon-submission-2026-v16/Market-Dungeon-Competition-V3-EN.srt) and [transcript](https://github.com/CryptoMickle/market-dungeon/releases/download/hackathon-submission-2026-v16/Market-Dungeon-Competition-V3-Transcript-EN.txt) are published as v16 GitHub release assets. YouTube upload and the DoraHacks video-field update remain pending; see the [film record](COMPETITION_VIDEO_2026-09-11.md). The older [1:52 baseline](https://youtu.be/6IviQrMweZ4) is retained as historical material, not the current Live Judge demonstration.
+
+The event guidance checked on September 10 requested a working testnet prototype, GitHub repository and 2–3 minute demo video. The new film is within that duration. Its GitHub publication is confirmed; the separate YouTube and DoraHacks publication steps are not claimed complete. See [official event details](https://dorahacks.io/hackathon/event-contracts/detail).

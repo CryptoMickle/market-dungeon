@@ -5,7 +5,7 @@ import styles from './credits.module.css';
 
 export const metadata: Metadata = {
   title: 'Privacy, Credits & AI Disclosure — Market Dungeon',
-  description: 'How Market Dungeon handles analytics, local data, artwork, procedural sound, AI assistance, and demo-video music.',
+  description: 'How Market Dungeon handles analytics, local data, artwork, procedural sound, AI assistance, and competition-film credits.',
 };
 
 export default function CreditsPage() {
@@ -54,7 +54,17 @@ export default function CreditsPage() {
         </section>
 
         <section>
-          <h2>Demo-video music</h2>
+          <h2>Competition film</h2>
+          <p>The September 11 competition film runs for 2:08 and combines actual gameplay, an independently verified Live Judge result, original project artwork, and recorded iPhone footage. The English narration uses the AI-generated Marin voice. Music and effects come from the game&apos;s original browser-generated audio; no separate stock-music track was added. English captions and a plain-text transcript are supplied separately, without burned-in subtitles.</p>
+          <div className={styles.links}>
+            <a href="https://github.com/CryptoMickle/market-dungeon/releases/download/hackathon-submission-2026-v16/Market-Dungeon-Competition-V3-1080p.mp4" target="_blank" rel="noopener noreferrer">DOWNLOAD 2:08 FILM · 1080P ↗</a>
+            <a href="https://github.com/CryptoMickle/market-dungeon/releases/download/hackathon-submission-2026-v16/Market-Dungeon-Competition-V3-EN.srt" target="_blank" rel="noopener noreferrer">ENGLISH CAPTIONS · SRT ↗</a>
+            <a href="https://github.com/CryptoMickle/market-dungeon/releases/download/hackathon-submission-2026-v16/Market-Dungeon-Competition-V3-Transcript-EN.txt" target="_blank" rel="noopener noreferrer">ENGLISH TRANSCRIPT ↗</a>
+          </div>
+        </section>
+
+        <section>
+          <h2>Earlier video: music credit</h2>
           <p>The baseline 1:52 v8 hackathon video uses “Dark Fantasy Ambient (Dungeon Synth music),” created by DeusLower / Vlad Bakutov and licensed under the Pixabay Content License. This credited video track is separate from the browser-generated game audio. The video shows an earlier version and does not demonstrate the current Live Judge mode.</p>
           <div className={styles.links}>
             <a href="https://pixabay.com/music/ambient-dark-fantasy-ambient-dungeon-synth-music-281592/" target="_blank" rel="noopener noreferrer">MUSIC SOURCE ↗</a>
@@ -68,7 +78,7 @@ export default function CreditsPage() {
           <p>Somnia, dreamDEX, and DoraHacks names are used descriptively for the hackathon integration. Their respective marks and services remain the property of their owners.</p>
           <div className={styles.links}>
             <a href="https://github.com/CryptoMickle/market-dungeon" target="_blank" rel="noopener noreferrer">SOURCE CODE ↗</a>
-            <a href="https://github.com/CryptoMickle/market-dungeon/blob/hackathon-submission-2026-v13/docs/PROVENANCE_AND_PRIVACY.md" target="_blank" rel="noopener noreferrer">VERSIONED DISCLOSURE ↗</a>
+            <a href="https://github.com/CryptoMickle/market-dungeon/blob/main/docs/PROVENANCE_AND_PRIVACY.md" target="_blank" rel="noopener noreferrer">SOURCE DISCLOSURE ↗</a>
           </div>
         </section>
       </article>

@@ -1,6 +1,6 @@
 # Market Dungeon — DoraHacks submission copy
 
-Prepared for the current release on 10 September 2026. Publication evidence belongs in the [judge evidence pack](JUDGE_EVIDENCE_PACK.md); the previous v11 release and existing video do not establish the current deployment’s identity. The project owner has authorized the remaining release and DoraHacks work. Replacement video work is deferred.
+Updated 11 September 2026. [Live Judge Demo](https://market-dungeon.vercel.app/shannon/live-judge) · [Source](https://github.com/CryptoMickle/market-dungeon) · [v16 release](https://github.com/CryptoMickle/market-dungeon/releases/tag/hackathon-submission-2026-v16) · [Download the 2:08 demo (1080p)](https://github.com/CryptoMickle/market-dungeon/releases/download/hackathon-submission-2026-v16/Market-Dungeon-Competition-V3-1080p.mp4)
 
 ## One-line pitch
 
@@ -10,72 +10,50 @@ A fantasy roguelite where a real dreamDEX Event Contract decides whether the bos
 
 ## Project description
 
-Market Dungeon is a playable Delveworn spin-off built for the Somnia × dreamDEX Event Contracts Hackathon. The player chooses **Gold Awakens · BTC UP** or **Shadows Rise · BTC DOWN**, fights through the dungeon, and faces a second victory condition: the verified market settlement.
+Market Dungeon turns market settlement into a second victory condition. Choose **Gold Awakens · BTC UP** or **Shadows Rise · BTC DOWN**, fight through a dungeon, and see whether your earned combat victory survives the verified result.
 
-The recommended **Live Judge Demo** uses a fresh one-minute BTC/USDC Event Contract on Somnia Shannon Testnet. Players see the real target, lock their prediction before expiry, and fight one guard and one boss while the market runs. The market clock is not a combat deadline. After both encounters are cleared, the game verifies the same market’s final settlement. A correct prediction makes the combat victory permanent; a wrong prediction lets the fallen boss rise for one fatal last strike. A void preserves the combat victory without a prediction penalty.
+The recommended **Live Judge Demo** uses a fresh one-minute BTC/USDC Event Contract on Somnia Shannon Testnet. Lock a prediction against the real target, fight one guard and one boss, and heal with Quartermaster Kevin between encounters. A correct prediction leaves the boss down. A wrong prediction brings it back for one fatal last strike. A verified void preserves the combat victory.
 
-**Full Expedition** demonstrates the complete game: 40 rooms, four tiers, shops, camps, random loot and all 15 Delveworn relics. Each tier starts with a fresh live five-minute BTC Event Contract on Somnia mainnet. Here, a wrong prediction resurrects the same boss at full strength and requires a new market before the rematch. The player keeps their remaining health and equipment, but spent potions and revives stay spent. A correct or voided settlement releases the ordinary boss reward and relic once.
+The market clock is not a combat deadline. Attack is steady, Storm is unpredictable, and potions used during combat allow retaliation. The prediction decides the boss’s final fate; it does not change attack damage or rescue a lost fight.
 
-**Historical Replay** remains available inside Judge Demo. It locks the player’s choice before cryptographically selecting and sealing a recent finalized Shannon market. It offers the same shortened combat and an independently reproducible historical proof. It is an explicit alternative, never a silent substitute for a locked live market.
+The **2:08 competition film** shows this with a real round: UP was chosen, both fights were won, the market settled DOWN, and the boss returned. Its exported proof then passed the independent verifier. PASS means the evidence matches, even when the player loses.
 
-No mode requests a wallet, token approval, order, redemption or transaction. The game makes real Event Contract outcomes accessible without requiring players to fund an account first.
+## More than a short demo
 
-## Why the Event Contract matters
+- **Full Expedition:** 40 rooms, four tiers, equipment, shops, camps and 15 relics. Each tier uses an active five-minute BTC Event Contract on Somnia mainnet. A wrong prediction resurrects the same boss at full HP; the player locks a new market and rematches using their remaining resources. Boss rewards and relics are released once after a correct or voided settlement.
+- **Historical Replay:** a separate short demo inside Judge Demo. It locks the choice before randomly selecting and sealing a recent finalized Shannon market. It never silently replaces the result of a locked live round.
+- **Shared presentation:** sixteen monsters, character humor, distinct intro sounds, boss music and staged defeat/return effects. Mobile recovery controls show current HP before spending a potion. A persistent switch controls all sound.
 
-Combat and prediction do different jobs. Attack, Storm, healing and equipment decide whether the player can defeat the enemy. The Event Contract decides whether that earned victory becomes permanent. Picking UP does not increase attack damage, and calling the market correctly cannot rescue a lost fight.
+## Try it
 
-This turns market settlement into repeatable game content with a visible consequence. A boss reaching zero HP creates the anticipation; the verified outcome resolves it. Full Expedition makes a missed prediction costly through a full-strength rematch with depleted resources, while the Judge Demo presents the same two-condition idea in two encounters.
+1. Open [Live Judge Demo](https://market-dungeon.vercel.app/shannon/live-judge), choose BTC UP or DOWN, and lock the omen while the window is available.
+2. Defeat the guard, prepare at Kevin’s camp, and fight the boss. Combat and the market run alongside each other; settlement can take longer than one minute.
+3. Read **You locked → Market result**, then export the proof JSON and check it in the [Live Judge verifier](https://market-dungeon.vercel.app/shannon/live-judge/verify).
+4. Save a run card or invite someone to a fresh round. **Continue on dreamDEX** opens a separate BTC five-minute mainnet market.
 
-## Recommended judge path
+The game requests no wallet connection, signature, token approval, order, redemption or transaction. The dreamDEX link does not transfer a testnet position or place a trade.
 
-1. Open [Live Judge Demo](https://market-dungeon.vercel.app/shannon/live-judge). Choose BTC UP or DOWN against the visible target and press **Lock & Enter Dungeon** while the window is available.
-2. Fight the guard, heal between encounters if needed, then defeat the boss. Attack is steady; Storm is unpredictable; an in-combat potion permits retaliation.
-3. Let the game verify the same Event Contract after combat and settlement. One minute is the market interval, not a guaranteed end-to-end demo duration.
-4. Read **You locked → Market result** and the separate combat/prediction conditions. Expand the evidence when needed.
-5. Export the proof JSON and load it into the [Live Judge verifier](https://market-dungeon.vercel.app/shannon/live-judge/verify). It checks the signed choice, reproduces combat and independently re-fetches the recorded Shannon state.
-6. Save a run card, open a social draft or invite a player to a fresh round. **Continue on dreamDEX** opens a separate BTC five-minute mainnet market. It neither transfers the testnet result nor submits a trade.
+## Technical implementation
 
-For the historical alternative, use [Historical Replay](https://market-dungeon.vercel.app/shannon/judge) and its separate [historical verifier](https://market-dungeon.vercel.app/shannon/verify). For the complete progression and boss rematches, use [Full Expedition](https://market-dungeon.vercel.app).
+Built with Next.js and the official `@somnia-chain/markets-sdk`, Market Dungeon discovers real markets through the indexer and reads CLOB quotes by exact market ID. Empty books and failed reads remain visibly unavailable; missing quotes are never replaced with invented probabilities.
 
-## Technical implementation and proof
+The Live Judge server signs the exact market, direction, combat seed and stated lock time. A pre-expiry snapshot binds the active, unresolved market to its oracle target. The server and separate browser verifier reproduce the combat transcript and verify `BinaryModule.markets(marketId)` and `BinarySettlement.getSettlement(marketKey)` at one canonical block hash using EIP-1898. The result comes from the verified payout. Pending or contradictory evidence cannot award a verified outcome.
 
-The application uses Next.js, the official `@somnia-chain/markets-sdk` and fixed Somnia network profiles. The indexer discovers markets; the official SDK reads CLOB top-of-book data by exact market ID. Empty or unavailable quotes remain visibly unavailable rather than becoming invented 50/50 odds.
+The lock is server-attested, not an onchain player transaction or independent timestamp. A valid combat transcript does not prove human play. Full Expedition checks settlement independently, while honestly treating its direction lock and combat as local gameplay. See the [integration report](https://github.com/CryptoMickle/market-dungeon/blob/main/docs/DREAMDEX_INTEGRATION_REPORT.md) and [evidence pack](https://github.com/CryptoMickle/market-dungeon/blob/main/docs/JUDGE_EVIDENCE_PACK.md).
 
-The Live Judge server signs a receipt binding the exact market, direction, independent combat seed and stated pre-expiry lock time. A canonical pre-expiry block snapshot includes the market binding, trading status, unresolved settlement and exact oracle question threshold. Reveal requires a valid deterministic guard-and-boss combat transcript and a finalized settlement for that same market.
+## Why this helps dreamDEX
 
-Both server and browser verify `BinaryModule.markets(marketId)` and `BinarySettlement.getSettlement(marketKey)` at a canonical block hash using EIP-1898. The browser requires exact raw contract-result matches and derives the outcome from the verified payout. The portable proof includes the signed lock, pre-expiry snapshot, combat actions and final settlement. The separate verifier repeats these checks without a wallet or proof upload.
+Players encounter Event Contracts through a result they care about: whether a boss they defeated stays down. Fresh intervals provide repeatable game content. Cards and invitations support discovery; the optional dreamDEX link offers a next step into the trading application without requiring funding before the first play.
 
-Historical Replay uses its own encrypted seal, salted commitment, receipt and proof format. Full Expedition independently reproduces direct settlement before changing progression, while honestly describing its direction lock and combat as local gameplay rather than Judge transcript proof.
+Three self-reported user-test responses informed clearer Bitcoin explanations, timers, combat guidance, log access and sharing instructions. Later owner feedback drove mobile and audio improvements. These are qualitative findings, not three independent tests of the newer live demo or a measured conversion study. The iPhone footage is owner-recorded gameplay, not an additional recruited participant.
 
-The signed time is an application-server attestation, not an onchain player choice or an independent timestamp. Reproducible combat proves a valid transcript, not human input. The recorded block proves contract state, not the identity of the transaction that originally finalized it. Unavailable or contradictory proof cannot award a verified result.
+The build claims no trading volume, verified referral conversion, partnership or endorsement. A larger user study and a separately consented wallet-enabled experiment remain future work.
 
-## User experience
+## Links
 
-All modes share clear navigation, readable health and resource controls, dungeon humor and full-width mobile monster artwork. Boss knockout and return have visible staged animations. Each of the sixteen monsters and Quartermaster Kevin has a distinct intro sound; Attack, Storm, Potion and keyboard/mouse activation have action cues. Boss music stops when the fight ends. A persistent switch controls all sound, and there is no continuous dungeon drone.
-
-Three self-reported user-test responses covering Full Expedition and Judge Demo informed clearer Bitcoin explanations, prediction consequences, market timers, action guidance, log access and image-sharing instructions. Further owner feedback drove mobile artwork and audio fixes. This is qualitative usability evidence, not a measured conversion study or broad native-device certification.
-
-## Ecosystem impact and next steps
-
-Market Dungeon is a consumer entry point to Event Contracts. Players learn the binary market model because its outcome changes a game result they care about. Fresh intervals support repeated play; result cards and fresh-run invitations support discovery; the optional dreamDEX link offers a next step into the external application.
-
-The contest build does not claim trades, volume, validated referral conversion, partnerships or endorsements. Historical analytics definitions and older event counts are kept separate from Live Judge and from qualitative feedback. A larger recruited study should measure comprehension and verified completion before drawing conversion conclusions.
-
-Future scope includes additional eligible assets, seasonal dungeon content and a separately consented wallet-enabled experiment. That mode would require its own eligibility checks and explicit transaction confirmations. It is not part of the submitted read-only game.
-
-## Links and supporting material
-
-- [Live Judge Demo — one-minute Shannon market](https://market-dungeon.vercel.app/shannon/live-judge)
-- [Live Judge independent verifier](https://market-dungeon.vercel.app/shannon/live-judge/verify)
-- [Full Expedition — live five-minute mainnet markets](https://market-dungeon.vercel.app)
-- [Historical Replay — Shannon](https://market-dungeon.vercel.app/shannon/judge)
-- [Historical Replay verifier — Shannon](https://market-dungeon.vercel.app/shannon/verify)
-- [Source repository](https://github.com/CryptoMickle/market-dungeon)
-- [Immutable v13 release](https://github.com/CryptoMickle/market-dungeon/releases/tag/hackathon-submission-2026-v13)
-- [Current release verification](RELEASE_2026-09-10.md)
-- [Release evidence and known limits](JUDGE_EVIDENCE_PACK.md)
-- [dreamDEX integration and SDK/documentation feedback](DREAMDEX_INTEGRATION_REPORT.md)
+- [Live Judge Demo](https://market-dungeon.vercel.app/shannon/live-judge) · [Independent verifier](https://market-dungeon.vercel.app/shannon/live-judge/verify)
+- [Full Expedition](https://market-dungeon.vercel.app) · [Historical Replay](https://market-dungeon.vercel.app/shannon/judge)
+- [Source repository](https://github.com/CryptoMickle/market-dungeon) · [v16 release and checks](https://github.com/CryptoMickle/market-dungeon/releases/tag/hackathon-submission-2026-v16)
+- [Download the 2:08 demo (1080p)](https://github.com/CryptoMickle/market-dungeon/releases/download/hackathon-submission-2026-v16/Market-Dungeon-Competition-V3-1080p.mp4) · [English captions (SRT)](https://github.com/CryptoMickle/market-dungeon/releases/download/hackathon-submission-2026-v16/Market-Dungeon-Competition-V3-EN.srt) · [Transcript](https://github.com/CryptoMickle/market-dungeon/releases/download/hackathon-submission-2026-v16/Market-Dungeon-Competition-V3-Transcript-EN.txt)
+- [dreamDEX integration](https://github.com/CryptoMickle/market-dungeon/blob/main/docs/DREAMDEX_INTEGRATION_REPORT.md) · [Evidence and limits](https://github.com/CryptoMickle/market-dungeon/blob/main/docs/JUDGE_EVIDENCE_PACK.md)
 - [Privacy, credits and AI disclosure](https://market-dungeon.vercel.app/credits)
-- [Existing video — earlier baseline, 1:52](https://youtu.be/6IviQrMweZ4)
-
-The existing video remains available as an earlier demonstration. It does not depict the latest Live Judge flow. A replacement video is deferred; all current-product claims should be checked in the playable build and matching source release.

@@ -28,11 +28,13 @@ The MIT license covers the source code. Original visual assets are separate proj
 
 Generative AI assisted artwork production, software implementation, copy development, test creation, and video-production tasks. CryptoMickle retained product direction and responsibility for final selection, editing, deployment, verification, and QA. AI assistance is not presented as an autonomous author, teammate, or source of onchain truth.
 
-## Game audio and retained demo-video music
+## Game audio and video production
 
 The game generates its original boss music and sound effects at runtime with Web Audio. Continuous background music plays only during boss combat; the dungeon drone and ambient loop have been removed. It ships no sampled audio or third-party music file for gameplay. The procedural set covers interface clicks, Attack, Storm, Potion, settlement outcomes, distinct intros for all sixteen monsters, and a separate Quartermaster Kevin intro. One persistent control mutes every sound in Full Expedition and Judge Demo, and its preference stays in browser-local storage.
 
-The baseline 1:52 [v8 hackathon demo video](https://youtu.be/6IviQrMweZ4) uses **“Dark Fantasy Ambient (Dungeon Synth music)”**, created by **DeusLower / Vlad Bakutov** and licensed under the **Pixabay Content License**. That video track is separate from the browser-generated game audio. The existing video is an earlier version of the game. Video replacement is deferred separately from the September 10 release; its link and attribution are retained.
+The new [2:08 competition film](COMPETITION_VIDEO_2026-09-11.md) uses recorded gameplay, original project artwork, browser-generated game sounds and English AI-generated narration using the Marin voice. Editing shortens the recorded sessions and holds selected genuine details for readability. Character-art interludes are identified separately from gameplay; outcomes, HP and proof results are not fabricated. English captions are supplied separately rather than burned into the picture. The film, English captions and transcript are available as GitHub release assets; YouTube publication remains pending.
+
+The baseline 1:52 [v8 hackathon demo video](https://youtu.be/6IviQrMweZ4) uses **“Dark Fantasy Ambient (Dungeon Synth music)”**, created by **DeusLower / Vlad Bakutov** and licensed under the **Pixabay Content License**. That video track is separate from the browser-generated game audio. That earlier video remains available as historical material; its link and attribution are retained. Its licensed music track is not used in the new 2:08 film.
 
 - [Music source](https://pixabay.com/music/ambient-dark-fantasy-ambient-dungeon-synth-music-281592/)
 - [Pixabay Content License summary](https://pixabay.com/service/license-summary/)
