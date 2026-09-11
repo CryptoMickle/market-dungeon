@@ -111,29 +111,38 @@ test('live Shannon target remains network-bound through proof export and verifie
   expect(await verifyReplayLockAttestation(validBody.lockAttestation, publicKey)).toBe(true);
 
   await page.goto('/shannon/judge?automation=1');
-  await expect(page.getByText('HISTORICAL JUDGE REPLAY · SHANNON TESTNET', { exact: true })).toBeVisible();
-  await expect(page.locator('.judge-lock-context')).toContainText('NO LIVE PRICE FEED');
+  await expect(page.getByText('HISTORICAL JUDGE DEMO', { exact: true })).toBeVisible();
+  await expect(page.getByText('Sealed historical Event Contract · Somnia testnet', { exact: true })).toBeVisible();
+  await expect(page.getByLabel('Historical market context', { exact: true })).toContainText('NO LIVE PRICE FEED');
   await expect(page.getByText('REFERENCE UNAVAILABLE', { exact: true })).toHaveCount(0);
-  await page.getByRole('button', { name: 'LOCK OMEN & SEAL REPLAY' }).click();
+  await expect(page.getByRole('list', { name: 'Judge demo progress', exact: true }).getByRole('listitem')).toHaveText([
+    '1 · LOCK OMEN', '2 · GUARD', '3 · BOSS', '4 · FATE',
+  ]);
+  await page.getByRole('button', { name: 'LOCK BTC UP & ENTER DUNGEON', exact: true }).click();
   await expect(page.getByRole('region', { name: 'Combat view' })).toBeVisible();
   const footer = page.locator('footer');
   await expect(footer).toBeVisible();
   await expect(footer.getByRole('link', { name: 'VERIFY A PROOF', exact: true })).toHaveAttribute('href', '/shannon/verify');
   await page.screenshot({ path: info.outputPath('actual-shannon-combat-footer.png'), fullPage: true });
   await completeLiveJudgeCombat(page);
-  await expect(page.locator('.desktop-stage-header')).toContainText('Gold 80');
+  await expect(page.getByLabel('Player status', { exact: true }).getByLabel('Gold 80', { exact: true })).toHaveCount(1);
 
-  const revealButton = page.getByRole('button', { name: '🔮 REVEAL BOSS FATE' });
+  const revealButton = page.getByRole('button', { name: 'REVEAL BOSS FATE', exact: true });
   await expect(revealButton).toBeEnabled({ timeout: 30_000 });
   await revealButton.click();
-  await expect(page.getByText(/JUDGE DEMO COMPLETE · ONCHAIN (?:RESULT|LOSS) VERIFIED/)).toBeVisible({ timeout: 30_000 });
+  const resultSummary = page.getByRole('region', { name: 'Choice, market result and boss fate', exact: true });
+  await expect(resultSummary).toHaveAttribute('data-outcome', /^(BLESSED|CURSED)$/, { timeout: 30_000 });
+  await expect(resultSummary).toContainText('Recorded result verified');
+  const proofToggle = page.getByText('VIEW VERIFIED RUN PROOF', { exact: true });
+  await expect(proofToggle.locator('..')).not.toHaveAttribute('open', '');
+  await proofToggle.click();
   const revealedProof = page.locator('.proof-revealed');
   await revealedProof.locator('summary').click();
   await expect(page.getByText('CHAIN 50312 · EIP-1898 HASH-PINNED · BOTH RAW ETH_CALL RESULTS MATCH')).toBeVisible();
   const continueOnDreamDex = page.getByRole('link', { name: /continue on dreamdex/i });
   await expect(continueOnDreamDex).toHaveAttribute('href', /^https:\/\/app\.dreamdex\.io\/event-contracts\/WBTC:USDso\/(?:5|15)m$/);
   await expect(continueOnDreamDex).toHaveAttribute('target', '_blank');
-  await expect(page.locator('.dreamdex-continue')).toContainText('your verified Shannon replay remains historical');
+  await expect(page.getByRole('region', { name: 'Continue on dreamDEX', exact: true })).toContainText('your historical Shannon testnet result stays here');
   await expect(page.getByRole('link', { name: /OPEN INDEPENDENT VERIFIER/ })).toHaveAttribute('href', '/shannon/verify');
   const xShare = page.getByRole('link', { name: '2 · OPEN X DRAFT ↗', exact: true });
   await expect(xShare).toHaveAttribute('href', /https:\/\/twitter\.com\/intent\/tweet\?/);
@@ -167,9 +176,9 @@ test('live Shannon target remains network-bound through proof export and verifie
   await expect(page.getByLabel('Post text — copy manually if needed')).toHaveValue(new RegExp(`2 of 2 replay encounters cleared · ${expectedGold} gold`));
   await expect(page.locator('body')).not.toContainText('prediction gold');
   if (exportedProof.summary.result === 'BLESSED') {
-    await expect(page.locator('.result-hero > .muted')).toHaveText('You chose BTC UP. The market settled BTC UP. Your prediction was correct. The final boss stays down and its reward is secured.');
-    await expect(page.locator('.final-stats > div').filter({ hasText: 'FINAL GOLD' }).locator('strong')).toHaveText('122');
-    await expect(page.locator('.dungeon-log')).toContainText('FINAL BOSS DEFEATED · +42 GOLD');
+    await expect(page.getByText('You chose BTC UP. The market settled BTC UP. Your prediction was correct. The final boss stays down and its reward is secured.', { exact: true })).toBeVisible();
+    await expect(page.getByLabel('Final run statistics', { exact: true }).locator('div').filter({ hasText: 'FINAL GOLD' }).locator('dd')).toHaveText('122');
+    await expect(page.getByRole('region', { name: 'Dungeon log', exact: true })).toContainText('The final boss stays down and its reward is secured.');
   }
   await page.screenshot({ path: info.outputPath('actual-shannon-reward-result.png'), fullPage: true });
 

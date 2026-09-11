@@ -117,6 +117,9 @@ test('one real live release round verifies its signed lock, fights, exported pro
   expect(draft.searchParams.get('text')).not.toMatch(/only on this Mac|Local preview/i);
   await page.screenshot({ path: info.outputPath('live-preview-result.png'), fullPage: true });
 
+  const proofToggle = page.getByText('VIEW VERIFIED RUN PROOF', { exact: true });
+  await expect(proofToggle.locator('..')).not.toHaveAttribute('open', '');
+  await proofToggle.click();
   const downloadEvent = page.waitForEvent('download');
   await page.getByRole('button', { name: '1 · SAVE PROOF', exact: true }).click();
   const download = await downloadEvent;

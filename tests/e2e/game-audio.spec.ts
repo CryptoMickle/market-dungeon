@@ -127,7 +127,7 @@ test('Judge Demo starts encounter audio and keeps the all-sound preference after
   const sound = page.getByRole('button', { name: 'Turn all game sounds off', exact: true });
   await expect(sound).toBeVisible();
   await expect(sound).toHaveAttribute('aria-pressed', 'true');
-  await page.getByRole('button', { name: 'LOCK OMEN & SEAL REPLAY' }).click();
+  await page.getByRole('button', { name: 'LOCK BTC UP & ENTER DUNGEON' }).click();
   await expect(page.getByRole('region', { name: 'Combat view', exact: true })).toBeVisible();
   // Two click voices plus the guard's short musical introduction, without a drone.
   await expect.poll(async () => (await readAudioProbe(page)).oscillators).toBeGreaterThan(2);
@@ -231,7 +231,7 @@ test('an enabled preference from another tab never starts playback by itself', a
 for (const mode of [
   { name: 'Full Expedition', path: '/', entry: 'ENTER DUNGEON' },
   { name: 'Live Judge', path: '/shannon/live-judge', entry: 'LOCK BTC UP & ENTER DUNGEON' },
-  { name: 'Historical Replay', path: '/shannon/judge', entry: 'LOCK OMEN & SEAL REPLAY' },
+  { name: 'Historical Replay', path: '/shannon/judge', entry: 'LOCK BTC UP & ENTER DUNGEON' },
 ] as const) {
   test(`${mode.name} plays each keyboard selection and attack once, including held Enter`, async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 900 });

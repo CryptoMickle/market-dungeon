@@ -114,7 +114,7 @@ for (const viewport of [{ width: 390, height: 664 }, { width: 1280, height: 720 
 
     await page.getByRole('navigation', { name: 'Choose Judge demo', exact: true }).getByRole('link', { name: 'HISTORICAL REPLAY', exact: true }).click();
     await expect(page).toHaveURL(/\/shannon\/judge$/);
-    await expect(page.getByRole('button', { name: 'LOCK OMEN & SEAL REPLAY', exact: true })).toBeEnabled();
+    await expect(page.getByRole('button', { name: 'LOCK BTC UP & ENTER DUNGEON', exact: true })).toBeEnabled();
     await expectGameNavigation(page, 'replay', original);
 
     await page.getByRole('navigation', { name: 'Choose Judge demo', exact: true }).getByRole('link', { name: 'LIVE · 1 MIN', exact: true }).click();

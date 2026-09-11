@@ -371,7 +371,7 @@ test('Historical Replay retains its sealed choice, damage and complete action tr
   await page.getByRole('radio', { name: 'Historical replay', exact: true }).check();
   await enter(page).click();
   await expect(page).toHaveURL(/\/shannon\/judge$/);
-  await page.getByRole('button', { name: 'LOCK OMEN & SEAL REPLAY', exact: true }).click();
+  await page.getByRole('button', { name: 'LOCK BTC UP & ENTER DUNGEON', exact: true }).click();
   await attack(page).click();
   const before = await readCombat(page);
   await expectHeaderControlsUncovered(page);

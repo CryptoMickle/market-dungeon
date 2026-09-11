@@ -6,6 +6,7 @@ import { LIVE_JUDGE, type LiveJudgeProof } from '../../app/live-judge-proof';
 import { SOMNIA_MAINNET_PROFILE } from '../../app/judge-network';
 import { liveJudgeFixture } from './live-judge-fixture';
 import { expectSubstantialMobileCombat } from './mobile-combat-layout';
+import { expectJudgeProgress, openJudgeProof } from './judge-play';
 
 const PATH = '/shannon/live-judge';
 const STORAGE = 'market-dungeon-live-judge-v1';
@@ -92,6 +93,7 @@ async function expectLiveModeNavigation(page: Page, setup = true) {
   const home = page.getByRole('link', { name: 'Market Dungeon — back to home', exact: true })
     .or(page.getByRole('button', { name: 'Market Dungeon — back to home', exact: true })).filter({ visible: true });
   await expect(home).toBeVisible();
+  if (setup) await expectJudgeProgress(page);
   if (setup) await expect(home).toHaveAttribute('href', '/');
   const variants = page.getByRole('navigation', { name: 'Choose Judge demo', exact: true });
   if (!setup) { await expect(variants).toHaveCount(0); return; }
@@ -144,7 +146,12 @@ async function finishSceneAnimations(page: Page, outcome: string) {
 }
 
 async function expectLiveShare(page: Page, enemies: number, result: 'BLESSED' | 'CURSED' | 'VOID' | 'DEFEATED') {
-  await expect(page.getByLabel('Final run statistics', { exact: true })).toContainText(`${enemies}/2`);
+  const stats = page.getByLabel('Final run statistics', { exact: true });
+  await expect(stats).toContainText(`${enemies}/2`);
+  await expect(stats.locator('dt')).toHaveText(['ENCOUNTERS CLEARED', 'FINAL GOLD', 'FINAL HEALTH', 'POTIONS LEFT']);
+  const resultSummary = page.getByRole('region', { name: 'Choice, market result and boss fate', exact: true });
+  await expect(resultSummary.locator(':scope > div')).toHaveCount(3);
+  await expect(resultSummary).toHaveAttribute('data-outcome', result);
   const conditions = page.getByLabel('Two victory conditions', { exact: true });
   await expect(conditions).toContainText(result === 'DEFEATED' ? 'Fell before combat was cleared' : 'Boss defeated in combat');
   await expect(conditions).toContainText(result === 'BLESSED' ? 'BTC prediction correct'
@@ -185,6 +192,7 @@ async function expectLiveShare(page: Page, enemies: number, result: 'BLESSED' | 
 }
 
 async function expectLiveResultActions(page: Page) {
+  await openJudgeProof(page);
   const proof = page.getByRole('region', { name: 'Live Judge proof and independent verification' });
   await expect(proof).toBeVisible();
   const summary = proof.getByRole('list', { name: 'Plain-language live proof summary' });
@@ -469,7 +477,7 @@ for (const width of [1280, 390]) test(`live Judge keeps the same one-minute mark
   const lock = page.getByRole('button', { name: 'LOCK BTC UP & ENTER DUNGEON' });
   await expect(lock).toBeInViewport({ ratio: 1 });
   await expect(page.getByLabel('Available live market')).toContainText('$60,000.00');
-  await expect(page.getByRole('link', { name: 'USE HISTORICAL REPLAY INSTEAD' })).toHaveAttribute('href', '/shannon/judge');
+  await expect(page.getByRole('navigation', { name: 'Choose Judge demo', exact: true }).getByRole('link', { name: 'HISTORICAL REPLAY', exact: true })).toHaveAttribute('href', '/shannon/judge');
   await lockLive(page);
   await expectLiveModeNavigation(page, false);
   const expectReachableCombat = async () => {
@@ -835,6 +843,7 @@ test('live Judge exported proof verifies independently and tampering never yield
   await playGuard(page, fixture);
   await playBoss(page, fixture);
   await advance(page, fixture, 65);
+  await openJudgeProof(page);
   const proof = page.getByRole('region', { name: 'Live Judge proof and independent verification' });
   const evidence = proof.locator('details').filter({ has: page.getByText('FULL LIVE PROOF EVIDENCE', { exact: true }) });
   await evidence.locator('summary').first().click();
@@ -871,6 +880,7 @@ test('live Judge exported proof verifies independently and tampering never yield
   const saved = await page.evaluate(key => sessionStorage.getItem(key), STORAGE);
   await page.getByRole('button', { name: 'COPY MARKET ID', exact: true }).click();
   expect(await page.evaluate(() => Reflect.get(window, '__liveCopiedProof') as string)).toBe(fixture.market.marketId);
+  await openJudgeProof(page);
   await page.getByRole('button', { name: 'COPY PROOF JSON', exact: true }).click();
   expect(JSON.parse(await page.evaluate(() => Reflect.get(window, '__liveCopiedProof') as string))).toEqual(fixture.proof);
   expect(await page.evaluate(key => sessionStorage.getItem(key), STORAGE)).toBe(saved);
@@ -916,6 +926,7 @@ test('live proof remains copyable and downloadable when browser clipboard permis
       writeText: async () => { throw new DOMException('Clipboard permission denied', 'NotAllowedError'); },
     } });
   });
+  await openJudgeProof(page);
   await page.getByRole('button', { name: 'COPY PROOF JSON', exact: true }).click();
   const manual = page.getByRole('textbox', { name: 'Proof JSON — copy manually', exact: true });
   await expect(manual).toBeVisible();
@@ -961,9 +972,15 @@ test('a completed live proof and free rest survive reload after claim expiry wit
   await page.reload();
   await expect(page.getByRole('heading', { name: 'Your omen holds.' })).toBeVisible();
   await expect(page.getByLabel('Your health 100 of 100', { exact: true })).toBeVisible();
+  expect(await page.evaluate(() => (window as LiveAudioWindow).readLiveAudio())).toEqual({ starts: 0, stops: 0, resumes: 0 });
+  await openJudgeProof(page);
   await expect(page.getByRole('button', { name: '1 · SAVE PROOF' })).toBeEnabled();
   expect(calls.reveals).toHaveLength(1);
-  expect(await page.evaluate(() => (window as LiveAudioWindow).readLiveAudio())).toEqual({ starts: 0, stops: 0, resumes: 0 });
+  // Opening proof is an explicit click and may unlock click audio, but never boss music.
+  expect(await page.evaluate(() => {
+    const { starts, stops } = (window as LiveAudioWindow).readLiveAudio();
+    return { starts, stops };
+  })).toEqual({ starts: 0, stops: 0 });
 });
 
 test('a live challenge opens a fresh setup, preserves the completed run until lock, and resumes the accepted new run', async ({ page }) => {

@@ -253,13 +253,13 @@ test('Full Expedition reserves the score for the boss, cancels it on knockout an
 
 test('Judge score starts at its final boss rather than the guard, and stops when combat gives way to the reveal', async ({ page }) => {
   await page.goto('/judge');
-  await page.getByRole('button', { name: 'LOCK OMEN & SEAL REPLAY', exact: true }).click();
+  await page.getByRole('button', { name: 'LOCK BTC UP & ENTER DUNGEON', exact: true }).click();
   await playJudgeGuard(page);
   expect((await probe(page)).sources).toBe(0);
-  await page.getByRole('button', { name: '👑 ENTER FINAL BOSS', exact: true }).click();
+  await page.getByRole('button', { name: 'ENTER FINAL BOSS', exact: true }).click();
   await expectScoreRunning(page);
   await playJudgeBoss(page);
-  await expect(page.getByRole('button', { name: '🔮 REVEAL BOSS FATE', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'REVEAL BOSS FATE', exact: true })).toBeVisible();
   await expectScoreStopped(page);
 });
 
@@ -274,12 +274,12 @@ test('dying against a Full Expedition boss cancels its pending notes and schedul
 test('dying in Judge boss combat cancels its score without revealing the market', async ({ page }) => {
   await page.route('**/api/judge-replay/start', route => route.fulfill({ json: startPayloadForGameSeed('a'.repeat(42) + '5') }));
   await page.goto('/judge');
-  await page.getByRole('button', { name: 'LOCK OMEN & SEAL REPLAY', exact: true }).click();
+  await page.getByRole('button', { name: 'LOCK BTC UP & ENTER DUNGEON', exact: true }).click();
   for (let index = 0; index < 4; index++) await page.getByRole('button', { name: /STORM/ }).click();
-  await page.getByRole('button', { name: '👑 ENTER FINAL BOSS', exact: true }).click();
+  await page.getByRole('button', { name: 'ENTER FINAL BOSS', exact: true }).click();
   await expectScoreRunning(page);
   for (let index = 0; index < 4; index++) await page.getByRole('button', { name: /STORM/ }).click();
-  await expect(page.getByRole('heading', { name: 'You fell in combat.', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'The dungeon keeps its boss.', exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: /REVEAL BOSS FATE/ })).toHaveCount(0);
   await expectScoreStopped(page);
 });

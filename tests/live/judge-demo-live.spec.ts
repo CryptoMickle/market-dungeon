@@ -88,21 +88,29 @@ test('live target start, anti-peek, combat validation, reveal, proof export, and
   expect(validBody.onchainSettlement.verified).toBe(true);
 
   await page.goto('/judge?automation=1');
+  await expect(page.getByRole('list', { name: 'Judge demo progress', exact: true }).getByRole('listitem')).toHaveText([
+    '1 · LOCK OMEN', '2 · GUARD', '3 · BOSS', '4 · FATE',
+  ]);
   await page.getByRole('button', { name: /GOLD AWAKENS/ }).click();
-  await page.getByRole('button', { name: 'LOCK OMEN & SEAL REPLAY' }).click();
-  const guardStep = page.getByLabel('Judge Demo progress').locator('span').filter({ hasText: 'DEFEAT GUARD' });
-  await expect(guardStep).toHaveClass(/active/, { timeout: 20_000 });
+  await page.getByRole('button', { name: 'LOCK BTC UP & ENTER DUNGEON', exact: true }).click();
+  await expect(page.getByRole('region', { name: 'Combat view', exact: true })).toContainText('GUARD 1/2', { timeout: 20_000 });
   await completeLiveJudgeCombat(page);
 
-  const revealButton = page.getByRole('button', { name: '🔮 REVEAL BOSS FATE' });
+  const revealButton = page.getByRole('button', { name: 'REVEAL BOSS FATE', exact: true });
   await expect(revealButton).toBeEnabled({ timeout: 30_000 });
   await revealButton.click();
-  await expect(page.getByText('✓ COMBAT + CHOICE LOCK + SOMNIA RESULT VERIFIED')).toBeVisible({ timeout: 30_000 });
+  const resultSummary = page.getByRole('region', { name: 'Choice, market result and boss fate', exact: true });
+  await expect(resultSummary).toHaveAttribute('data-outcome', /^(BLESSED|CURSED)$/, { timeout: 30_000 });
+  await expect(resultSummary).toContainText('Recorded result verified');
+  await expect(page.getByLabel('Final run statistics', { exact: true }).locator('div').filter({ hasText: 'ENCOUNTERS CLEARED' }).locator('dd')).toHaveText('2/2');
+  const proofToggle = page.getByText('VIEW VERIFIED RUN PROOF', { exact: true });
+  await expect(proofToggle.locator('..')).not.toHaveAttribute('open', '');
+  await proofToggle.click();
   const revealedProof = page.locator('.proof-revealed');
   await expect(revealedProof).not.toHaveAttribute('open', '');
   await revealedProof.locator('summary').click();
   await expect(page.getByText('✓ BROWSER REFETCHED + ABI-DECODED SOMNIA STATE')).toBeVisible();
-  await expect(page.getByText('FINAL-TIER JUDGE REPLAY · 2/2 REPLAY ENCOUNTERS')).toBeVisible();
+  await expect(page.getByLabel('Post text — copy manually if needed')).toHaveValue(/2 of 2 replay encounters cleared/);
   await expect(page.getByText(/ROOM 40\/40/)).toHaveCount(0);
   await expectLiveLink(page.getByRole('link', { name: /OPEN INDEPENDENT VERIFIER/ }), /^\/verify$/);
 

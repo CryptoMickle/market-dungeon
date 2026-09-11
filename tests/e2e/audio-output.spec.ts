@@ -113,7 +113,7 @@ async function installMarkets(page: Page) {
 for (const mode of [
   { name: 'Full Expedition', path: '/', entry: 'ENTER DUNGEON' },
   { name: 'Live Judge', path: '/shannon/live-judge', entry: 'LOCK BTC UP & ENTER DUNGEON' },
-  { name: 'Historical Replay', path: '/shannon/judge', entry: 'LOCK OMEN & SEAL REPLAY' },
+  { name: 'Historical Replay', path: '/shannon/judge', entry: 'LOCK BTC UP & ENTER DUNGEON' },
 ] as const) {
   test(`${mode.name} keeps short cues audible after unmute and is silent between non-boss actions`, async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });

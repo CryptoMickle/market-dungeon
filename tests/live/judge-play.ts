@@ -7,8 +7,9 @@ export async function completeLiveJudgeCombat(page: Page) {
     // for the enabled reveal button; do not seek another attack during this phase.
     if (await page.locator('main.phase-oracle').isVisible()) return;
     if (await page.locator('main.phase-dead').isVisible()) throw new Error('Live Judge combat ended in player defeat');
-    const gate = page.getByRole('button', { name: '👑 ENTER FINAL BOSS' });
+    const gate = page.getByRole('button', { name: 'ENTER FINAL BOSS', exact: true });
     if (await gate.isVisible()) {
+      await expect(page.getByRole('heading', { name: 'One boss to go.', exact: true })).toBeVisible();
       const heal = page.getByRole('button', { name: /HEAL \+25 HP/ });
       if (await heal.isEnabled()) await heal.click();
       await gate.click();
@@ -20,5 +21,5 @@ export async function completeLiveJudgeCombat(page: Page) {
     if (hp <= 35 && await potion.isEnabled()) await potion.click();
     else await page.getByRole('button', { name: /ATTACK/ }).click();
   }
-  await expect(page.getByRole('button', { name: '🔮 REVEAL BOSS FATE' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'REVEAL BOSS FATE', exact: true })).toBeVisible();
 }

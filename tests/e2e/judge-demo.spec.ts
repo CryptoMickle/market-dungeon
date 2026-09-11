@@ -1,7 +1,7 @@
 import { readFile } from 'node:fs/promises';
 
 import { expect, test, type Locator, type Page } from '@playwright/test';
-import { playJudgeGuard, playJudgeBoss } from './judge-play';
+import { playJudgeGuard, playJudgeBoss, expectJudgeProgress, openJudgeProof } from './judge-play';
 import { expectSubstantialMobileCombat } from './mobile-combat-layout';
 
 import type { JudgeCombatAction } from '../../app/judge-combat';
@@ -107,12 +107,11 @@ async function expectOptimizedImageLoaded(image: Locator) {
 }
 
 async function expectJudgeBossReward(page: Page) {
-  await expect(page.locator('.result-hero > .muted')).toHaveText('You chose BTC UP. The market settled BTC UP. Your prediction was correct. The final boss stays down and its reward is secured.');
+  await expect(page.getByLabel('Historical Judge stage', { exact: true })).toContainText('You chose BTC UP. The market settled BTC UP. Your prediction was correct. The final boss stays down and its reward is secured.');
   // The controlled replay starts with 62, earns 18 from the guard and 42 from the boss.
-  await expect(page.locator('.final-stats > div').filter({ hasText: 'FINAL GOLD' }).locator('strong')).toHaveText('122');
+  await expect(page.getByLabel('Final run statistics', { exact: true }).locator('div').filter({ hasText: 'FINAL GOLD' }).locator('dd')).toHaveText('122');
   await expect(page.getByLabel('Post text — copy manually if needed')).toHaveValue(/2 of 2 replay encounters cleared · 122 gold/);
-  await expect(page.locator('.dungeon-log')).toContainText('FINAL BOSS DEFEATED · +42 GOLD');
-  await expect(page.locator('.dungeon-log')).toContainText('The final boss stays down and its reward is secured.');
+  await expect(page.getByRole('region', { name: 'Dungeon log', exact: true })).toContainText('The final boss stays down and its reward is secured.');
   await expect(page.locator('body')).not.toContainText('prediction gold');
 }
 
@@ -275,49 +274,24 @@ async function expectBetweenRoomArrowEdges(page: Page) {
   expect(await page.evaluate(() => JSON.stringify(localStorage))).toBe(savedBefore);
 }
 
-test('desktop Judge keeps complete combat in view and preserves keyboard order and proof flow', async ({ page }, info) => {
+test('desktop Judge keeps complete combat, inline recovery and the sealed proof flow', async ({ page }, info) => {
   let replayStarts = 0;
   await installDeterministicUpstreams(page, { onStartCall: () => { replayStarts += 1; } });
   await page.setViewportSize({ width: 1280, height: 720 });
   await page.goto('/judge');
-  const expectReplayNavigation = async (setup = false) => {
-    await expect(page.getByRole('navigation', { name: 'Choose game mode', exact: true })).toHaveCount(0);
-    const variants = page.getByRole('navigation', { name: 'Choose Judge demo', exact: true });
-    const home = page.getByLabel('Market Dungeon — back to home', { exact: true }).filter({ visible: true });
-    if (setup) await expect(home).toHaveAttribute('href', '/');
-    await expect(home).toBeInViewport({ ratio: 1 });
-    if (!setup) {
-      await expect(variants).toHaveCount(0);
-      return;
-    }
-    await expect(variants.getByRole('link')).toHaveText(['LIVE · 1 MIN', 'HISTORICAL REPLAY']);
-    await expect(variants.getByRole('link', { name: 'HISTORICAL REPLAY', exact: true })).toHaveAttribute('aria-current', 'page');
-    await expect(variants.getByRole('link', { name: 'HISTORICAL REPLAY', exact: true })).toHaveAttribute('href', '/judge');
-    await expect(variants.getByRole('link', { name: 'LIVE · 1 MIN', exact: true })).toHaveAttribute('href', '/shannon/live-judge');
-    await expect(variants.locator('[aria-current="page"]')).toHaveCount(1);
-    for (const link of await variants.getByRole('link').all()) await expect(link).toBeInViewport({ ratio: 1 });
-  };
-  await expectReplayNavigation(true);
-  await page.getByRole('button', { name: 'LOCK OMEN & SEAL REPLAY' }).click();
-  await expect(page.getByRole('list', { name: /^Room progress:/ })).toHaveCount(0);
-  const footer = page.locator('footer');
-  const expectCombatFooter = async () => {
-    await expectReplayNavigation();
-    await expect(footer).toBeVisible();
-    await expect(footer.getByRole('link', { name: 'VERIFY A PROOF' })).toHaveAttribute('href', '/verify');
-    await expect(footer.getByRole('link', { name: 'PRIVACY · CREDITS · AI DISCLOSURE' })).toHaveAttribute('href', '/credits');
-    const bounds = (await page.getByRole('region', { name: 'Combat view' }).boundingBox())!;
-    expect((await footer.boundingBox())!.y).toBeGreaterThanOrEqual(bounds.y + bounds.height);
-  };
-  await expectCombatFooter();
-  await page.setViewportSize({ width: 390, height: 664 });
-  await expect(footer).toBeHidden();
-  for (const [w, h] of [[1280,720], [1440,900], [1920,1080], [2136,1200], [2560,1440], [820,720]]) await expectDesktopCombat(page, w, h);
-  await expectDesktopCombat(page,2136,1200);
-  await page.screenshot({ path: info.outputPath('large-desktop-judge.png') });
+  await expectJudgeProgress(page);
+  const variants = page.getByRole('navigation', { name: 'Choose Judge demo', exact: true });
+  await expect(variants.getByRole('link')).toHaveText(['LIVE · 1 MIN', 'HISTORICAL REPLAY']);
+  await expect(variants.getByRole('link', { name: 'HISTORICAL REPLAY', exact: true })).toHaveAttribute('aria-current', 'page');
+  await expect(page.getByLabel('Market Dungeon — back to home', { exact: true })).toHaveAttribute('href', '/');
+  await page.getByRole('button', { name: 'LOCK BTC UP & ENTER DUNGEON', exact: true }).click();
+  await expect(variants).toHaveCount(0);
+  for (const [width, height] of [[1280, 720], [1440, 900], [1920, 1080], [2136, 1200], [2560, 1440], [820, 720]]) {
+    await expectDesktopCombat(page, width, height);
+  }
   await expectDesktopCombat(page, 1280, 720);
-  await page.screenshot({ path: info.outputPath('desktop-judge-guard.png') });
   const combat = page.getByRole('region', { name: 'Combat view' });
+  await expect(combat).toContainText('GUARD 1/2');
   const actions = combat.getByRole('region', { name: 'Combat actions' });
   await actions.getByRole('button', { name: /STORM/ }).focus();
   await page.keyboard.press('Tab');
@@ -327,107 +301,63 @@ test('desktop Judge keeps complete combat in view and preserves keyboard order a
   await page.keyboard.press('Tab');
   await expect(actions.getByRole('button', { name: /POTION/ })).toBeFocused();
   await playJudgeGuard(page);
-  // A legacy mainnet replay must return to its own profile and original seal.
-  // Finishing the existing proof flow below also verifies the exact transcript.
+  await expectJudgeProgress(page, 3);
+  await expect(page.getByRole('heading', { name: 'One boss to go.' })).toBeVisible();
+  await expect(page.getByRole('img', { name: 'Quartermaster Kevin', exact: true }).first()).toBeVisible();
   await page.getByRole('button', { name: 'Market Dungeon — back to home', exact: true }).filter({ visible: true }).click();
   await expect(page).toHaveURL('/');
-  await expect(page.getByRole('radio', { checked: true })).toHaveCount(0);
   await page.getByRole('radio', { name: 'Judge Demo', exact: true }).check();
   await page.getByRole('radio', { name: 'Historical replay', exact: true }).check();
   await page.getByRole('button', { name: 'CONTINUE RUN', exact: true }).click();
   await expect(page).toHaveURL('/judge');
-  await expect(page.getByRole('button', { name: '👑 ENTER FINAL BOSS' })).toBeVisible();
   expect(replayStarts).toBe(1);
-  await expectBetweenRoomArrowEdges(page);
-  await page.screenshot({ path: info.outputPath('desktop-judge-between.png'), fullPage: true });
-  expect((await page.locator('.game-column').boundingBox())!.width).toBeGreaterThan(1200);
-  await expect(page.locator('.desktop-stage-header')).toBeVisible();
-  await expect(page.locator('.desktop-stage-header header > small')).toHaveCSS('text-align', 'right');
-  for (const [width,height] of [[820,720],[1280,720],[1920,1080]]) {
-    await page.setViewportSize({width,height});
-    await expect(page.getByRole('button', { name: '👑 ENTER FINAL BOSS' })).toBeInViewport({ ratio: 1 });
-  }
-  await page.setViewportSize({width:1280,height:720});
-  const stepBoxes = await Promise.all((await page.locator('.judge-replay-steps > span').all()).map(el => el.boundingBox()));
-  for (let index=1; index<stepBoxes.length; index++) expect(stepBoxes[index-1]!.x + stepBoxes[index-1]!.width).toBeLessThanOrEqual(stepBoxes[index]!.x);
-  await page.getByRole('button', { name: '👑 ENTER FINAL BOSS' }).click();
+  await page.getByRole('button', { name: 'ENTER FINAL BOSS', exact: true }).click();
   await expectDesktopCombat(page, 1280, 720);
-  await expectCombatFooter();
-  await page.screenshot({ path: info.outputPath('desktop-judge-boss.png'), fullPage: true });
   await playJudgeBoss(page);
-  const revealAction = page.getByRole('button', { name: '🔮 REVEAL BOSS FATE' });
-  await expect(page.locator('.desktop-stage-header')).toContainText('Gold 80');
-  await expect(revealAction).toBeEnabled();
-  for (const key of ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight']) {
-    await page.locator('.desktop-journey').focus();
-    await page.keyboard.press(key);
-    await expect(revealAction).toBeFocused();
-    await expect(revealAction).toBeInViewport({ ratio: 1 });
+  await expectJudgeProgress(page, 4);
+  const stage = page.getByLabel('Historical Judge stage', { exact: true });
+  const supplies = page.getByRole('region', { name: 'Recovery supplies', exact: true });
+  const reveal = page.getByRole('button', { name: 'REVEAL BOSS FATE', exact: true });
+  await expect(reveal).toBeEnabled();
+  await expect(page.locator('[data-boss-scene="pending"]')).toBeVisible();
+  await expect(page.locator('.phase-final_merchant')).toHaveCount(0);
+  const resourcesBefore = await supplies.innerText();
+  await stage.focus();
+  await page.keyboard.press('ArrowDown');
+  await expect(reveal).toBeFocused();
+  await page.getByRole('button', { name: 'REST WITH KEVIN · FREE', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'FULLY RESTED · 100/100 HP', exact: true })).toBeDisabled();
+  await expect(supplies).toContainText('100/100');
+  await expect(page.getByLabel('Player status', { exact: true })).toContainText('80');
+  const potionCount = resourcesBefore.match(/(\d)\/5/)?.[0];
+  if (potionCount) await expect(supplies).toContainText(potionCount);
+  await expect(page.locator('.phase-oracle')).toHaveCount(1);
+  for (const width of [820, 1280]) {
+    await page.setViewportSize({ width, height: 720 });
+    await reveal.scrollIntoViewIfNeeded();
+    await expect(reveal).toBeInViewport({ ratio: 1 });
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
   }
-  await page.getByRole('button', { name: '🧰 VISIT TRAVELLING MERCHANT' }).click();
-  const merchantGold = page.locator('.merchant-stats > div').filter({ hasText: 'GOLD' }).locator('strong');
-  const merchantPotions = page.locator('.merchant-stats > div').filter({ hasText: 'POTIONS' }).locator('strong');
-  const goldBeforeRest = await merchantGold.innerText();
-  const potionsBeforeRest = await merchantPotions.innerText();
-  for (const [width, height] of [[820,720], [1280,720], [1920,866]]) {
-    await page.setViewportSize({ width, height });
-    await page.evaluate(() => window.scrollTo(0, 0));
-    await expect(page.getByRole('region', { name: 'Recovery supplies', exact: true })).toBeInViewport({ ratio: 1 });
-    await expect(page.getByRole('button', { name: 'TAKE A FREE REST · RESTORE HP' })).toBeInViewport({ ratio: 1 });
-    await expect(page.getByRole('button', { name: '🔮 RETURN TO BOSS FATE' })).toBeInViewport({ ratio: 1 });
-    expect((await page.locator('.merchant-view').boundingBox())!.height).toBeLessThan(260);
-  }
-  await page.setViewportSize({ width: 1280, height: 720 });
-  await page.getByRole('button', { name: 'TAKE A FREE REST · RESTORE HP' }).click();
-  await expect(page.getByRole('button', { name: 'FULLY RESTED · 100/100 HP' })).toBeDisabled();
-  await expect(page.locator('.merchant-stats > div').filter({ hasText: 'HEALTH' })).toContainText('100/100');
-  await expect(merchantGold).toHaveText(goldBeforeRest);
-  await expect(merchantPotions).toHaveText(potionsBeforeRest);
-  await page.screenshot({ path: info.outputPath('desktop-judge-kevin-compact.png') });
-  await page.getByRole('button', { name: '🔮 RETURN TO BOSS FATE' }).click();
-  await expect(page.locator('.action-dock-oracle')).toHaveCSS('order', '-1');
-  for (const [width, height] of [[820,720], [1280,720], [1920,1080]]) {
-    await page.setViewportSize({ width, height });
-    await page.evaluate(() => window.scrollTo(0, 0));
-    await expect(page.getByRole('button', { name: '🔮 REVEAL BOSS FATE' })).toBeInViewport({ ratio: 1 });
-    await expect(page.getByText('Boss defeated. Reveal your locked BTC result.', { exact: true })).toBeInViewport({ ratio: 1 });
-  }
-  await page.setViewportSize({ width: 1280, height: 720 });
-  await page.screenshot({ path: info.outputPath('desktop-judge-reveal.png') });
-  await page.getByRole('button', { name: '🔮 REVEAL BOSS FATE' }).click();
-  await expect(page.getByText('JUDGE DEMO COMPLETE · ONCHAIN RESULT VERIFIED · BLESSED')).toBeVisible();
-  await expectReplayNavigation();
+  await page.screenshot({ path: info.outputPath('judge-inline-rest.png'), fullPage: true });
+  await reveal.click();
   await expectJudgeBossReward(page);
-  const resultShare = page.getByRole('region', { name: 'Share your Market Dungeon result' });
-  await expect(resultShare.getByRole('button', { name: '1 · SAVE IMAGE' })).toBeEnabled();
-  const shareBounds = (await resultShare.boundingBox())!;
-  const resultBounds = (await page.locator('.result-hero').boundingBox())!;
-  expect(resultBounds.x + resultBounds.width).toBeLessThanOrEqual(shareBounds.x);
-  const finalScene = page.locator('.result-hero [data-boss-scene]');
-  await expect.poll(() => finalScene.evaluate(element => element.getAnimations({ subtree: true }).every(animation => animation.playState === 'finished'))).toBe(true);
-  await finalScene.screenshot({ path: info.outputPath('desktop-judge-victory-scene-finished.png') });
-  await page.screenshot({ path: info.outputPath('desktop-judge-result.png'), fullPage: true });
-  await info.attach('desktop-judge-result-geometry', {
-    contentType: 'application/json',
-    body: JSON.stringify(await page.evaluate(() => {
-      const selectors = ['.desktop-journey', '.result-hero-grid', '.result-hero', '.result-hero > *', '.run-share-panel', '.judge-result-evidence', '.judge-result-evidence > *', '.dungeon-log', 'footer'];
-      return { height: document.documentElement.scrollHeight, elements: selectors.flatMap(selector => Array.from(document.querySelectorAll(selector)).map(element => {
-        const bounds = element.getBoundingClientRect();
-        const style = getComputedStyle(element);
-        return { selector, tag: element.tagName, className: element.className, text: element.textContent?.slice(0, 100), x: bounds.x, y: bounds.y + window.scrollY, width: bounds.width, height: bounds.height, margin: style.margin, padding: style.padding, gap: style.gap };
-      }).filter(element => element.width && element.height)) };
-    }), null, 2),
-  });
-  // The three-part outcome and save-location guidance add one short text row.
-  // Keep the result page bounded after navigation moves to the common Home.
-  expect(await page.evaluate(() => document.documentElement.scrollHeight)).toBeLessThan(1952);
+  const stats = page.getByLabel('Final run statistics', { exact: true });
+  await expect(stats.locator('dt')).toHaveText(['ENCOUNTERS CLEARED', 'FINAL GOLD', 'FINAL HEALTH', 'POTIONS LEFT']);
+  await expect(stats).toContainText('100/100');
+  await expect(page.getByRole('region', { name: 'Share your Market Dungeon result' })).toBeVisible();
+  const proof = await openJudgeProof(page);
+  await expect(proof.getByRole('region', { name: 'Portable run verification' })).toBeVisible();
+  await expect(proof.getByRole('button', { name: 'COPY PROOF JSON' })).toBeEnabled();
+  await expect(page.getByLabel('Continue on dreamDEX', { exact: true })).toBeVisible();
+  expect(replayStarts).toBe(1);
+  await page.screenshot({ path: info.outputPath('judge-shared-result.png'), fullPage: true });
 });
 
 test('Judge restores monster humor and shows the full critical finishing damage', async ({ page }) => {
   await installDeterministicUpstreams(page);
   await page.route('**/api/judge-replay/start', route => route.fulfill({ json: startPayloadForGameSeed('a'.repeat(42) + '2') }));
   await page.goto('/judge');
-  await page.getByRole('button', { name: 'LOCK OMEN & SEAL REPLAY' }).click();
+  await page.getByRole('button', { name: /^LOCK BTC (?:UP|DOWN) & ENTER DUNGEON$/ }).click();
   const combat = page.getByRole('region', { name: 'Combat view' });
   await combat.getByRole('button', { name: /ATTACK/ }).click();
   await expect(combat.getByRole('button', { name: 'Open dungeon log' })).toContainText('Architecture becomes unexpectedly aggressive.');
@@ -440,7 +370,7 @@ test('Judge restores monster humor and shows the full critical finishing damage'
   await expect(combat.getByLabel('Enemy health 4 of 40', { exact: true })).toBeVisible();
   await combat.getByRole('button', { name: /ATTACK/ }).click();
   await expect(page.getByRole('status', { name: 'Critical finishing blow' })).toHaveText('🔥 CRITICAL! · 34 HP');
-  await expect(page.getByRole('button', { name: '👑 ENTER FINAL BOSS' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'ENTER FINAL BOSS' })).toBeVisible();
 });
 
 test('desktop Full Expedition preserves critical feedback, HP smoothing and detail access', async ({ page }, info) => {
@@ -598,7 +528,7 @@ test('/judge prerenders its primary Judge action before client hydration', async
   const judgeResponse = await request.get('/judge');
   expect(judgeResponse.ok()).toBe(true);
   const judgeHtml = await judgeResponse.text();
-  expect(judgeHtml).toContain('LOCK OMEN &amp; SEAL REPLAY');
+  expect(judgeHtml).toMatch(/LOCK BTC(?:<!-- -->)? UP(?:<!-- -->)? &amp; ENTER DUNGEON/);
   expect(judgeHtml).not.toContain('PREPARING MARKET DUNGEON');
 });
 
@@ -792,7 +722,7 @@ test('desktop arrows and Enter navigate combat and dialogs without repeated acti
   await installDeterministicUpstreams(page);
   await page.setViewportSize({ width: 1280, height: 720 });
   await page.goto('/judge');
-  await page.getByRole('button', { name: 'LOCK OMEN & SEAL REPLAY' }).click();
+  await page.getByRole('button', { name: /^LOCK BTC (?:UP|DOWN) & ENTER DUNGEON$/ }).click();
   const combat = page.getByRole('region', { name: 'Combat view' });
   const attack = combat.getByRole('button', { name: /ATTACK/ });
   const storm = combat.getByRole('button', { name: /STORM/ });
@@ -1253,7 +1183,7 @@ for (const path of ['/expedition', '/judge']) {
     await page.goto(path);
     if (path === '/expedition') {
       await page.getByRole('button', { name: 'LOCK BTC UP · ENTER TIER 1', exact: true }).click();
-    } else await page.getByRole('button', { name: 'LOCK OMEN & SEAL REPLAY' }).click();
+    } else await page.getByRole('button', { name: /^LOCK BTC (?:UP|DOWN) & ENTER DUNGEON$/ }).click();
     const combat = page.getByRole('region', { name: 'Combat view' });
     const header = combat.locator('header > small');
     const potion = combat.getByRole('button', { name: /POTION/ });
@@ -1304,15 +1234,15 @@ test('mobile Judge shares substantial combat art and preserves receipt access an
   await installDeterministicUpstreams(page);
   await page.setViewportSize({ width: 390, height: 664 });
   await page.goto('/judge');
-  await page.getByRole('button', { name: 'LOCK OMEN & SEAL REPLAY' }).click();
+  await page.getByRole('button', { name: /^LOCK BTC (?:UP|DOWN) & ENTER DUNGEON$/ }).click();
   await expectCompactCombat(page, 390, 664);
   const combat = page.getByRole('region', { name: 'Combat view' });
-  await expect(combat).toContainText('JUDGE · COMBAT REPLAY');
+  await expect(combat).toContainText('HISTORICAL JUDGE DEMO');
   await combat.getByRole('button', { name: /Omen details/ }).click();
   await expect(page.getByRole('dialog', { name: 'Omen' })).toContainText('✓ VERIFIED IN THIS BROWSER');
   await page.getByRole('button', { name: 'Close details' }).click();
   await playJudgeGuard(page);
-  await page.getByRole('button', { name: '👑 ENTER FINAL BOSS' }).click();
+  await page.getByRole('button', { name: 'ENTER FINAL BOSS' }).click();
   await expectCompactCombat(page, 375, 600);
   await page.screenshot({ path: testInfo.outputPath('judge-boss-mobile.png'), fullPage: true });
   await expectCompactCombat(page, 320, 568);
@@ -1326,8 +1256,8 @@ test('mobile Judge shares substantial combat art and preserves receipt access an
   await expectCompactCombat(page, 390, 664);
   await page.screenshot({ path: testInfo.outputPath('judge-boss-damage.png'), fullPage: true });
   await playJudgeBoss(page, 1);
-  await page.getByRole('button', { name: '🔮 REVEAL BOSS FATE' }).click();
-  await expect(page.getByText('JUDGE DEMO COMPLETE · ONCHAIN RESULT VERIFIED · BLESSED')).toBeVisible();
+  await page.getByRole('button', { name: 'REVEAL BOSS FATE' }).click();
+  await expect(page.getByRole('region', { name: 'Choice, market result and boss fate', exact: true }).and(page.locator('[data-outcome="BLESSED"]'))).toBeVisible();
   await expectJudgeBossReward(page);
 });
 
@@ -1511,16 +1441,16 @@ for (const available of [true, false]) {
     });
     try {
       await page.goto('/judge');
-      await expect(page.getByRole('region', { name: 'Start the two-minute Judge Demo' }).getByText('LOADING REFERENCE…', { exact: true })).toBeVisible();
+      await expect(page.getByLabel('Historical Judge stage', { exact: true }).getByText('LOADING REFERENCE…', { exact: true })).toBeVisible();
       await expect(page.getByText('REFERENCE UNAVAILABLE', { exact: true })).toHaveCount(0);
-      await expect(page.getByText('YOUR SELECTED OMEN · NOT LOCKED YET', { exact: true })).toBeVisible();
-      await expect(page.getByRole('button', { name: 'LOCK OMEN & SEAL REPLAY' })).toBeEnabled();
+      await expectJudgeProgress(page);
+      await expect(page.getByRole('button', { name: /^LOCK BTC (?:UP|DOWN) & ENTER DUNGEON$/ })).toBeEnabled();
     } finally {
       finishLoading();
     }
     await expect(page.getByText('LOADING REFERENCE…', { exact: true })).toHaveCount(0);
-    if (available) await expect(page.locator('.judge-lock-context strong')).toContainText('$');
-    else await expect(page.getByRole('region', { name: 'Start the two-minute Judge Demo' }).getByText('REFERENCE UNAVAILABLE', { exact: true })).toBeVisible();
+    if (available) await expect(page.getByLabel('Historical market context', { exact: true }).locator('strong')).toContainText('$');
+    else await expect(page.getByLabel('Historical Judge stage', { exact: true }).getByText('REFERENCE UNAVAILABLE', { exact: true })).toBeVisible();
   });
 }
 
@@ -1534,25 +1464,25 @@ test('Judge combat death does not claim a verified onchain loss or export a proo
     return route.fulfill({ status: 500, json: { error: 'No reveal allowed after combat death' } });
   });
   await page.goto('/judge');
-  await page.getByRole('button', { name: 'LOCK OMEN & SEAL REPLAY' }).click();
+  await page.getByRole('button', { name: /^LOCK BTC (?:UP|DOWN) & ENTER DUNGEON$/ }).click();
   for (let i = 0; i < 4; i++) await page.getByRole('button', { name: /STORM/ }).click();
-  await page.getByRole('button', { name: '👑 ENTER FINAL BOSS' }).click();
+  await page.getByRole('button', { name: 'ENTER FINAL BOSS' }).click();
   for (let i = 0; i < 4; i++) await page.getByRole('button', { name: /STORM/ }).click();
-  await expect(page.getByRole('heading', { name: 'You fell in combat.' })).toBeVisible();
-  await expect(page.getByText('JUDGE RUN ENDED · COMBAT DEFEAT', { exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'The dungeon keeps its boss.' })).toBeVisible();
+  await expect(page.getByText('COMBAT LOST', { exact: true })).toBeVisible();
   const resultSummary = page.getByRole('region', { name: 'Choice, market result and boss fate' });
   await expect(resultSummary).toBeVisible();
   await expect(resultSummary).toHaveAttribute('data-outcome', 'DEFEATED');
   await expect(resultSummary.locator(':scope > div').filter({ hasText: 'MARKET RESULT' }).locator('strong')).toHaveText('NOT REVEALED');
   await expect(resultSummary.locator(':scope > div').filter({ hasText: 'BOSS FATE' }).locator('strong')).toHaveText('NOT DEFEATED');
   await expect(resultSummary).not.toContainText('Recorded result verified');
-  await expect(page.locator('.result-hero .judge-verification')).toHaveCount(0);
-  await expect(page.getByText('The sealed market was not revealed. No onchain outcome was verified for this run.', { exact: true })).toBeVisible();
+  await expect(page.getByText('VIEW VERIFIED RUN PROOF', { exact: true })).toHaveCount(0);
+  await expect(page.getByText('Your omen cannot save a lost fight. No market outcome was applied to this run.', { exact: true })).toBeVisible();
   await expect(page.getByText('JUDGE DEMO COMPLETE · ONCHAIN LOSS VERIFIED', { exact: true })).toHaveCount(0);
   await expect(page.getByRole('region', { name: 'Portable run verification' })).toHaveCount(0);
   await expect(page.getByRole('button', { name: /REVEAL BOSS FATE/ })).toHaveCount(0);
   await expect(page.getByRole('region', { name: 'Share your Market Dungeon result' })).toHaveCount(1);
-  await expect(page.locator('.final-stats > div').filter({ hasText: 'REPLAY ENCOUNTERS' }).locator('strong')).toHaveText('1/2');
+  await expect(page.getByLabel('Final run statistics', { exact: true }).locator('div').filter({ hasText: 'ENCOUNTERS CLEARED' }).locator('dd')).toHaveText('1/2');
   await expect(page.getByLabel('Post text — copy manually if needed')).toHaveValue(/1 of 2 replay encounters/);
   expect(revealCalls).toBe(0);
 });
@@ -1563,14 +1493,17 @@ test('direct /judge entry keeps the mobile choice guide before its reachable loc
 
   await page.goto('/judge');
   await expect(page).toHaveURL(/\/judge$/);
-  await expect(page.getByLabel('Judge Proof Chamber')).toContainText('2-MINUTE PROOF CHAMBER');
+  await expect(page.getByText('HISTORICAL JUDGE DEMO', { exact: true })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Lock your omen before the replay is drawn.' })).toBeVisible();
-  await expect(page.getByRole('region', { name: 'Judge Demo progress' })).toBeVisible();
+  await expect(page.getByRole('list', { name: 'Judge demo progress', exact: true })).toBeVisible();
+  await page.getByText('ABOUT THIS HISTORICAL REPLAY', { exact: true }).click();
   await expect(page.getByRole('region', { name: 'Plain-language proof summary' })).toContainText('Choice first.');
   await expect(page.getByRole('region', { name: 'Plain-language proof summary' })).toContainText('No replacement.');
   await expect(page.getByRole('region', { name: 'Plain-language proof summary' })).toContainText('Independent result.');
+  await page.getByText('ABOUT THIS HISTORICAL REPLAY', { exact: true }).click();
+  await page.evaluate(() => window.scrollTo(0, 0));
 
-  const lockButton = page.getByRole('button', { name: 'LOCK OMEN & SEAL REPLAY' });
+  const lockButton = page.getByRole('button', { name: /^LOCK BTC (?:UP|DOWN) & ENTER DUNGEON$/ });
   await expect(page.getByRole('button', { name: /GOLD AWAKENS/ })).toHaveAttribute('aria-pressed', 'true');
   await expect(page.getByRole('button', { name: /SHADOWS RISE/ })).toHaveAttribute('aria-pressed', 'false');
   await expect(lockButton).toBeVisible();
@@ -1583,7 +1516,7 @@ test('direct /judge entry keeps the mobile choice guide before its reachable loc
   await lockButton.scrollIntoViewIfNeeded();
   await expect(lockButton).toBeInViewport({ ratio: 1 });
   await lockButton.click();
-  await expect(page.getByLabel('Judge Demo progress').locator('span').filter({ hasText: 'DEFEAT GUARD' })).toHaveClass(/active/);
+  await expect(page.getByRole('region', { name: 'Combat view', exact: true })).toContainText('GUARD 1/2');
 });
 
 test('locked Judge view exposes receipt details on demand without revealing the market', async ({ page }) => {
@@ -1591,7 +1524,7 @@ test('locked Judge view exposes receipt details on demand without revealing the 
   await page.setViewportSize({ width: 1280, height: 720 });
 
   await page.goto('/judge');
-  await page.getByRole('button', { name: 'LOCK OMEN & SEAL REPLAY' }).click();
+  await page.getByRole('button', { name: /^LOCK BTC (?:UP|DOWN) & ENTER DUNGEON$/ }).click();
 
   await page.getByRole('button', { name: /Omen details/ }).click();
   const receipt = page.getByRole('region', { name: 'Server-authenticated lock receipt' }).filter({ visible: true });
@@ -1615,15 +1548,17 @@ test('locked Judge view exposes receipt details on demand without revealing the 
 
   await page.getByRole('button', { name: 'Close details' }).click();
   await playJudgeGuard(page);
+  await page.getByText('YOUR LOCKED MARKET & RECEIPT', { exact: true }).click();
   await expect(receipt).toBeVisible();
-  await page.getByRole('button', { name: '👑 ENTER FINAL BOSS' }).click();
+  await page.getByRole('button', { name: 'ENTER FINAL BOSS' }).click();
   await page.getByRole('button', { name: /Omen details/ }).click();
   await expect(receipt).toBeVisible();
   await page.getByRole('button', { name: 'Close details' }).click();
   await playJudgeBoss(page);
+  await page.getByText('YOUR LOCKED MARKET & RECEIPT', { exact: true }).click();
   await expect(receipt).toBeVisible();
 
-  await page.getByRole('button', { name: '🔮 REVEAL BOSS FATE' }).click();
+  await page.getByRole('button', { name: 'REVEAL BOSS FATE' }).click();
   await expect(receipt).toHaveCount(0);
 });
 
@@ -1633,13 +1568,12 @@ test('challenge link opens a fresh Judge replay without exposing the prior run',
 
   await page.goto('/judge?challenge=1');
   await expect(page).toHaveURL(/\/judge\?challenge=1$/);
-  const invitation = page.getByRole('status', { name: 'Challenge invitation' });
-  await expect(invitation).toContainText('BOSS + MARKET CHALLENGE');
-  await expect(invitation).toContainText('fresh, separately verified replay');
-  await expect(invitation).toContainText('your own hidden market');
+  await expect(page.getByText('YOU’RE INVITED · MAKE YOUR OWN CALL', { exact: true })).toBeVisible();
+  await expectJudgeProgress(page);
+  await expect(page.getByRole('region', { name: 'Choice, market result and boss fate' })).toHaveCount(0);
   await expect(page.getByText(/0x[a-f0-9]{64}/i)).toHaveCount(0);
 
-  const lockButton = page.getByRole('button', { name: 'LOCK OMEN & SEAL REPLAY' });
+  const lockButton = page.getByRole('button', { name: /^LOCK BTC (?:UP|DOWN) & ENTER DUNGEON$/ });
   await expect(lockButton).toBeVisible();
   expect(await page.evaluate(() => window.scrollY)).toBe(0);
   const guide = page.getByRole('region', { name: 'How your Bitcoin choice works', exact: true });
@@ -1666,11 +1600,11 @@ test('Judge Demo rejects a malformed or direction-swapped start response before 
   });
 
   await page.goto('/judge');
-  await page.getByRole('button', { name: 'LOCK OMEN & SEAL REPLAY' }).click();
+  await page.getByRole('button', { name: /^LOCK BTC (?:UP|DOWN) & ENTER DUNGEON$/ }).click();
 
   await expect(page.getByRole('heading', { name: 'Lock your omen before the replay is drawn.' })).toBeVisible();
   await expect(page.getByRole('status', { name: 'Replay connection status' })).toContainText('The lock receipt could not be verified.');
-  await expect(page.getByRole('button', { name: 'LOCK OMEN & SEAL REPLAY' })).toBeEnabled();
+  await expect(page.getByRole('button', { name: /^LOCK BTC (?:UP|DOWN) & ENTER DUNGEON$/ })).toBeEnabled();
 });
 
 test('full-run entry fetches and exposes a five-minute reference before room one', async ({ page }) => {
@@ -2000,26 +1934,27 @@ test('Judge Demo completes in Chromium and renders independently verified proof 
   expect(documentResponse?.headers()['x-content-type-options']).toBe('nosniff');
   await expect(page.getByRole('heading', { name: 'Lock your omen before the replay is drawn.' })).toBeVisible();
   await page.getByRole('button', { name: /GOLD AWAKENS/ }).click();
-  await page.getByRole('button', { name: 'LOCK OMEN & SEAL REPLAY' }).click();
+  await page.getByRole('button', { name: /^LOCK BTC (?:UP|DOWN) & ENTER DUNGEON$/ }).click();
   await expectOptimizedImageLoaded(page.getByRole('region', { name: 'Combat view' }).getByRole('img'));
 
-  await expect(page.getByRole('region', { name: 'Combat view' })).toContainText('STEP 2/5 · GUARD');
+  await expect(page.getByRole('region', { name: 'Combat view' })).toContainText('GUARD 1/2');
   await playJudgeGuard(page);
-  await expect(page.getByRole('heading', { name: 'The final boss gate is open.' })).toBeVisible();
-  await page.getByRole('button', { name: '👑 ENTER FINAL BOSS' }).click();
+  await expect(page.getByRole('heading', { name: 'One boss to go.' })).toBeVisible();
+  await page.getByRole('button', { name: 'ENTER FINAL BOSS' }).click();
   await expectOptimizedImageLoaded(page.getByRole('region', { name: 'Combat view' }).getByRole('img'));
   await playJudgeBoss(page);
 
-  const reveal = page.getByRole('button', { name: '🔮 REVEAL BOSS FATE' });
+  const reveal = page.getByRole('button', { name: 'REVEAL BOSS FATE' });
   await expect(reveal).toBeEnabled();
   await reveal.click();
 
-  await expect(page.getByText('JUDGE DEMO COMPLETE · ONCHAIN RESULT VERIFIED · BLESSED')).toBeVisible();
+  await expect(page.getByRole('region', { name: 'Choice, market result and boss fate', exact: true }).and(page.locator('[data-outcome="BLESSED"]'))).toBeVisible();
+  await openJudgeProof(page);
   const plainProof = page.getByRole('region', { name: 'Plain-language proof summary' });
   await expect(plainProof).toContainText('was locked before market selection');
   await expect(plainProof).toContainText('could not be changed');
   await expect(plainProof).toContainText('independently reproduced the onchain result');
-  await expect(page.getByText('✓ COMBAT + CHOICE LOCK + SOMNIA RESULT VERIFIED')).toBeVisible();
+  await expect(page.getByLabel('Two victory conditions', { exact: true })).toContainText('BTC prediction correct');
   const revealedProof = page.locator('.proof-revealed');
   await expect(revealedProof).not.toHaveAttribute('open', '');
   await revealedProof.locator('summary').click();
@@ -2104,13 +2039,14 @@ test('terminal proof shows both exact eth_call results without a sticky action d
   await page.setViewportSize({ width: 1280, height: 720 });
 
   await page.goto('/judge');
-  await page.getByRole('button', { name: 'LOCK OMEN & SEAL REPLAY' }).click();
+  await page.getByRole('button', { name: /^LOCK BTC (?:UP|DOWN) & ENTER DUNGEON$/ }).click();
   await playJudgeGuard(page);
-  await page.getByRole('button', { name: '👑 ENTER FINAL BOSS' }).click();
+  await page.getByRole('button', { name: 'ENTER FINAL BOSS' }).click();
   await playJudgeBoss(page);
-  await page.getByRole('button', { name: '🔮 REVEAL BOSS FATE' }).click();
-  await expect(page.getByText('JUDGE DEMO COMPLETE · ONCHAIN RESULT VERIFIED · BLESSED')).toBeVisible();
+  await page.getByRole('button', { name: 'REVEAL BOSS FATE' }).click();
+  await expect(page.getByRole('region', { name: 'Choice, market result and boss fate', exact: true }).and(page.locator('[data-outcome="BLESSED"]'))).toBeVisible();
 
+  await openJudgeProof(page);
   const proof = page.locator('.proof-revealed');
   await proof.locator('summary').click();
   const moduleResult = proof.getByRole('group', { name: 'MARKETS market ID eth_call raw result' });
@@ -2144,8 +2080,8 @@ test('terminal proof shows both exact eth_call results without a sticky action d
     expect(rendering.whiteSpace).toBe('pre-wrap');
   }
 
-  const terminalDock = page.locator('.action-dock-terminal');
-  await expect(terminalDock).toContainText('START NEW JUDGE DEMO');
+  const terminalDock = page.getByRole('button', { name: 'START NEW REPLAY', exact: true });
+  await expect(terminalDock).toBeEnabled();
   await expect(terminalDock).toHaveCSS('position', 'static');
   for (const [group] of exactResults) {
     await group.scrollIntoViewIfNeeded();
@@ -2168,22 +2104,22 @@ test('temporary browser RPC unavailability preserves the completed sealed run fo
     onStartCall: () => { startCalls += 1; },
   });
   await page.goto('/judge');
-  await page.getByRole('button', { name: 'LOCK OMEN & SEAL REPLAY' }).click();
+  await page.getByRole('button', { name: /^LOCK BTC (?:UP|DOWN) & ENTER DUNGEON$/ }).click();
   await playJudgeGuard(page);
-  await page.getByRole('button', { name: '👑 ENTER FINAL BOSS' }).click();
+  await page.getByRole('button', { name: 'ENTER FINAL BOSS' }).click();
   await playJudgeBoss(page);
 
-  const reveal = page.getByRole('button', { name: '🔮 REVEAL BOSS FATE' });
+  const reveal = page.getByRole('button', { name: 'REVEAL BOSS FATE' });
   await reveal.click();
 
   await expect(page.getByText(/Somnia RPC could not reproduce the proof during this attempt/)).toBeVisible();
-  await expect(page.locator('.desktop-stage-header')).toContainText('Gold 80');
+  await expect(page.getByLabel('Player status', { exact: true })).toContainText('80');
   await expect(page.getByText(/JUDGE DEMO COMPLETE/)).toHaveCount(0);
   await expect(page.getByText(/REPLAY PROOF MISMATCH/)).toHaveCount(0);
   await expect(reveal).toBeEnabled();
 
   await reveal.click();
-  await expect(page.getByText('JUDGE DEMO COMPLETE · ONCHAIN RESULT VERIFIED · BLESSED')).toBeVisible();
+  await expect(page.getByRole('region', { name: 'Choice, market result and boss fate', exact: true }).and(page.locator('[data-outcome="BLESSED"]'))).toBeVisible();
   await expectJudgeBossReward(page);
   expect(startCalls).toBe(1);
 });
@@ -2197,12 +2133,12 @@ for (const tamperRevealField of ['attestation', 'algorithm', 'ruleset', 'finalHp
       onRpcCall: () => { rpcCalls += 1; },
     });
     await page.goto('/judge');
-    await page.getByRole('button', { name: 'LOCK OMEN & SEAL REPLAY' }).click();
+    await page.getByRole('button', { name: /^LOCK BTC (?:UP|DOWN) & ENTER DUNGEON$/ }).click();
     await playJudgeGuard(page);
-    await page.getByRole('button', { name: '👑 ENTER FINAL BOSS' }).click();
+    await page.getByRole('button', { name: 'ENTER FINAL BOSS' }).click();
     await playJudgeBoss(page);
 
-    await page.getByRole('button', { name: '🔮 REVEAL BOSS FATE' }).click();
+    await page.getByRole('button', { name: 'REVEAL BOSS FATE' }).click();
 
     await expect(page.getByText('REPLAY PROOF MISMATCH · LOCK A NEW OMEN')).toBeVisible();
     await expect(page.getByText(/Somnia RPC could not reproduce/)).toHaveCount(0);

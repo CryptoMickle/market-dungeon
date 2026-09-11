@@ -221,15 +221,20 @@ test('Historical Judge introduces Bitcoin consequences before lock and retains c
   await page.route('**/api/shannon/judge-replay/public-key', route => route.fulfill({ json: SHANNON_LOCK_PUBLIC_KEY }));
   await page.setViewportSize({ width: 390, height: 664 });
   await page.goto('/shannon/judge');
-  const lock = page.getByRole('button', { name: 'LOCK OMEN & SEAL REPLAY', exact: true });
+  const lock = page.getByRole('button', { name: 'LOCK BTC UP & ENTER DUNGEON', exact: true });
   await expectChoiceGuideBeforeLock(page, lock);
   await expectDemoNavigation(page, 'replay');
-  await expect(page.locator('.judge-lock-context')).toContainText('NO LIVE PRICE FEED');
+  await expect(page.getByLabel('Historical market context', { exact: true })).toContainText('NO LIVE PRICE FEED');
   expect(starts).toBe(0);
   await lock.click();
   const combat = await expectPermanentCombatHelp(page);
   await expectSafariSizedArtwork(page, info, 'historical-judge');
-  await expect(combat.getByRole('complementary', { name: 'First fight guide', exact: true })).toContainText('Your omen does not change attack damage.');
+  // On this short phone the opening hint is compacted away; the full
+  // explanation must stay reachable through Omen details during combat.
+  await combat.getByRole('button', { name: /^Omen details:/ }).click();
+  const omenDialog = page.getByRole('dialog', { name: 'Omen', exact: true });
+  await expect(omenDialog.getByRole('region', { name: 'How your Bitcoin choice works', exact: true })).toContainText('It does not change Attack or Storm damage.');
+  await omenDialog.getByRole('button', { name: 'Close details', exact: true }).click();
   await expect(combat.getByRole('button', { name: /^Omen details:/ })).toContainText('SEALED REPLAY');
   await expect(combat.getByText('You can keep fighting after 00:00.', { exact: true })).toHaveCount(0);
   await combat.getByRole('button', { name: /ATTACK/ }).click();

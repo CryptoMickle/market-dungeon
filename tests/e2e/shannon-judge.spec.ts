@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { playJudgeGuard, playJudgeBoss } from './judge-play';
+import { playJudgeGuard, playJudgeBoss, expectJudgeProgress, openJudgeProof } from './judge-play';
 
 import { SHANNON_TESTNET_PROFILE, SOMNIA_MAINNET_PROFILE } from '../../app/judge-network';
 import type { JudgeCombatAction } from '../../app/judge-combat';
@@ -67,110 +67,66 @@ test('Shannon Judge flow remains profile-bound through replay, sharing, reset, c
   });
 
   await page.goto('/shannon/judge');
-  await expect(page).toHaveURL(/\/shannon\/judge$/);
-  await expect(page.getByText('HISTORICAL JUDGE REPLAY · SHANNON TESTNET', { exact: true })).toBeVisible();
-  const expectReplayNavigation = async (setup = false) => {
-    await expect(page.getByRole('navigation', { name: 'Choose game mode', exact: true })).toHaveCount(0);
-    const home = page.getByRole('link', { name: 'Market Dungeon — back to home', exact: true })
-      .or(page.getByRole('button', { name: 'Market Dungeon — back to home', exact: true })).filter({ visible: true });
-    await expect(home).toBeVisible();
-    const variants = page.getByRole('navigation', { name: 'Choose Judge demo', exact: true });
-    if (!setup) { await expect(variants).toHaveCount(0); return; }
-    await expect(home).toHaveAttribute('href', '/');
-    await expect(variants.getByRole('link')).toHaveText(['LIVE · 1 MIN', 'HISTORICAL REPLAY']);
-    await expect(variants.getByRole('link', { name: 'HISTORICAL REPLAY', exact: true })).toHaveAttribute('aria-current', 'page');
-    await expect(variants.getByRole('link', { name: 'HISTORICAL REPLAY', exact: true })).toHaveAttribute('href', '/shannon/judge');
-    await expect(variants.getByRole('link', { name: 'LIVE · 1 MIN', exact: true })).toHaveAttribute('href', '/shannon/live-judge');
-    await expect(variants.locator('[aria-current="page"]')).toHaveCount(1);
-    for (const link of await variants.getByRole('link').all()) await expect(link).toBeInViewport({ ratio: 1 });
-  };
-  await expectReplayNavigation(true);
-  await expect(page.locator('.judge-lock-context')).toContainText('NO LIVE PRICE FEED');
-  await expect(page.locator('.judge-lock-context')).toContainText('the opening price is not supplied');
-  await expect(page.getByText('REFERENCE UNAVAILABLE', { exact: true })).toHaveCount(0);
-  await expect(page.getByText('SEALED BTC 5-MIN REPLAY · 15M FALLBACK · SHANNON TESTNET')).toHaveCount(1);
-
-  await page.getByRole('button', { name: 'LOCK OMEN & SEAL REPLAY' }).click();
-  const expectShannonCombatFooter = async () => {
-    const footer = page.locator('footer');
-    for (const width of [820, 1280]) {
-      await page.setViewportSize({ width, height: 720 });
-      await expectReplayNavigation();
-      await expect(footer).toBeVisible();
-      await expect(footer).toContainText('SOMNIA SHANNON TESTNET');
-      await expect(footer).toContainText('no wallet · no approval · no order submission');
-      await expect(footer.getByRole('link', { name: 'VERIFY A PROOF' })).toHaveAttribute('href', '/shannon/verify');
-      await expect(footer.getByRole('link', { name: 'PRIVACY · CREDITS · AI DISCLOSURE' })).toHaveAttribute('href', '/credits');
-      const combatBox = (await page.getByRole('region', { name: 'Combat view' }).boundingBox())!;
-      expect((await footer.boundingBox())!.y).toBeGreaterThanOrEqual(combatBox.y + combatBox.height);
-    }
-    await page.setViewportSize({ width: 390, height: 664 });
-    await expectReplayNavigation();
-    await expect(footer).toBeHidden();
-    await page.setViewportSize({ width: 1280, height: 720 });
-  };
-  await expectShannonCombatFooter();
+  await expect(page.getByText('HISTORICAL JUDGE DEMO', { exact: true })).toBeVisible();
+  await expectJudgeProgress(page);
+  const navigation = page.getByRole('navigation', { name: 'Choose Judge demo', exact: true });
+  await expect(navigation.getByRole('link')).toHaveText(['LIVE · 1 MIN', 'HISTORICAL REPLAY']);
+  await expect(navigation.getByRole('link', { name: 'HISTORICAL REPLAY', exact: true })).toHaveAttribute('aria-current', 'page');
+  await expect(navigation.getByRole('link', { name: 'HISTORICAL REPLAY', exact: true })).toHaveAttribute('href', '/shannon/judge');
+  await expect(navigation.getByRole('link', { name: 'LIVE · 1 MIN', exact: true })).toHaveAttribute('href', '/shannon/live-judge');
+  await expect(page.getByLabel('Historical market context', { exact: true })).toContainText('NO LIVE PRICE FEED');
+  await expect(page.getByLabel('Historical market context', { exact: true })).toContainText('opening price is not supplied');
+  expect(forbiddenMainnetCalls).toBe(0);
+  await page.getByRole('button', { name: 'LOCK BTC UP & ENTER DUNGEON', exact: true }).click();
+  const combat = page.getByRole('region', { name: 'Combat view', exact: true });
+  await expect(combat).toContainText('GUARD 1/2');
+  await expect(navigation).toHaveCount(0);
   await playJudgeGuard(page);
-  await page.getByRole('button', { name: '👑 ENTER FINAL BOSS' }).click();
-  await expectShannonCombatFooter();
-  await page.screenshot({ path: info.outputPath('shannon-desktop-combat-footer.png'), fullPage: true });
+  await expectJudgeProgress(page, 3);
+  await expect(page.getByRole('heading', { name: 'One boss to go.' })).toBeVisible();
+  await expect(page.getByRole('region', { name: 'Recovery supplies', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'ENTER FINAL BOSS', exact: true }).click();
+  await expect(combat).toContainText('BOSS 2/2');
   await playJudgeBoss(page);
-  const reveal = page.getByRole('button', { name: '🔮 REVEAL BOSS FATE' });
-  await expect(page.locator('.desktop-stage-header')).toContainText('Gold 80');
+  await expectJudgeProgress(page, 4);
+  const reveal = page.getByRole('button', { name: 'REVEAL BOSS FATE', exact: true });
   await expect(reveal).toBeEnabled();
-  for (const width of [820, 1280, 1920]) {
-    await page.setViewportSize({ width, height: 900 });
-    for (const key of ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight']) {
-      await page.locator('.desktop-journey').focus();
-      await page.keyboard.press(key);
-      await expect(reveal).toBeFocused();
-      await expect(reveal).toBeInViewport({ ratio: 1 });
-    }
-  }
+  await expect(page.getByRole('button', { name: 'REST WITH KEVIN · FREE', exact: true })).toBeEnabled();
   expect(revealCalls).toBe(0);
-  for (const key of ['ArrowUp', 'ArrowLeft', 'ArrowDown', 'ArrowRight', 'ArrowDown']) {
-    await page.keyboard.press(key);
-    expect(await page.locator('.oracle-dock').evaluate(el => el.contains(document.activeElement))).toBe(true);
-  }
-  await page.locator('.desktop-journey').focus();
-  await page.keyboard.press('ArrowDown');
-  await expect(reveal).toBeFocused();
-  await page.keyboard.press('Enter');
-
-  await expect(page.getByText('JUDGE DEMO COMPLETE · ONCHAIN RESULT VERIFIED · BLESSED')).toBeVisible();
-  await expectReplayNavigation();
-  await expect(page.locator('.result-hero > .muted')).toHaveText('You chose BTC UP. The market settled BTC UP. Your prediction was correct. The final boss stays down and its reward is secured.');
-  const resultSummary = page.getByRole('region', { name: 'Choice, market result and boss fate' });
+  await expect(page.getByRole('region', { name: 'Portable run verification' })).toHaveCount(0);
+  await reveal.click();
+  const resultSummary = page.getByRole('region', { name: 'Choice, market result and boss fate', exact: true });
   await expect(resultSummary).toBeVisible();
   await expect(resultSummary).toHaveAttribute('data-outcome', 'BLESSED');
-  await expect(resultSummary.locator(':scope > div').filter({ hasText: 'YOUR CHOICE' }).locator('strong')).toHaveText('BTC UP');
-  await expect(resultSummary.locator(':scope > div').filter({ hasText: 'MARKET RESULT' }).locator('strong')).toHaveText('BTC UP');
-  await expect(resultSummary.locator(':scope > div').filter({ hasText: 'BOSS FATE' }).locator('strong')).toHaveText('STAYS DOWN');
-  await expect(resultSummary).toContainText('Recorded result verified');
-  await expect(page.locator('.result-hero .judge-verification')).toContainText('Verified means this run matches the recorded market result. Both winning and losing runs can be verified.');
-  await expect(page.locator('.final-stats > div').filter({ hasText: 'FINAL GOLD' }).locator('strong')).toHaveText('122');
+  await expect(resultSummary.locator(':scope > div')).toHaveCount(3);
+  await expect(resultSummary.locator('strong')).toHaveText(['BTC UP', 'BTC UP', 'STAYS DOWN']);
+  const stats = page.getByLabel('Final run statistics', { exact: true });
+  await expect(stats.locator('dt')).toHaveText(['ENCOUNTERS CLEARED', 'FINAL GOLD', 'FINAL HEALTH', 'POTIONS LEFT']);
+  await expect(stats.locator('div').filter({ hasText: 'FINAL GOLD' }).locator('dd')).toHaveText('122');
+  await expect(page.getByRole('region', { name: 'Two victory conditions', exact: true }).or(page.getByLabel('Two victory conditions', { exact: true }))).toContainText('BTC prediction correct');
   await expect(page.getByLabel('Post text — copy manually if needed')).toHaveValue(/2 of 2 replay encounters cleared · 122 gold/);
-  await expect(page.locator('.dungeon-log')).toContainText('FINAL BOSS DEFEATED · +42 GOLD');
+  await expect(page.getByRole('region', { name: 'Dungeon log', exact: true })).toContainText('The final boss stays down and its reward is secured.');
   await expect(page.locator('body')).not.toContainText('prediction gold');
+  const proof = await openJudgeProof(page);
+  await expect(proof).toContainText('Both winning and losing runs can be verified.');
   await page.locator('.proof-revealed summary').click();
   await expect(page.getByText('CHAIN 50312 · EIP-1898 HASH-PINNED · BOTH RAW ETH_CALL RESULTS MATCH')).toBeVisible();
   const continueOnDreamDex = page.getByRole('link', { name: /continue on dreamdex/i });
   await expect(continueOnDreamDex).toHaveAttribute('href', 'https://app.dreamdex.io/event-contracts/WBTC:USDso/5m');
   await expect(continueOnDreamDex).toHaveAttribute('target', '_blank');
   await expect(continueOnDreamDex).toHaveAttribute('rel', 'noopener noreferrer');
-  await expect(page.locator('.dreamdex-continue')).toContainText('your verified Shannon replay remains historical');
-  for (const [width, height] of [[1280, 720], [390, 844], [320, 568]]) {
+  await expect(page.getByLabel('Continue on dreamDEX', { exact: true })).toContainText('separate live mainnet market');
+  for (const [width, height] of [[1280, 720], [375, 650], [320, 568]]) {
     await page.setViewportSize({ width, height });
     await continueOnDreamDex.scrollIntoViewIfNeeded();
     await expect(continueOnDreamDex).toBeInViewport({ ratio: 1 });
-    await expectReplayNavigation();
     for (const cell of await resultSummary.locator(':scope > div').all()) {
-      const cellBox = (await cell.boundingBox())!;
-      expect(cellBox.x).toBeGreaterThanOrEqual(0);
-      expect(cellBox.x + cellBox.width).toBeLessThanOrEqual(width);
+      const bounds = (await cell.boundingBox())!;
+      expect(bounds.x).toBeGreaterThanOrEqual(0);
+      expect(bounds.x + bounds.width).toBeLessThanOrEqual(width);
     }
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
-    if (width !== 320) await page.screenshot({ path: info.outputPath(`shannon-continue-dreamdex-${width}.png`), fullPage: true });
+    if (width !== 320) await page.screenshot({ path: info.outputPath(`shannon-shared-result-${width}.png`), fullPage: true });
   }
   await page.setViewportSize({ width: 1280, height: 720 });
   await expect(page.getByRole('link', { name: 'OPEN INDEPENDENT VERIFIER ↗' })).toHaveAttribute('href', '/shannon/verify');
@@ -205,12 +161,14 @@ test('Shannon Judge flow remains profile-bound through replay, sharing, reset, c
     independentRpcVerification: { rpc: SHANNON_TESTNET_PROFILE.rpc },
   });
 
-  await page.getByRole('button', { name: '↻ START NEW JUDGE DEMO' }).click();
+  await page.getByRole('button', { name: 'START NEW REPLAY' }).click();
   await expect(page).toHaveURL(/\/shannon\/judge$/);
   await expect(page.getByRole('heading', { name: 'Lock your omen before the replay is drawn.' })).toBeVisible();
   await page.goto('/shannon/judge?challenge=1');
   await expect(page).toHaveURL(/\/shannon\/judge\?challenge=1$/);
-  await expect(page.getByRole('status', { name: 'Challenge invitation' })).toContainText('BOSS + MARKET CHALLENGE');
+  await expect(page.getByText('YOU’RE INVITED · MAKE YOUR OWN CALL', { exact: true })).toBeVisible();
+  await expectJudgeProgress(page);
+  await expect(page.getByRole('region', { name: 'Choice, market result and boss fate' })).toHaveCount(0);
 
   await page.goto('/shannon/verify');
   await expect(page.getByLabel('Verification privacy and safety')).toContainText(SHANNON_TESTNET_PROFILE.name);
