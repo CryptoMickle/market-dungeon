@@ -1957,7 +1957,7 @@ test('privacy, asset provenance, AI disclosure, and music credits are reachable 
   await expect(page.getByRole('heading', { name: 'Analytics and local data' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Artwork and asset provenance' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'AI assistance' })).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Demo-video music' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Earlier video: music credit' })).toBeVisible();
   await expect(page.getByRole('link', { name: 'VERCEL WEB ANALYTICS PRIVACY ↗' })).toHaveAttribute('target', '_blank');
   await expect(page.getByRole('link', { name: 'PIXABAY LICENSE ↗' })).toHaveAttribute('target', '_blank');
 });
