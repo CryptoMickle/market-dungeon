@@ -1,8 +1,8 @@
 import type { NextConfig } from 'next';
+import { somniaAgentsEnvironment } from './lib/somnia-agents/environment.ts';
 
 const development = process.env.NODE_ENV === 'development';
-const agentWalletEnabled = (!process.env.VERCEL && process.env.MARKET_DUNGEON_LOCAL_AGENTS === '1')
-  || (process.env.VERCEL_ENV === 'preview' && process.env.MARKET_DUNGEON_PREVIEW_AGENTS === '1');
+const agentWalletEnabled = somniaAgentsEnvironment(process.env) !== 'disabled';
 const contentSecurityPolicy = [
   "default-src 'self'",
   `script-src 'self' 'unsafe-inline'${development ? " 'unsafe-eval' https://va.vercel-scripts.com" : ''}`,

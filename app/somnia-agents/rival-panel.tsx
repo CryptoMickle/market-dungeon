@@ -3,6 +3,7 @@
 import Image from 'next/image';
 import { compareRival, type RivalMode, type RivalRound } from '../../lib/somnia-agents/types';
 import { useAgentsEnvironment } from '../local-agents-context';
+import { hostedSomniaAgents } from '../../lib/somnia-agents/environment';
 import styles from './rival-panel.module.css';
 
 type Direction = 'UP' | 'DOWN';
@@ -48,7 +49,7 @@ function outcomeText(result: ReturnType<typeof compareRival>) {
 }
 
 export function KevinRivalPanel({ mode, onModeChange, round, playerDirection, marketOutcome, canConfigure = false, compact = false, wallet, onConnectWallet, walletOpenLink, onOpenWalletRequest }: KevinRivalPanelProps) {
-  const hosted = useAgentsEnvironment() === 'preview';
+  const hosted = hostedSomniaAgents(useAgentsEnvironment());
   const executionMode = round?.mode ?? mode;
   const simulated = executionMode === 'simulation';
   const direction = round?.status === 'locked' ? round.direction : undefined;

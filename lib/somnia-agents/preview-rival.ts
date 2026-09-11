@@ -14,6 +14,7 @@ export type PreviewRivalEnvironment = {
   VERCEL_ENV?: string;
   VERCEL_URL?: string;
   MARKET_DUNGEON_PREVIEW_AGENTS?: string;
+  MARKET_DUNGEON_PRODUCTION_AGENTS?: string;
   JUDGE_REPLAY_SEAL_KEY?: string;
 };
 export type PreviewRivalDependencies = Omit<LocalRivalDependencies, 'directory' | 'choose'> & {
@@ -32,6 +33,10 @@ type Ticket = {
 };
 
 export function previewRivalOrigin(environment: PreviewRivalEnvironment): string | null {
+  // Production requests use the published canonical alias, never a browser Host
+  // header, forwarded host, arbitrary environment URL or Preview deployment host.
+  if (environment.VERCEL === '1' && environment.VERCEL_ENV === 'production'
+    && environment.MARKET_DUNGEON_PRODUCTION_AGENTS === '1') return 'https://market-dungeon.vercel.app';
   const host = environment.VERCEL_URL;
   if (environment.VERCEL !== '1' || environment.VERCEL_ENV !== 'preview' || environment.MARKET_DUNGEON_PREVIEW_AGENTS !== '1'
     || !host || !/^[a-z0-9](?:[a-z0-9-]{0,251}[a-z0-9])?\.vercel\.app$/.test(host)) return null;
@@ -39,7 +44,7 @@ export function previewRivalOrigin(environment: PreviewRivalEnvironment): string
 }
 
 /**
- * Preview storage is an authenticated, encrypted browser-carried ticket. No filesystem
+ * Hosted storage is an authenticated, encrypted browser-carried ticket. No filesystem
  * or process-local archive is assumed. Encryption keeps the pending simulator choice
  * private; deployment-bound HKDF keys separate this protocol from Judge replay seals.
  *
@@ -54,10 +59,10 @@ export function createPreviewRival(dependencies: PreviewRivalDependencies) {
 
   function context(requestOrigin: string) {
     if (!origin) throw new RivalError('Not found.', 404);
-    if (requestOrigin !== origin) throw new RivalError('Kevin requests must come from this preview deployment.', 403);
+    if (requestOrigin !== origin) throw new RivalError('Kevin requests must come from this game deployment.', 403);
     const encoded = dependencies.environment.JUDGE_REPLAY_SEAL_KEY;
-    if (!encoded || !/^[\da-f]{64}$/i.test(encoded)) throw new RivalError('Kevin preview is temporarily unavailable.', 503);
-    const aad = Buffer.from(`${DOMAIN}\nenvironment=preview\norigin=${origin}`);
+    if (!encoded || !/^[\da-f]{64}$/i.test(encoded)) throw new RivalError('Kevin is temporarily unavailable.', 503);
+    const aad = Buffer.from(`${DOMAIN}\nenvironment=${dependencies.environment.VERCEL_ENV}\norigin=${origin}`);
     const derive = (purpose: string) => Buffer.from(hkdfSync('sha256', Buffer.from(encoded, 'hex'),
       Buffer.from(DOMAIN), Buffer.from(`${purpose}\n${aad.toString()}`), 32));
     return { aad, sealKey: derive('seal'), simulationKey: derive('simulation') };
@@ -109,7 +114,7 @@ export function createPreviewRival(dependencies: PreviewRivalDependencies) {
       const saved = JSON.parse(Buffer.concat([decipher.update(bytes.subarray(28)), decipher.final()]).toString('utf8')) as Ticket;
       validate(saved, attemptId);
       return saved;
-    } catch { throw new RivalError('This Kevin preview ticket is invalid or expired. Continue your expedition without a rival.', 409); }
+    } catch { throw new RivalError('This Kevin ticket is invalid or expired. Continue your expedition without a rival.', 409); }
   }
 
   function respond(saved: Ticket, keys: ReturnType<typeof context>): PreviewRivalResponse {
@@ -119,7 +124,7 @@ export function createPreviewRival(dependencies: PreviewRivalDependencies) {
     cipher.setAAD(keys.aad);
     const encrypted = Buffer.concat([cipher.update(JSON.stringify(saved), 'utf8'), cipher.final()]);
     const ticket = Buffer.concat([iv, cipher.getAuthTag(), encrypted]).toString('base64url');
-    if (ticket.length > MAX_TICKET_CHARS) throw new RivalError('The Kevin preview request exceeds its storage limit.', 503);
+    if (ticket.length > MAX_TICKET_CHARS) throw new RivalError('The Kevin request exceeds its storage limit.', 503);
     return {
       round: { ...saved.round }, ticket,
       ...(saved.round.status === 'awaiting-wallet' && saved.transaction ? { transaction: { ...saved.transaction } } : {}),
@@ -142,7 +147,7 @@ export function createPreviewRival(dependencies: PreviewRivalDependencies) {
       if (!value || typeof value !== 'object' || Array.isArray(value)) throw new RivalError('Expected a rival request.');
       const { ticket, ...fields } = value as Record<string, unknown>;
       if (ticket !== undefined && (typeof ticket !== 'string' || !ticket || ticket.length > MAX_TICKET_CHARS)) {
-        throw new RivalError('Invalid Kevin preview ticket.');
+        throw new RivalError('Invalid Kevin ticket.');
       }
       const command = parseRivalCommand(fields);
       let saved = typeof ticket === 'string' ? decrypt(ticket, command.attemptId, keys) : undefined;
@@ -170,7 +175,7 @@ export function createPreviewRival(dependencies: PreviewRivalDependencies) {
         if (command.mode === 'simulation') {
           const digest = createHmac('sha256', keys.simulationKey).update(`${command.attemptId}\n${command.marketId}`).digest();
           saved.simulation = { direction: digest[0] & 1 ? 'UP' : 'DOWN', readyAt: now() + 2 };
-          saved.round.reason = 'Kevin is choosing in the preview simulator. This is not a Somnia agent response.';
+          saved.round.reason = 'Kevin is choosing in the simulator. This is not a Somnia agent response.';
         } else {
           try {
             saved.transaction = await bounded(() => dependencies.prepareTransaction(canonical));
@@ -186,9 +191,9 @@ export function createPreviewRival(dependencies: PreviewRivalDependencies) {
         return respond(saved, keys);
       }
 
-      if (!saved) throw new RivalError('A Kevin preview ticket is required to check this attempt.', 404);
+      if (!saved) throw new RivalError('A Kevin ticket is required to check this attempt.', 404);
       const round = saved.round;
-      if (command.txHash && round.mode !== 'somnia') throw new RivalError('A preview simulation cannot contain a chain transaction.', 409);
+      if (command.txHash && round.mode !== 'somnia') throw new RivalError('A simulation cannot contain a chain transaction.', 409);
       if (command.txHash && round.txHash && round.txHash !== command.txHash) throw new RivalError('This ticket is already bound to a different transaction.', 409);
       if (round.status === 'locked' || round.status === 'unavailable') return respond(saved, keys);
       if (round.mode === 'simulation') {
@@ -197,18 +202,19 @@ export function createPreviewRival(dependencies: PreviewRivalDependencies) {
             round.status = 'unavailable'; round.reason = 'Kevin’s simulated decision missed the cutoff. Your expedition can continue.';
           } else {
             round.status = 'locked'; round.direction = saved.simulation!.direction; round.finalizedAt = saved.simulation!.readyAt;
-            round.reason = 'Preview simulated choice locked before the cutoff. No Somnia request or on-chain proof exists.';
+            round.reason = 'Simulated choice locked before the cutoff. No Somnia request or on-chain proof exists.';
           }
         }
       } else {
         if (command.txHash && !round.txHash) {
           round.txHash = command.txHash; round.status = 'pending';
-          round.reason = 'Checking the transaction bound to this Kevin preview ticket.';
+          round.reason = 'Checking the transaction bound to this Kevin ticket.';
           delete saved.transaction;
         }
         if (round.txHash && now() >= saved.pollAfter) {
           // Signed cooldown avoids repeated RPC work in normal polling. Replaying an
-          // older ticket can bypass it; production requires a shared quota/ledger.
+          // older ticket can bypass it. The HTTP limiter adds best-effort abuse
+          // resistance; neither mechanism is a distributed first-attempt ledger.
           saved.pollAfter = Math.min(now() + 3, saved.expiresAt);
           try {
             const snapshot = saved.snapshot;
@@ -231,18 +237,24 @@ export function createPreviewRival(dependencies: PreviewRivalDependencies) {
   };
 }
 
-export function createPreviewRivalHandler(service: ReturnType<typeof createPreviewRival>) {
+export function createPreviewRivalHandler(service: ReturnType<typeof createPreviewRival>, options: {
+  limitRequest?: (request: Request) => { allowed: boolean; retryAfter: number };
+} = {}) {
   return async (request: Request): Promise<Response> => {
     const headers = { 'cache-control': 'private, no-store, max-age=0' };
     try {
       if (!service.origin) throw new RivalError('Not found.', 404);
-      if (request.method !== 'POST') throw new RivalError('Use POST for Kevin preview requests.', 405);
+      if (request.method !== 'POST') throw new RivalError('Use POST for Kevin requests.', 405);
       const url = new URL(request.url);
       if (url.origin !== service.origin || request.headers.get('origin') !== service.origin
         || (request.headers.has('host') && request.headers.get('host') !== url.host)
         || (request.headers.has('sec-fetch-site') && request.headers.get('sec-fetch-site') !== 'same-origin')) {
-        throw new RivalError('Kevin requests must come from this preview deployment.', 403);
+        throw new RivalError('Kevin requests must come from this game deployment.', 403);
       }
+      const limit = options.limitRequest?.(request);
+      if (limit && !limit.allowed) return Response.json({ error: 'Kevin needs a short break. Your expedition can continue.' }, {
+        status: 429, headers: { ...headers, 'retry-after': String(limit.retryAfter) },
+      });
       if (request.headers.get('content-type')?.split(';')[0].trim().toLowerCase() !== 'application/json') {
         throw new RivalError('Use a JSON rival request.', 415);
       }

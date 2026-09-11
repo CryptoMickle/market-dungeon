@@ -652,7 +652,7 @@ test('live combat keeps monster humor, honest damage and potion logs through rel
   await drawer.getByRole('button', { name: 'Close details', exact: true }).click();
   await page.getByRole('button', { name: /ATTACK/ }).click();
   await page.getByRole('button', { name: /ATTACK/ }).click();
-  const log = page.getByRole('list', { name: 'Dungeon log', exact: true });
+  const log = page.getByRole('region', { name: 'Dungeon log', exact: true }).locator(':scope > ul');
   await expect(log).toContainText(/becomes floorplan|architectural problem has been demolished|property values immediately improve|Planning permission is no longer required/);
   await expect(log).toContainText('18 gold');
   await expect(log).toContainText(/payroll/i);

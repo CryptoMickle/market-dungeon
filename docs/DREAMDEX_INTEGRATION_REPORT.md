@@ -1,6 +1,6 @@
 # dreamDEX integration and SDK feedback
 
-Implementation reviewed 10 September 2026. This report describes the current Market Dungeon source candidate: Live Judge on one-minute Shannon markets, Historical Replay on fixed network profiles, and Full Expedition on five-minute Somnia mainnet markets. Exact publication identity and executed checks are recorded in [release verification](RELEASE_2026-09-10.md) and the matching [v13 source release](https://github.com/CryptoMickle/market-dungeon/releases/tag/hackathon-submission-2026-v13).
+Implementation reviewed 11 September 2026. This report describes Live Judge on one-minute Shannon markets, Historical Replay on fixed network profiles, Full Expedition on five-minute Somnia mainnet markets, and the optional Somnia Agent Kevin rival. The [v17 release record](RELEASE_2026-09-11_KEVIN.md) tracks current publication identity and executed checks. The earlier [release verification](RELEASE_2026-09-10.md) and [v13 source release](https://github.com/CryptoMickle/market-dungeon/releases/tag/hackathon-submission-2026-v13) preserve the original Live Judge baseline.
 
 This is the submission’s optional SDK and documentation feedback report. Deployment constants below are the values enforced by the application, not a claim that every upstream service is continuously available.
 
@@ -8,13 +8,14 @@ This is the submission’s optional SDK and documentation feedback report. Deplo
 
 Market Dungeon discovers Event Contracts through dreamDEX’s GraphQL indexer, reads CLOB context with the official Markets SDK, and verifies terminal outcomes directly against Somnia. The browser independently reproduces the proof before applying the outcome.
 
-The game submits no wallet connection request, approval, order, redemption or transaction. The application’s Ed25519 lock receipt authenticates game state; it cannot authorize a wallet or blockchain transaction.
+Full Expedition and both Judge demos need no wallet or transaction. Kevin's simulator is also wallet-free; its separately selected real-agent path connects MetaMask and asks the player to approve a paid Shannon testnet request. No mode places a dreamDEX order or redemption. The application's Ed25519 Judge lock receipt authenticates game state; it cannot authorize a wallet or blockchain transaction.
 
 | Mode | Discovery | Lock | Result |
 | --- | --- | --- | --- |
 | Live Judge | Fresh BTC/USDC 60-second Shannon market | Signed exact market and direction, with a pre-expiry pending-state snapshot | Deterministic combat plus final settlement of the same market |
 | Historical Replay | Recent, finalized, traded BTC market from balanced outcome pools | Choice before random selection; encrypted seal, salted commitment and signed receipt | Deterministic combat plus direct settlement of the committed market |
 | Full Expedition | Active BTC 300-second mainnet market before each tier or rematch | Validated local run binds direction, market and reference | Browser-reproduced settlement gates reward, progression or same-boss rematch |
+| Somnia Agent Kevin | Same five-minute mainnet market as the player's expedition | Same local gameplay lock; separate simulated choice or wallet-approved Shannon agent request | Existing settlement decides gameplay; eligible Kevin response is scored separately |
 
 The retained mainnet historical route and older proof formats remain supported. There is no silent cross-network, historical or 15-minute substitution for an active Full Expedition or Live Judge lock.
 
@@ -93,6 +94,8 @@ Reveal checks the seal and deterministic transcript before reading settlement. U
 
 The historical response contains the revealed salt and canonical commitment input, receipt, actions/digest, and direct settlement snapshot. Its verifier authenticates the receipt, recomputes commitment and combat, and freshly reproduces the contract state. The snapshot is the verification block, not necessarily the block where finalization originally occurred.
 
+Both Judge variants now use the same four-step UI and recovery/result components. Historical rest is available inline after the boss and before manual reveal; this removes an unnecessary screen without changing deterministic actions or the sealed transcript. The live countdown, target and CLOB context remain live-only. The historical anti-peek hold, hidden market identity, manual reveal and network-specific verifiers remain intact.
+
 ## Full Expedition
 
 Full Expedition explicitly calls `/api/market?interval=300` before Rooms 1, 11, 21 and 31 and each CURSED rematch. It requires an active BTC five-minute mainnet market and a valid opening reference. If the indexed strike is absent or zero, the reference lookup follows `MarketReferenceLink.referenceQuestionId` to `OracleAnswer.numericValue`. No valid five-minute reference means retry or an explicit mode change, not a silent fallback.
@@ -100,6 +103,16 @@ Full Expedition explicitly calls `/api/market?interval=300` before Rooms 1, 11, 
 The general mainnet context endpoint retains five-minute preference and a 15-minute fallback for legacy callers. That general fallback does not apply to Full Expedition’s explicit `interval=300` request. The retained `/api/full-run/replay/*` adapter is not used by the active Full Expedition.
 
 The run binds its direction and selected market locally while combat proceeds. After boss defeat it reads `/api/market?marketId=…` for the same ID and independently reproduces the direct settlement before granting reward, progressing or resurrecting the boss. Pending or unavailable proof preserves the pending run. The browser-local lock and local combat are not mislabeled as a Judge receipt or deterministic transcript proof.
+
+## Optional Somnia Agent Kevin
+
+This separate expedition mode uses the same mainnet five-minute market and settlement boundary. Simulated Kevin is the default, visibly labeled **NO AI**: local rounds save a random choice, while hosted rounds derive a stable test choice for the same attempt and market. This path makes no agent or model call.
+
+For a real Somnia Agents request, explicit MetaMask connection precedes omen lock. Connection alone does not lock or transfer STT. After a separate lock, the server reads the official LLM agent's current committee/deposit settings and prepares an unsigned `createRequest` calling `inferString`. Only the player's wallet submits it on Shannon `50312`, with a quoted testnet STT deposit and gas. No new custom smart contract, custody or server wallet is introduced.
+
+The fixed prompt contains only allowlisted public market question, target and timing, with no tools and UP/DOWN output choices. It receives neither the player's choice nor combat state. Verification binds the transaction and request to the prepared input, checks the accepted committee response and its canonical finalization time, and excludes responses finalized later than market expiry minus ten seconds. Failed or unavailable real requests never become simulated answers. The response does not establish settlement or a forecasting advantage; the model has no supplied price history or odds strategy.
+
+The independently verified mainnet settlement scores both calls after gameplay reaches the boss result. Equal calls tie, and a void has no winner. Rival scores do not modify combat, rewards, relics or progression. Hosted tickets are encrypted, authenticated and origin-bound, with separate Preview/Production secrets. They support personal continuity but have no global first-transaction registry or distributed anti-cheat guarantee. See the [Kevin operating guide](../LOCAL_SOMNIA_AGENTS.md) for wallet handoff, finalized-request reconstruction and evidence limits.
 
 ## Direct settlement and trust boundaries
 
@@ -118,7 +131,7 @@ No proof claims human gameplay, server honesty, a decentralized timestamp, a tra
 - Live start is capped at 512 bytes. Live reveal is capped at 24 KiB and 64 actions; its claim expires 30 minutes after market expiry. Exact accepted fields and transcript transitions are validated.
 - Rate limits and bounded reveal deduplication protect upstream reads. A conflicting transcript for an already submitted lock is rejected. Transient failures retain a bounded retry path.
 - Rate and deduplication state is per warm application instance, not a claim of deployment-wide durable enforcement.
-- Browser connections are restricted to the application and fixed public Somnia RPCs. The indexer and SDK calls run on the server. Secrets remain server-side.
+- Market discovery and Markets SDK calls run on the server; settlement verification uses the application and fixed public Somnia RPCs. The opt-in Kevin connection also permits the specified MetaMask relay, and its public transaction is submitted by the wallet. Application seal keys remain server-side; the server has no wallet private key.
 - Historical funnel events use closed enumerated labels, suppress WebDriver and the fixed automation marker, and exclude wallet IDs, market IDs, commitments, proofs, transcripts and exact timing. Historical analytics must not be presented as Live Judge conversion evidence.
 
 See [provenance and privacy](PROVENANCE_AND_PRIVACY.md) and [pilot measurement definitions](PILOT_MEASUREMENT_V2.md). Result-card sharing is separate from proof export; an X draft contains text and a link, not an automatically attached image or confirmed publication.

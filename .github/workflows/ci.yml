@@ -32,3 +32,19 @@ jobs:
       - run: npm run test:e2e
         env:
           PLAYWRIGHT_PRODUCTION: '1'
+
+  agents-ui:
+    runs-on: ubuntu-latest
+    env:
+      JUDGE_REPLAY_SEAL_KEY: '1111111111111111111111111111111111111111111111111111111111111111'
+      MARKET_DUNGEON_LOCAL_AGENTS: '1'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22.13.0
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium webkit
+      - name: Build and verify Agents, neutral Home, wallet loading and reload safety
+        run: npm run release:verify:agents

@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import KevinRivalPreview from '../preview';
-import { somniaAgentsEnvironment } from '../../../lib/somnia-agents/environment';
+import { somniaAgentsEnvironment, somniaAgentsPlaygroundEnabled } from '../../../lib/somnia-agents/environment';
 
 export const dynamic = 'force-dynamic';
 export const metadata: Metadata = {
@@ -10,6 +10,6 @@ export const metadata: Metadata = {
 };
 
 export default function SomniaAgentsPlaygroundPage() {
-  if (somniaAgentsEnvironment(process.env) === 'disabled') notFound();
+  if (!somniaAgentsPlaygroundEnabled(somniaAgentsEnvironment(process.env))) notFound();
   return <KevinRivalPreview />;
 }

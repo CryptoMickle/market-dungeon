@@ -5,6 +5,9 @@ const port = productionBuild ? 3101 : 3100;
 
 export default defineConfig({
   testDir: './tests/e2e',
+  // These require the explicitly enabled Agents edition and run in its own
+  // optimized-build CI job, including the real-wallet transport fixtures.
+  testIgnore: ['somnia-agents.spec.ts', 'somnia-agents-preview.spec.ts', 'dungeon-home.spec.ts'],
   fullyParallel: false,
   forbidOnly: Boolean(process.env.CI),
   retries: process.env.CI ? 1 : 0,

@@ -2112,7 +2112,8 @@ test('temporary browser RPC unavailability preserves the completed sealed run fo
   const reveal = page.getByRole('button', { name: 'REVEAL BOSS FATE' });
   await reveal.click();
 
-  await expect(page.getByText(/Somnia RPC could not reproduce the proof during this attempt/)).toBeVisible();
+  await expect(page.getByRole('region', { name: 'Dungeon log', exact: true })
+    .getByText(/Somnia RPC could not reproduce the proof during this attempt/).filter({ visible: true })).toBeVisible();
   await expect(page.getByLabel('Player status', { exact: true })).toContainText('80');
   await expect(page.getByText(/JUDGE DEMO COMPLETE/)).toHaveCount(0);
   await expect(page.getByText(/REPLAY PROOF MISMATCH/)).toHaveCount(0);

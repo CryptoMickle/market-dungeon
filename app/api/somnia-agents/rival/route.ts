@@ -3,7 +3,8 @@ import { graphql, hydrateMarket } from '../../dreamdex.ts';
 import { canonicalSnapshot, prepareSomniaRequest, verifySomniaRequest, type MarketSnapshot } from '../../../../lib/somnia-agents/protocol.ts';
 import { createLocalRival, createLocalRivalHandler, RivalError } from '../../../../lib/somnia-agents/local-rival.ts';
 import { createPreviewRival, createPreviewRivalHandler } from '../../../../lib/somnia-agents/preview-rival.ts';
-import { somniaAgentsEnvironment } from '../../../../lib/somnia-agents/environment.ts';
+import { hostedSomniaAgents, somniaAgentsEnvironment } from '../../../../lib/somnia-agents/environment.ts';
+import { checkRateLimit } from '../../request-control.ts';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
@@ -50,9 +51,13 @@ const previewHandler = createPreviewRivalHandler(createPreviewRival({ ...depende
   VERCEL_ENV: process.env.VERCEL_ENV,
   VERCEL_URL: process.env.VERCEL_URL,
   MARKET_DUNGEON_PREVIEW_AGENTS: process.env.MARKET_DUNGEON_PREVIEW_AGENTS,
+  MARKET_DUNGEON_PRODUCTION_AGENTS: process.env.MARKET_DUNGEON_PRODUCTION_AGENTS,
   JUDGE_REPLAY_SEAL_KEY: process.env.JUDGE_REPLAY_SEAL_KEY,
-} }));
+} }), {
+  // Per-instance pressure relief, not a global quota or gameplay authenticity claim.
+  limitRequest: request => checkRateLimit(request, { namespace: 'somnia-agents-hosted', limit: 90, windowMs: 60_000 }),
+});
 
 export async function POST(request: Request) {
-  return somniaAgentsEnvironment(process.env) === 'preview' ? previewHandler(request) : localHandler(request);
+  return hostedSomniaAgents(somniaAgentsEnvironment(process.env)) ? previewHandler(request) : localHandler(request);
 }

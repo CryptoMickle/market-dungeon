@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { GameLogo } from './game-logo';
 import { useAgentsEnvironment, useLocalAgents } from './local-agents-context';
+import { hostedSomniaAgents } from '../lib/somnia-agents/environment';
 import { FULL_RUN_STORAGE_KEY, parseFullRunSession } from './gameplay/full-run-storage';
 import { getHistoricalResume, getLatestHistoricalProfile } from './historical-navigation';
 import { judgeNetworkProfile } from './judge-network';
@@ -66,9 +67,9 @@ export default function DungeonHome() {
   const [saved, setSaved] = useState<Record<string, SavedEntry>>({});
   const [replayHref, setReplayHref] = useState<'/judge' | '/shannon/judge'>('/shannon/judge');
   const baseContent = descriptions[mode === 'judge' ? demo : mode ?? 'neutral'];
-  const content = mode === 'agents' && agentsEnvironment === 'preview' ? {
+  const content = mode === 'agents' && hostedSomniaAgents(agentsEnvironment) ? {
     ...baseContent,
-    eyebrow: 'SOMNIA AGENT KEVIN · PREVIEW',
+    eyebrow: agentsEnvironment === 'production' ? 'SOMNIA AGENT KEVIN · TESTNET RIVAL' : 'SOMNIA AGENT KEVIN · PREVIEW',
     note: 'Starts with Simulated Kevin: random, no AI or wallet. For the real testnet agent, open Kevin’s Details and connect MetaMask before locking. Works from Safari; the agent request uses testnet STT.',
   } : baseContent;
   const key = mode === 'judge' ? demo : mode ?? 'neutral';

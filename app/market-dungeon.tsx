@@ -1219,7 +1219,9 @@ function LegacyMarketDungeon({
           setReplayIssue(issue);
           const retryAfter = issue === 'config_unavailable' ? 0 : replayRetrySeconds(data?.retryAfter, response.headers.get('retry-after'));
           setReplayRetryRemaining(retryAfter);
-          setNotice(response.status === 429
+          setNotice(issue === 'config_unavailable'
+            ? 'The replay service needs attention.'
+            : response.status === 429
             ? `REPLAY REVEAL RATE-LIMITED · RETRY IN ${retryAfter}S`
             : `SOMNIA READ TEMPORARILY BUSY · RETRY IN ${retryAfter}S`);
           addLog(issue === 'config_unavailable'

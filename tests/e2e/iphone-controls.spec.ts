@@ -240,7 +240,7 @@ for (const phone of phones) test.describe(`${phone.width}×${phone.height} iPhon
           await showRecoveryControl(page, rest);
           await expectRecoverySupplies(page, rest, finalCombat.finalHp, finalCombat.remainingPotions);
           await rest.click();
-          const rested = page.getByRole('button', { name: /KEVIN’S BANDAGE APPLIED/ });
+          const rested = page.getByRole('button', { name: /FULLY RESTED/ });
           await expectRecoverySupplies(page, rested, 100, finalCombat.remainingPotions);
           await expect(rested).toBeDisabled();
           await page.screenshot({ path: info.outputPath('live-boss-waiting-supplies.png') });

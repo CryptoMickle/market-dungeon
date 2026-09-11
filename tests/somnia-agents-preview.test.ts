@@ -6,6 +6,7 @@ import { canonicalSnapshot, prepareSomniaRequest, type MarketSnapshot, type Somn
   type SomniaProtocolClient } from '../lib/somnia-agents/protocol.ts';
 import { RivalError } from '../lib/somnia-agents/local-rival.ts';
 import type { RivalMode, RivalTransaction } from '../lib/somnia-agents/types.ts';
+import { checkRateLimit } from '../app/api/request-control.ts';
 
 const MARKET = `0x${'12'.repeat(32)}`;
 const OTHER_MARKET = `0x${'34'.repeat(32)}`;
@@ -15,6 +16,9 @@ const ATTEMPT = 'preview_kevin_attempt_1';
 const ORIGIN = 'https://market-dungeon-preview-example.vercel.app';
 const ENV: PreviewRivalEnvironment = { VERCEL: '1', VERCEL_ENV: 'preview', MARKET_DUNGEON_PREVIEW_AGENTS: '1',
   VERCEL_URL: new URL(ORIGIN).host, JUDGE_REPLAY_SEAL_KEY: 'ab'.repeat(32) };
+const PRODUCTION_ORIGIN = 'https://market-dungeon.vercel.app';
+const PRODUCTION_ENV: PreviewRivalEnvironment = { VERCEL: '1', VERCEL_ENV: 'production',
+  MARKET_DUNGEON_PRODUCTION_AGENTS: '1', JUDGE_REPLAY_SEAL_KEY: 'cd'.repeat(32) };
 const TRANSACTION: RivalTransaction = {
   chainId: 50312, to: `0x${'90'.repeat(20)}`, data: '0xaabb', value: '0x01',
   depositStt: '0.21', agentId: '42', payload: '0xccdd',
@@ -41,6 +45,7 @@ function fixture(environment: PreviewRivalEnvironment = ENV) {
     },
   };
   const service = createPreviewRival(dependencies);
+  const origin = previewRivalOrigin(environment) ?? ORIGIN;
   return {
     service, dependencies, snapshot,
     advance: (seconds: number) => { clock += seconds; }, setTime: (time: number) => { clock = time; },
@@ -48,8 +53,8 @@ function fixture(environment: PreviewRivalEnvironment = ENV) {
     prepareWith: (fn: NonNullable<typeof prepareOverride>) => { prepareOverride = fn; },
     verifyWith: (fn: NonNullable<typeof verifyOverride>) => { verifyOverride = fn; },
     counts: () => ({ reads, preparations, verifications }),
-    prepare: (mode: RivalMode = 'simulation', ticket?: string) => service.execute({ ...command(mode), ...(ticket ? { ticket } : {}) }, { origin: ORIGIN }),
-    status: (ticket: string, txHash?: string) => service.execute({ action: 'status', attemptId: ATTEMPT, ticket, ...(txHash ? { txHash } : {}) }, { origin: ORIGIN }),
+    prepare: (mode: RivalMode = 'simulation', ticket?: string) => service.execute({ ...command(mode), ...(ticket ? { ticket } : {}) }, { origin }),
+    status: (ticket: string, txHash?: string) => service.execute({ action: 'status', attemptId: ATTEMPT, ticket, ...(txHash ? { txHash } : {}) }, { origin }),
   };
 }
 
@@ -125,7 +130,7 @@ test('tickets bind attempt, market, mode, deployment origin and sealing key', as
   await assert.rejects(f.service.execute({ action: 'status', attemptId: 'other_attempt_1', ticket }, { origin: ORIGIN }), /invalid or expired/);
   await assert.rejects(f.service.execute({ ...command('simulation', ATTEMPT, OTHER_MARKET), ticket }, { origin: ORIGIN }), /fixed Kevin market and mode/);
   await assert.rejects(f.prepare('somnia', ticket), /fixed Kevin market and mode/);
-  await assert.rejects(f.service.execute({ action: 'status', attemptId: ATTEMPT, ticket }, { origin: 'https://evil.example' }), /preview deployment/);
+  await assert.rejects(f.service.execute({ action: 'status', attemptId: ATTEMPT, ticket }, { origin: 'https://evil.example' }), /game deployment/);
   await assert.rejects(fixture({ ...ENV, JUDGE_REPLAY_SEAL_KEY: 'cd'.repeat(32) }).status(ticket), /invalid or expired/);
   const otherOrigin = 'https://market-dungeon-other-preview.vercel.app';
   const other = createPreviewRival({ ...f.dependencies, environment: { ...ENV, VERCEL_URL: new URL(otherOrigin).host } });
@@ -255,7 +260,7 @@ function request(body: unknown, overrides: Record<string, string> = {}, url = `$
   return new Request(url, { method: 'POST', headers: { 'content-type': 'application/json', origin: ORIGIN, ...overrides }, body: JSON.stringify(body) });
 }
 
-test('HTTP verifies deployment origin without trusting Host or forwarded host, and never enables production', async () => {
+test('HTTP verifies deployment origin without trusting Host or forwarded host, and production stays off without its own flag', async () => {
   const f = fixture(); const handler = createPreviewRivalHandler(f.service);
   const production = createPreviewRivalHandler(fixture({ ...ENV, VERCEL_ENV: 'production' }).service);
   assert.equal((await production(request(command()))).status, 404);
@@ -271,6 +276,94 @@ test('HTTP verifies deployment origin without trusting Host or forwarded host, a
   assert.equal(accepted.status, 200);
   assert.match(accepted.headers.get('cache-control')!, /no-store/);
   assert.ok((await accepted.json()).ticket);
+});
+
+test('production serves only the canonical HTTPS origin with its own flag and a configured server secret', async () => {
+  assert.equal(previewRivalOrigin(PRODUCTION_ENV), PRODUCTION_ORIGIN);
+  assert.equal(previewRivalOrigin({ ...PRODUCTION_ENV, VERCEL_URL: 'untrusted.example' }), PRODUCTION_ORIGIN);
+  assert.equal(previewRivalOrigin({ ...PRODUCTION_ENV, MARKET_DUNGEON_PRODUCTION_AGENTS: undefined }), null);
+  const missingKey = fixture({ ...PRODUCTION_ENV, JUDGE_REPLAY_SEAL_KEY: undefined });
+  await assert.rejects(missingKey.prepare(), (error) => error instanceof RivalError && error.status === 503);
+  assert.equal(missingKey.counts().reads, 0);
+  const f = fixture(PRODUCTION_ENV);
+  const handler = createPreviewRivalHandler(f.service);
+  const canonicalUrl = `${PRODUCTION_ORIGIN}/api/somnia-agents/rival`;
+  for (const req of [
+    request(command()),
+    request(command(), { origin: PRODUCTION_ORIGIN }, `http://market-dungeon.vercel.app/api/somnia-agents/rival`),
+    request(command(), { origin: 'https://evil.example', host: 'market-dungeon.vercel.app' }, canonicalUrl),
+    request(command(), { origin: PRODUCTION_ORIGIN, host: 'evil.example', 'x-forwarded-host': 'market-dungeon.vercel.app' }, canonicalUrl),
+    request(command(), { origin: PRODUCTION_ORIGIN, 'sec-fetch-site': 'cross-site' }, canonicalUrl),
+  ]) assert.equal((await handler(req)).status, 403);
+  assert.equal(f.counts().reads, 0);
+  const accepted = await handler(request(command(), { origin: PRODUCTION_ORIGIN }, canonicalUrl));
+  assert.equal(accepted.status, 200);
+  assert.match(accepted.headers.get('cache-control')!, /private, no-store/);
+  const body = await accepted.json();
+  assert.equal(body.round.mode, 'simulation');
+  assert.equal(body.round.direction, undefined);
+  assert.equal(body.transaction, undefined);
+  assert.match(body.round.reason, /not a Somnia agent response/);
+  f.advance(2);
+  const locked = await f.status(body.ticket);
+  assert.match(locked.round.reason!, /No Somnia request or on-chain proof/);
+  assert.deepEqual(f.counts(), { reads: 1, preparations: 0, verifications: 0 });
+});
+
+test('production and preview tickets remain cryptographically separated even with the same origin and secret', async () => {
+  const production = fixture(PRODUCTION_ENV);
+  const preview = fixture({ ...ENV, VERCEL_URL: new URL(PRODUCTION_ORIGIN).host,
+    JUDGE_REPLAY_SEAL_KEY: PRODUCTION_ENV.JUDGE_REPLAY_SEAL_KEY });
+  const prodTicket = (await production.prepare()).ticket;
+  const previewTicket = (await preview.prepare()).ticket;
+  await assert.rejects(production.status(previewTicket), /invalid or expired/);
+  await assert.rejects(preview.status(prodTicket), /invalid or expired/);
+  await assert.rejects(fixture({ ...PRODUCTION_ENV, JUDGE_REPLAY_SEAL_KEY: 'ef'.repeat(32) }).status(prodTicket), /invalid or expired/);
+  production.advance(2);
+  assert.equal((await createPreviewRival(production.dependencies).execute({ action: 'status', attemptId: ATTEMPT, ticket: prodTicket },
+    { origin: PRODUCTION_ORIGIN })).round.status, 'locked');
+});
+
+test('production real requests require a bound transaction and verified timely consensus without simulated fallback', async () => {
+  const f = fixture(PRODUCTION_ENV);
+  const prepared = await f.prepare('somnia');
+  assert.equal(prepared.round.status, 'awaiting-wallet');
+  assert.equal(prepared.transaction?.chainId, 50312);
+  assert.equal(prepared.round.direction, undefined);
+  assert.equal((await f.status(prepared.ticket)).round.status, 'awaiting-wallet');
+  assert.equal(f.counts().verifications, 0);
+  f.verifyWith(async () => { throw new Error('RPC unavailable'); });
+  const retry = await f.status(prepared.ticket, TX);
+  assert.equal(retry.round.mode, 'somnia');
+  assert.equal(retry.round.status, 'pending');
+  assert.equal(retry.round.direction, undefined);
+  assert.equal(retry.round.txHash, TX);
+  await assert.rejects(f.status(retry.ticket, OTHER_TX), /different transaction/);
+  f.advance(3);
+  f.verifyWith(async (_snapshot, txHash) => ({ status: 'locked', txHash, requestId: '73', direction: 'DOWN', finalizedAt: 5_001, reason: 'Verified consensus.' }));
+  const locked = await f.status(retry.ticket, TX);
+  assert.equal(locked.round.status, 'locked');
+  assert.equal(locked.round.mode, 'somnia');
+  assert.equal(locked.round.direction, 'DOWN');
+  const late = fixture(PRODUCTION_ENV);
+  const lateTicket = (await late.prepare('somnia')).ticket;
+  late.verifyWith(async (_snapshot, txHash) => ({ status: 'locked', txHash, requestId: '74', direction: 'UP', finalizedAt: 5_191, reason: 'Late.' }));
+  assert.equal((await late.status(lateTicket, TX)).round.status, 'unavailable');
+});
+
+test('hosted HTTP rate guard prevents additional upstream work and returns a retry window', async () => {
+  const f = fixture(PRODUCTION_ENV);
+  const handler = createPreviewRivalHandler(f.service, {
+    limitRequest: req => checkRateLimit(req, { namespace: 'kevin-production-unit', limit: 2, windowMs: 60_000 }, 0),
+  });
+  const call = () => handler(request(command(), { origin: PRODUCTION_ORIGIN }, `${PRODUCTION_ORIGIN}/api/somnia-agents/rival`));
+  assert.equal((await call()).status, 200);
+  assert.equal((await call()).status, 200);
+  const limited = await call();
+  assert.equal(limited.status, 429);
+  assert.equal(limited.headers.get('retry-after'), '60');
+  assert.match(limited.headers.get('cache-control')!, /no-store/);
+  assert.equal(f.counts().reads, 2);
 });
 
 test('HTTP bounds streamed and declared body size and rejects non-JSON before market reads', async () => {

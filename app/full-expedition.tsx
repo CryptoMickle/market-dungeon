@@ -72,6 +72,7 @@ import { KevinRivalPanel } from './somnia-agents/rival-panel';
 import { KevinRivalStatus } from './somnia-agents/rival-status';
 import { KevinWalletLoading } from './somnia-agents/wallet-loading';
 import { useAgentsEnvironment } from './local-agents-context';
+import { hostedSomniaAgents, somniaAgentsPlaygroundEnabled } from '../lib/somnia-agents/environment';
 import { compareRival, type RivalOutcome } from '../lib/somnia-agents/types';
 
 const LOOT_ART = [
@@ -129,7 +130,8 @@ function resultMessage(transition: MarketDungeonTransition): string {
 }
 
 export default function FullExpedition({ localAgents = false, autoEnter = false }: { localAgents?: boolean; autoEnter?: boolean }) {
-  const hostedAgents = useAgentsEnvironment() === 'preview';
+  const agentsEnvironment = useAgentsEnvironment();
+  const hostedAgents = hostedSomniaAgents(agentsEnvironment);
   const router = useRouter();
   const { playCharacterIntro, playOutcome } = useGameAudio();
   const rival = useKevinRival(localAgents);
@@ -519,8 +521,8 @@ export default function FullExpedition({ localAgents = false, autoEnter = false 
       <DesktopNavigation />
       <div className={styles.column}>
         {localAgents && !run && <aside className={styles.localAgentsBanner}>
-          <b>{hostedAgents ? 'AGENTS PREVIEW · SOMNIA AGENT KEVIN' : 'LOCAL AGENTS EDITION · SOMNIA AGENT KEVIN'}</b>
-          <Link href="/somnia-agents/playground">TRY THE QUICK RIVAL PLAYGROUND →</Link>
+          <b>{agentsEnvironment === 'production' ? 'SOMNIA AGENT KEVIN · TESTNET RIVAL' : hostedAgents ? 'AGENTS PREVIEW · SOMNIA AGENT KEVIN' : 'LOCAL AGENTS EDITION · SOMNIA AGENT KEVIN'}</b>
+          {somniaAgentsPlaygroundEnabled(agentsEnvironment) && <Link href="/somnia-agents/playground">TRY THE QUICK RIVAL PLAYGROUND →</Link>}
         </aside>}
         {mobileCombat && game && run && <MobileBattle
           room={room}
@@ -757,7 +759,7 @@ export default function FullExpedition({ localAgents = false, autoEnter = false 
 
         <footer className={styles.footer}>
           <span>FULL GAME · DELVEWORN RULES · ACTIVE 5M DREAMDEX SETTLEMENT</span>
-          <p>{localAgents ? `${hostedAgents ? 'Agents preview' : 'Local prototype'} · simulated Kevin is random, no AI · real agent requests use a Shannon testnet wallet and STT` : 'No wallet · no approval · no order · no transaction'}</p>
+          <p>{localAgents ? `${agentsEnvironment === 'production' ? 'Somnia Agent Kevin' : hostedAgents ? 'Agents preview' : 'Local prototype'} · simulated Kevin is random, no AI · real agent requests use a Shannon testnet wallet and STT` : 'No wallet · no approval · no order · no transaction'}</p>
           <nav><a href={dreamDexBtcEventContractUrl(300)} target="_blank" rel="noopener noreferrer">CONTINUE ON DREAMDEX ↗</a><Link href="/credits">PRIVACY · CREDITS</Link></nav>
         </footer>
       </div>
@@ -769,7 +771,7 @@ function RivalScoreboard({ rounds, settlements }: {
   rounds: ReturnType<typeof useKevinRival>['rounds'];
   settlements: FullRunSession['run']['settlements'];
 }) {
-  const hosted = useAgentsEnvironment() === 'preview';
+  const hosted = hostedSomniaAgents(useAgentsEnvironment());
   const scores = { simulation: { player: 0, kevin: 0, tie: 0, void: 0 }, somnia: { player: 0, kevin: 0, tie: 0, void: 0 } };
   for (const settlement of settlements) {
     const round = rounds.find((item) => item.attemptId === settlement.attemptId && item.marketId === settlement.marketId);
