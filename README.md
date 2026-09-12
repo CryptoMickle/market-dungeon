@@ -4,9 +4,9 @@
 
 Market Dungeon is a playable fantasy roguelite built for the Somnia × dreamDEX Event Contracts Hackathon. Pick a Bitcoin prediction, fight through the dungeon, and let the verified Event Contract settlement decide whether the defeated boss stays down.
 
-[Watch the 2:08 demo on YouTube](https://youtu.be/oTSAhrxywbw) · [Choose a mode](https://market-dungeon.vercel.app) · [Play Live Judge](https://market-dungeon.vercel.app/shannon/live-judge) · [Somnia Agent Kevin](https://market-dungeon.vercel.app/somnia-agents) · [DoraHacks](https://dorahacks.io/buidl/48083)
+[Watch the 2:08 demo on YouTube](https://youtu.be/PwvNWq-6JWU) · [Choose a mode](https://market-dungeon.vercel.app) · [Play Live Judge](https://market-dungeon.vercel.app/shannon/live-judge) · [Somnia Agent Kevin](https://market-dungeon.vercel.app/somnia-agents) · [DoraHacks](https://dorahacks.io/buidl/48083)
 
-[![Market Dungeon — Defeat the boss. Predict the market. Survive both.](https://github.com/CryptoMickle/market-dungeon/releases/download/hackathon-submission-2026-v16/Market-Dungeon-YouTube-Thumbnail.png)](https://youtu.be/oTSAhrxywbw)
+[![Market Dungeon — Defeat the boss. Predict the market. Survive both.](https://github.com/CryptoMickle/market-dungeon/releases/download/hackathon-submission-2026-v16/Market-Dungeon-YouTube-Thumbnail.png)](https://youtu.be/PwvNWq-6JWU)
 
 The game reads real dreamDEX markets and Somnia contract state. **Full Expedition and both Judge demos need no wallet or transaction.** The optional **Somnia Agent Kevin** mode adds a prediction rival: its default simulator is wallet-free and clearly marked **NO AI**; choosing a real Somnia Agents request requires an explicit MetaMask connection and approval of a quoted Shannon testnet STT deposit plus gas. The game places no dreamDEX order or redemption.
 
